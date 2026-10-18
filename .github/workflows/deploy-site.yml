@@ -1,0 +1,29 @@
+name: Deploy site
+
+on:
+  release:
+    types: [published]
+  # Run by hand: calls the deploy hook without publishing a release.
+  workflow_dispatch:
+
+# The job only makes an HTTP request to Vercel, so it needs no GitHub token.
+permissions: {}
+
+jobs:
+  deploy:
+    # A draft release doesn't count as _latest_, so publishing is what matters; the manual mode
+    # exists to test the hook.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.release.prerelease == false }}
+    runs-on: ubuntu-latest
+    steps:
+      # The site resolves the release version at build time (everything is static, see
+      # `getLatestVersion`), so a new release only shows up there after this rebuild.
+      - name: Tell Vercel to rebuild the site
+        env:
+          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::error::Set the VERCEL_DEPLOY_HOOK secret (the project's Deploy Hook on Vercel)."
+            exit 1
+          fi
+          curl -fsS -X POST "$HOOK"
