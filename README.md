@@ -25,7 +25,7 @@ Pier replaces your system's taskbar or dock with a single bar that holds your pi
 - **Apps:** Pinned and running apps with magnification, drag-to-reorder, window lists, and dividers.
 - **Media player:** Shows what's playing in Spotify, YouTube Music, and other players, with playback controls.
 - **GitHub widgets:** Pull requests waiting for your review, your open pull requests, recent commits, and your contribution graph.
-- **System widgets:** Network, volume, Bluetooth (with connected devices), battery, clock, system usage (CPU and memory with the last minute of history), and, on Windows, the tray arrow that opens the hidden icons.
+- **System widgets:** Network, volume (with the output device and per-app volume), Bluetooth (with connected devices), battery, clock, system usage (CPU and memory with the last minute of history), and, on Windows, the tray arrow that opens the hidden icons.
 - **Productivity widgets:** Weather, a Pomodoro timer, your next calendar event with a join button for video calls, and your Claude Code usage.
 - **Keyboard shortcuts:** Open or focus the app in position 1 to 9 from anywhere.
 - **Automatic updates:** Pier checks for new versions and installs them in one click.
@@ -65,7 +65,7 @@ Automatic updates work with the Windows installer, the macOS app, and the AppIma
 - **Right-click** an app to see its windows, pin or unpin it, or close it.
 - **Right-click** the dock background to open settings or quit.
 - **Drag** pinned apps to reorder them. To pin an app, drop it on the dock (an `.exe` or shortcut on Windows, an `.app` on macOS, or a `.desktop` file on Linux), or add it in **Settings** > **Apps**.
-- **Click** a widget to open its panel. On the volume widget, scroll to adjust the volume and right-click to mute.
+- **Click** a widget to open its panel. On the volume widget, scroll to adjust the volume and right-click to mute; its panel has the output device and, on Windows and Linux, each app's volume.
 
 | Shortcut | Windows and Linux | macOS |
 | --- | --- | --- |
@@ -163,7 +163,7 @@ When you run `npm run tauri dev` on macOS, the system grants permissions to the 
 Outside Tauri, `npm run dev` answers IPC calls with sample data so you can review the UI in a browser. Open `http://localhost:1420` with one of these query strings:
 
 - `?view=dock`
-- `?view=panel&kind=media` (or `github-mine`, `github-review`, `github-contrib`)
+- `?view=panel&kind=media` (or `github-mine`, `github-review`, `github-contrib`, `volume`)
 - `?view=settings`
 
 ### Tests

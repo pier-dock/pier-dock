@@ -9,6 +9,7 @@ import { Launcher } from "./Launcher";
 import { NowPlaying } from "./NowPlaying";
 import { Pomodoro } from "./Pomodoro";
 import { PullRequests } from "./PullRequests";
+import { SoundPanel } from "./Sound";
 import { SystemUsage } from "./SystemUsage";
 import { Weather } from "./Weather";
 import { useT } from "../i18n";
@@ -40,6 +41,8 @@ function Content({ kind }: { kind: string }) {
       return <BluetoothPanel />;
     case "launcher":
       return <Launcher />;
+    case "volume":
+      return <SoundPanel />;
     default:
       return <div className="popover-empty">{t.popover.unknown}</div>;
   }

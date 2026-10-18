@@ -274,6 +274,28 @@ export interface ReportEnvironment {
 /** "fallback": sem conta conectada (ou a API recusou), a página issues/new preenchida. */
 export type ReportResult = { kind: "created"; url: string } | { kind: "fallback"; url: string; reason: string | null };
 
+export interface OutputDevice {
+  id: string;
+  name: string;
+  default: boolean;
+}
+
+/** Um app tocando áudio; `id` cobre todos os streams dele. */
+export interface AppStream {
+  id: string;
+  name: string;
+  /** Chave para o `getIcon` (caminho do executável). */
+  icon: string | null;
+  level: number;
+  muted: boolean;
+}
+
+export interface AudioState {
+  outputs: OutputDevice[];
+  /** `null` quando o sistema não permite o volume por app (macOS). */
+  apps: AppStream[] | null;
+}
+
 export const ipc = {
   getConfig: () => invoke<Config>("get_config"),
   saveConfig: (config: Config) => invoke<void>("save_config", { config }),
@@ -307,8 +329,11 @@ export const ipc = {
   getVolume: () => invoke<Volume>("get_volume"),
   setVolume: (args: { level?: number; muted?: boolean }) => invoke<void>("set_volume", args),
   openTray: (anchorX: number) => invoke<void>("open_tray", { anchorX }),
-  openShell: (kind: "start" | "quick-settings" | "notifications" | "system-monitor" | "calendar" | "bluetooth") =>
+  openShell: (kind: "start" | "quick-settings" | "notifications" | "system-monitor" | "calendar" | "bluetooth" | "sound") =>
     invoke<void>("open_shell", { kind }),
+  audioStatus: () => invoke<AudioState>("audio_status"),
+  setOutputDevice: (id: string) => invoke<void>("set_output_device", { id }),
+  setAppVolume: (id: string, patch: { level?: number; muted?: boolean }) => invoke<void>("set_app_volume", { id, ...patch }),
 
   githubFetch: () => invoke<GithubData>("github_fetch"),
   githubCached: () => invoke<GithubData | null>("github_cached"),

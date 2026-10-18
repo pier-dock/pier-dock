@@ -62,7 +62,6 @@ export function VolumeWidget() {
       kind="volume"
       label={label}
       className="sys-tile"
-      onClick={() => ipc.openShell("quick-settings")}
       onContextMenu={(e) => {
         e.preventDefault();
         if (volume) setVolume({ muted: !volume.muted });

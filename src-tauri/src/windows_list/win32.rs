@@ -68,7 +68,7 @@ fn window_pid(h: HWND) -> u32 {
     pid
 }
 
-fn process_path(pid: u32) -> String {
+pub(crate) fn process_path(pid: u32) -> String {
     unsafe {
         let Ok(handle) = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) else { return String::new() };
         let mut buf = [0u16; 1024];

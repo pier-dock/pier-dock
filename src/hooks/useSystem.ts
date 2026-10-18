@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ipc, type BluetoothState, type SystemStatus, type Volume } from "../lib/ipc";
+import { ipc, type AppStream, type AudioState, type BluetoothState, type SystemStatus, type Volume } from "../lib/ipc";
 
 export function useSystemStatus(): SystemStatus | null {
   const [status, setStatus] = useState<SystemStatus | null>(null);
@@ -25,6 +25,29 @@ export function useVolume(): [Volume | null, (patch: Partial<Volume>) => void] {
     ipc.setVolume(patch).catch(() => {});
   }, []);
   return [volume, update];
+}
+
+/** Saídas e apps do popover de volume, com atualização otimista. */
+export function useAudio(intervalMs = 1_500) {
+  const [state, setState] = useState<AudioState | null>(null);
+  const refresh = useCallback(() => ipc.audioStatus().then(setState).catch(() => {}), []);
+  useEffect(() => {
+    refresh();
+    const id = setInterval(refresh, intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs, refresh]);
+  const setOutput = useCallback(
+    (id: string) => {
+      setState((s) => s && { ...s, outputs: s.outputs.map((o) => ({ ...o, default: o.id === id })) });
+      ipc.setOutputDevice(id).catch(console.error).finally(refresh);
+    },
+    [refresh],
+  );
+  const setApp = useCallback((id: string, patch: Partial<Pick<AppStream, "level" | "muted">>) => {
+    setState((s) => (s?.apps ? { ...s, apps: s.apps.map((a) => (a.id === id ? { ...a, ...patch } : a)) } : s));
+    ipc.setAppVolume(id, patch).catch(console.error);
+  }, []);
+  return { audio: state, setOutput, setApp };
 }
 
 /** Só consulta com `enabled`: no macOS a primeira leitura pede a permissão de Bluetooth. */

@@ -171,6 +171,13 @@ fn open_bluetooth_settings() {
         .or_else(|_| spawn_detached("cinnamon-settings", &["bluetooth"]));
 }
 
+fn open_sound_settings() {
+    let _ = spawn_detached("gnome-control-center", &["sound"])
+        .or_else(|_| spawn_detached("systemsettings", &["kcm_pulseaudio"]))
+        .or_else(|_| spawn_detached("pavucontrol", &[]))
+        .or_else(|_| spawn_detached("cinnamon-settings", &["sound"]));
+}
+
 /// Grade de apps, menu de configurações rápidas e calendário/notificações do GNOME. Sem a
 /// extensão, o menu de apps abre pela tecla Super (Cinnamon, MATE e Xfce, sessões X11) e as
 /// configurações pelo app de Configurações. O Monitor do Sistema e o Agenda do GNOME são apps
@@ -189,6 +196,7 @@ pub fn open_shell(kind: &str) {
         (_, "system-monitor") => drop(spawn_detached("gnome-system-monitor", &[])),
         (_, "calendar") => drop(spawn_detached("gnome-calendar", &[])),
         (_, "bluetooth") => open_bluetooth_settings(),
+        (_, "sound") => open_sound_settings(),
         _ => {}
     }
 }

@@ -25,7 +25,7 @@ O Pier substitui a barra de tarefas ou a dock do sistema por uma barra única co
 - **Apps:** apps fixados e abertos, com ampliação, reordenação por arrastar, lista de janelas e separadores.
 - **Player de mídia:** mostra o que está tocando no Spotify, no YouTube Music e em outros players, com os controles de reprodução.
 - **Widgets do GitHub:** pull requests aguardando a sua revisão, os seus pull requests abertos, commits recentes e o gráfico de contribuições.
-- **Widgets do sistema:** rede, volume, Bluetooth (com os dispositivos conectados), bateria, relógio, uso do sistema (CPU e memória com o histórico do último minuto) e, no Windows, a seta da bandeja que abre os ícones ocultos.
+- **Widgets do sistema:** rede, volume (com a saída de áudio e o volume por app), Bluetooth (com os dispositivos conectados), bateria, relógio, uso do sistema (CPU e memória com o histórico do último minuto) e, no Windows, a seta da bandeja que abre os ícones ocultos.
 - **Widgets de produtividade:** clima, timer Pomodoro e o próximo compromisso da agenda, com botão para entrar na videochamada.
 - **Atalhos de teclado:** abra ou foque o app da posição 1 a 9 de qualquer lugar.
 - **Atualização automática:** o Pier procura versões novas e as instala com um clique.
@@ -62,7 +62,7 @@ A atualização automática funciona com o instalador do Windows, com o app do m
 - **Clique com o botão direito** num app para ver as janelas dele, fixá-lo, desafixá-lo ou fechá-lo.
 - **Clique com o botão direito** no fundo da dock para abrir as configurações ou sair.
 - **Arraste** os apps fixados para reordená-los. Para fixar um app, solte-o na dock (um `.exe` ou atalho no Windows, um `.app` no macOS ou um arquivo `.desktop` no Linux), ou adicione-o em **Configurações** > **Apps**.
-- **Clique** num widget para abrir o painel dele. No widget de volume, use a roda do mouse para ajustar e o botão direito para silenciar.
+- **Clique** num widget para abrir o painel dele. No widget de volume, use a roda do mouse para ajustar e o botão direito para silenciar; o painel dele tem a saída de áudio e, no Windows e no Linux, o volume de cada app.
 
 | Atalho | Windows e Linux | macOS |
 | --- | --- | --- |
@@ -151,7 +151,7 @@ Quando você roda `npm run tauri dev` no macOS, o sistema concede as permissões
 Fora do Tauri, o `npm run dev` responde as chamadas de IPC com dados de exemplo, para você conferir a interface no navegador. Abra `http://localhost:1420` com um destes parâmetros:
 
 - `?view=dock`
-- `?view=panel&kind=media` (ou `github-mine`, `github-review`, `github-contrib`)
+- `?view=panel&kind=media` (ou `github-mine`, `github-review`, `github-contrib`, `volume`)
 - `?view=settings`
 
 ### Testes

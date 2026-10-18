@@ -154,7 +154,7 @@ pub async fn open_tray(app: tauri::AppHandle, anchor_x: f64) -> Result<(), Strin
 }
 
 /// Abre os menus e apps nativos: `start`, `quick-settings`, `notifications`, `system-monitor`,
-/// `calendar` e `bluetooth` (as configurações de Bluetooth).
+/// `calendar`, `bluetooth` e `sound` (as configurações de Bluetooth e de som).
 #[tauri::command]
 pub fn open_shell(kind: String) {
     backend::open_shell(&kind);

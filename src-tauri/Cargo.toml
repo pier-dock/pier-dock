@@ -53,15 +53,19 @@ objc2-core-wlan = "0.3"
 objc2-io-bluetooth = "0.3"
 objc2-quartz-core = "0.3"
 block2 = "0.6"
+objc2-core-audio = "0.3"
 
 [target.'cfg(windows)'.dependencies]
 keyring = { version = "3", features = ["windows-native"] }
+# O `#[interface]` do windows-rs gera código que referencia `::windows_core`.
+windows-core = "0.58"
 
 [target.'cfg(windows)'.dependencies.windows]
 version = "0.58"
 features = [
   "Devices_Bluetooth",
   "Devices_Enumeration",
+  "Win32_Devices_FunctionDiscovery",
   "Devices_Radios",
   "Foundation",
   "Foundation_Collections",

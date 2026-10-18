@@ -271,6 +271,16 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
     network: { connected: true, internet: true, wifi: true, signalBars: 4, name: "Casa" },
   }),
   get_volume: () => ({ level: 0.6, muted: false }),
+  audio_status: () => ({
+    outputs: [
+      { id: "speakers", name: "MacBook Air Speakers", default: true },
+      { id: "headphones", name: "WH-1000XM4", default: false },
+    ],
+    apps: [
+      { id: "1", name: "Spotify", icon: null, level: 0.8, muted: false },
+      { id: "2", name: "Firefox", icon: null, level: 0.45, muted: true },
+    ],
+  }),
   bluetooth_status: () => bluetooth,
   set_bluetooth: (args) => {
     bluetooth = { ...bluetooth, powered: Boolean(args.powered) };

@@ -16,6 +16,8 @@ mod backend;
 
 #[cfg(not(windows))]
 pub use backend::app_has_focus;
+#[cfg(windows)]
+pub(crate) use backend::process_path;
 
 #[derive(Serialize, Clone, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]

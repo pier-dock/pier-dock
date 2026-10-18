@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod apps;
+mod audio;
 mod backdrop;
 mod calendar;
 mod claude;
@@ -193,6 +194,9 @@ fn main() {
             system::open_tray,
             system::bluetooth_status,
             system::set_bluetooth,
+            audio::audio_status,
+            audio::set_output_device,
+            audio::set_app_volume,
             github::github_fetch,
             github::github_cached,
             github::github_auth_status,
