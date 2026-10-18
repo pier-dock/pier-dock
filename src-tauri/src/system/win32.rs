@@ -241,9 +241,15 @@ fn click_tray_chevron() -> windows::core::Result<()> {
 fn show_tray_overflow() -> Option<HWND> {
     // Logo depois de a taskbar reaparecer a árvore de UI Automation ainda está vazia; a seta surge
     // em poucos milissegundos.
+    let start = Instant::now();
     if let Some(chevron) = poll(Duration::from_millis(300), || find_tray_chevron().ok()) {
-        invoke(&chevron).ok()?;
+        eprintln!("[tray] seta encontrada em {:?}", start.elapsed());
+        if let Err(e) = invoke(&chevron) {
+            eprintln!("[tray] invoke falhou: {e}");
+            return None;
+        }
         let overflow = poll(Duration::from_secs(1), tray_overflow);
+        eprintln!("[tray] gaveta {} em {:?}", if overflow.is_some() { "apareceu" } else { "não apareceu" }, start.elapsed());
         if overflow.is_none() {
             // Sem ícones ocultos o Windows tira a seta, e o botão encontrado é o indicador de
             // idioma: o segundo clique fecha o que ele abriu.
@@ -251,7 +257,11 @@ fn show_tray_overflow() -> Option<HWND> {
         }
         return overflow;
     }
-    click_tray_chevron_win10().ok()?;
+    eprintln!("[tray] seta não encontrada em {:?}, tentando o caminho do Windows 10", start.elapsed());
+    if let Err(e) = click_tray_chevron_win10() {
+        eprintln!("[tray] caminho do Windows 10 falhou: {e}");
+        return None;
+    }
     poll(Duration::from_secs(1), tray_overflow)
 }
 
@@ -271,12 +281,16 @@ pub fn open_tray(anchor_x: i32, bottom: i32) -> Result<(), String> {
     // deve reabri-la.
     let just_closed = TRAY_CLOSED_AT.lock().unwrap().is_some_and(|t| t.elapsed() < Duration::from_millis(400));
     if just_closed {
+        eprintln!("[tray] ignorado: gaveta acabou de fechar");
         return Ok(());
     }
     if tray_overflow().is_some() {
-        let _ = with_taskbar(click_tray_chevron);
+        eprintln!("[tray] gaveta já aberta, fechando");
+        let result = with_taskbar(click_tray_chevron);
+        eprintln!("[tray] fechar: {result:?}");
         return Ok(());
     }
+    eprintln!("[tray] abrindo");
     let overflow = with_taskbar(show_tray_overflow).ok_or("não foi possível abrir a bandeja")?;
     unsafe {
         let mut rect = RECT::default();
@@ -293,6 +307,7 @@ pub fn open_tray(anchor_x: i32, bottom: i32) -> Result<(), String> {
             std::thread::sleep(Duration::from_millis(50));
         }
         *TRAY_CLOSED_AT.lock().unwrap() = Some(Instant::now());
+        eprintln!("[tray] gaveta fechou");
     });
     Ok(())
 }
