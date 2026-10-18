@@ -28,6 +28,9 @@ export function PlatformNotice({ platform, refresh }: { platform: PlatformInfo |
     case "needs-relogin":
       text = t.needsRelogin;
       break;
+    case "x11-only":
+      text = t.x11Only;
+      break;
     case "needs-accessibility":
       text = t.needsAccessibility;
       action = { label: t.grant, run: () => run("request-accessibility") };

@@ -124,6 +124,14 @@ pub fn close_if_outside(app: &AppHandle, x: i32, y: i32) {
     }
 }
 
+/// O painel não costuma receber o teclado (no macOS o app nunca fica ativo, no Windows o clique
+/// vai para o processo do WebView2). Chamado antes de digitar, como na senha do Wi-Fi: o
+/// `set_focus` do tao ativa o app no macOS e força o primeiro plano no Windows.
+#[tauri::command]
+pub fn focus_panel(window: WebviewWindow) {
+    let _ = window.set_focus();
+}
+
 #[tauri::command]
 pub fn close_panel(app: AppHandle) {
     close_open_panel(&app);

@@ -5,7 +5,7 @@
 <h1 align="center">Pier</h1>
 
 <p align="center">
-  Uma dock personalizável para Windows, macOS e Linux (GNOME).
+  Uma dock personalizável para Windows, macOS e Linux (GNOME e KDE Plasma).
 </p>
 
 <p align="center">
@@ -25,8 +25,8 @@ O Pier substitui a barra de tarefas ou a dock do sistema por uma barra única co
 - **Apps:** apps fixados e abertos, com ampliação, reordenação por arrastar, lista de janelas e separadores.
 - **Player de mídia:** mostra o que está tocando no Spotify, no YouTube Music e em outros players, com os controles de reprodução.
 - **Widgets do GitHub:** pull requests aguardando a sua revisão, os seus pull requests abertos, commits recentes e o gráfico de contribuições.
-- **Widgets do sistema:** rede, volume, Bluetooth (com os dispositivos conectados), bateria, relógio, mostrar a área de trabalho (minimiza todas as janelas com um clique), uso do sistema (CPU e memória com o histórico do último minuto) e, no Windows, a seta da bandeja que abre os ícones ocultos.
-- **Widgets de produtividade:** clima, timer Pomodoro e o próximo compromisso da agenda, com botão para entrar na videochamada.
+- **Widgets do sistema:** rede (com as redes Wi-Fi por perto), volume (com a saída de áudio e o volume por app), Bluetooth (com os dispositivos conectados), bateria, relógio, mostrar a área de trabalho (minimiza todas as janelas com um clique), uso do sistema (CPU e memória com o histórico do último minuto) e, no Windows, a seta da bandeja que abre os ícones ocultos.
+- **Widgets de produtividade:** clima, timer Pomodoro, o próximo compromisso da agenda, com botão para entrar na videochamada, e o uso das suas IAs de linha de comando.
 - **Atalhos de teclado:** abra ou foque o app da posição 1 a 9 de qualquer lugar.
 - **Atualização automática:** o Pier procura versões novas e as instala com um clique.
 - **Português e inglês:** a interface segue o idioma do sistema. Para trocar, vá em **Configurações** > **Geral** > **Idioma**.
@@ -39,7 +39,7 @@ Baixe o instalador da sua plataforma na [versão mais recente](https://github.co
 | --- | --- | --- |
 | Windows 10 e 11 | `Pier_x.y.z_x64-setup.exe` | Instala em `%LOCALAPPDATA%\Pier`, sem pedir administrador. |
 | macOS 12 ou mais recente | `Pier_x.y.z_universal.dmg` | Roda nativamente em Macs com Apple Silicon e Intel. |
-| Linux (GNOME 45 a 49) | `Pier_x.y.z_amd64.deb` ou `Pier_x.y.z_amd64.AppImage` | Instale o `.deb` com `sudo apt install ./Pier_x.y.z_amd64.deb`, ou torne o AppImage executável com `chmod +x` e rode-o. |
+| Linux (GNOME 45 a 49, KDE Plasma 6) | `Pier_x.y.z_amd64.deb` ou `Pier_x.y.z_amd64.AppImage` | Instale o `.deb` com `sudo apt install ./Pier_x.y.z_amd64.deb`, ou torne o AppImage executável com `chmod +x` e rode-o. No KDE Plasma não é preciso mais nada; no GNOME, instale a extensão pelas configurações do Pier. |
 
 ### Primeira abertura
 
@@ -47,7 +47,7 @@ Os instaladores ainda não têm assinatura de código, então o sistema avisa na
 
 - **Windows:** quando o SmartScreen aparecer, clique em **Mais informações** e depois em **Executar assim mesmo**.
 - **macOS:** arraste o Pier para **Aplicativos** e abra. Quando o macOS disser que não pôde verificar o app, vá em **Ajustes do Sistema** > **Privacidade e Segurança** e clique em **Abrir Mesmo Assim**. Se preferir, rode `xattr -dr com.apple.quarantine /Applications/Pier.app` no Terminal.
-- **Linux:** no GNOME, abra as configurações do Pier, clique em **Instalar extensão** e depois encerre a sessão e entre de novo. A extensão permite que o Pier veja e foque janelas, reserve espaço na tela, esconda o Dash, mostre a área de trabalho e registre os atalhos.
+- **Linux:** no GNOME, abra as configurações do Pier, clique em **Instalar extensão** e depois encerre a sessão e entre de novo. A extensão permite que o Pier veja e foque janelas, reserve espaço na tela, esconda o Dash, mostre a área de trabalho e registre os atalhos. No KDE Plasma não há nada para instalar: numa sessão X11 a dock lista as janelas, reserva o espaço na tela e aplica o blur do KWin.
 
 ### Atualizações
 
@@ -62,7 +62,7 @@ A atualização automática funciona com o instalador do Windows, com o app do m
 - **Clique com o botão direito** num app para ver as janelas dele, fixá-lo, desafixá-lo ou fechá-lo.
 - **Clique com o botão direito** no fundo da dock para abrir as configurações ou sair.
 - **Arraste** os apps fixados para reordená-los. Para fixar um app, solte-o na dock (um `.exe` ou atalho no Windows, um `.app` no macOS ou um arquivo `.desktop` no Linux), ou adicione-o em **Configurações** > **Apps**.
-- **Clique** num widget para abrir o painel dele. No widget de volume, use a roda do mouse para ajustar e o botão direito para silenciar.
+- **Clique** num widget para abrir o painel dele. No widget de volume, use a roda do mouse para ajustar e o botão direito para silenciar; o painel dele tem a saída de áudio e, no Windows e no Linux, o volume de cada app.
 
 | Atalho | Windows e Linux | macOS |
 | --- | --- | --- |
@@ -76,6 +76,17 @@ O Pier usa automaticamente o login do [GitHub CLI](https://cli.github.com) (`gh 
 
 - **Clima:** escolha a cidade em **Configurações** > **Widgets** > **Clima**. A previsão vem do [Open-Meteo](https://open-meteo.com) e não precisa de chave de API.
 - **Agenda:** cole o endereço secreto iCal da sua agenda em **Configurações** > **Widgets** > **Agenda**. O Google Agenda, o Outlook e o iCloud publicam esse endereço. O Pier guarda o endereço no chaveiro do sistema.
+
+### Widget de uso de IA
+
+Um anel mostra quanto do limite da sua IA de linha de comando já foi usado — a mais apertada das duas janelas do Claude Code (a sessão de 5h e a semana) ou a janela do plano no Codex CLI — e o painel detalha cada uma com o tempo até o reset, mais os tokens do dia.
+
+Ele lê o Claude Code e o Codex CLI, e **Configurações** > **Widgets** > **Uso de IA** escolhe qual delas: **Automática** (o padrão) usa a IA cuja leitura de limites é a mais recente; sem leitura em nenhuma, a que gastou tokens hoje. Não há nada para configurar e nada sai para a rede — o Pier lê arquivos que os próprios CLIs mantêm em disco:
+
+- **Claude Code:** `~/.claude.json`, campo `cachedUsageUtilization`, para os percentuais de limite. É a mesma fonte do comando `/usage`, então os números batem com o terminal. Os tokens vêm de `~/.claude/projects/**/*.jsonl`, os transcripts das sessões.
+- **Codex CLI:** `~/.codex/sessions/**/rollout-*.jsonl`. A linha `rate_limits` é a mesma fonte do comando `/status`, com as janelas `primary` e `secondary` do plano, e os tokens vêm do `last_token_usage` de cada turno.
+
+Só os campos numéricos de `usage`, o nome do modelo e o timestamp são lidos — nunca o conteúdo das conversas, os comandos executados ou os diffs. Os CLIs só renovam os percentuais enquanto estão abertos, então com eles fechados o número congela: o widget esmaece e diz há quanto tempo foi a leitura em vez de passar um valor velho por atual.
 
 ## Particularidades de cada plataforma
 
@@ -93,12 +104,14 @@ O macOS tem algumas limitações em relação ao Windows:
 - Os apps não podem reservar espaço na tela, então janelas maximizadas passam por baixo da dock. Para evitar isso, ative **Ocultar automaticamente** em **Configurações** > **Aparência**.
 - O Dock nativo não pode ser removido. O Pier o deixa em ocultar automaticamente com um atraso muito longo para reaparecer e devolve as suas preferências originais ao sair.
 - O widget de mídia só funciona com o Spotify e o Música.
-- O widget de Wi-Fi só mostra o nome da rede se o Pier tiver permissão de Localização.
+- O widget de Wi-Fi só mostra o nome da rede e as redes por perto se o Pier tiver permissão de Localização. O painel dele pede a permissão.
 - O widget de Bluetooth pede a permissão de Bluetooth na primeira vez, não liga nem desliga o Bluetooth (o macOS não permite) e não mostra a bateria dos dispositivos.
 
 ### Linux
 
-O Pier tem suporte completo ao GNOME 45 a 49, em Wayland e X11, pela extensão do GNOME Shell. Em outros ambientes de desktop, o Pier só lista janelas em sessões X11 e não consegue esconder o painel nativo. Apps fixados e widgets funcionam em todos.
+O Pier tem suporte completo ao GNOME 45 a 49, em Wayland e X11, pela extensão do GNOME Shell. No KDE Plasma 6 a dock não precisa de extensão: numa sessão X11 ela lista as janelas, reserva o espaço na tela e desenha o vidro com o blur do KWin, e no Wayland lista as janelas dos apps X11 (as janelas dos apps nativos do Wayland ainda não aparecem). Em outros ambientes de desktop, o Pier só lista janelas em sessões X11 e não consegue esconder o painel nativo. Apps fixados e widgets funcionam em todos.
+
+Rodando como AppImage, o Pier cadastra a própria entrada de menu e os ícones em `~/.local/share` na primeira execução, então a dock aparece no menu de aplicativos sem nenhum ajuste manual.
 
 ## Configuração
 
@@ -149,7 +162,7 @@ Quando você roda `npm run tauri dev` no macOS, o sistema concede as permissões
 Fora do Tauri, o `npm run dev` responde as chamadas de IPC com dados de exemplo, para você conferir a interface no navegador. Abra `http://localhost:1420` com um destes parâmetros:
 
 - `?view=dock`
-- `?view=panel&kind=media` (ou `github-mine`, `github-review`, `github-contrib`)
+- `?view=panel&kind=media` (ou `github-mine`, `github-review`, `github-contrib`, `volume`, `network`)
 - `?view=settings`
 
 ### Testes

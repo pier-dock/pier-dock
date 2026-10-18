@@ -138,6 +138,8 @@ pub fn open_shell(kind: &str) {
         "system-monitor" => drop(spawn_detached("/usr/bin/open", &["-b", "com.apple.ActivityMonitor"])),
         "calendar" => drop(spawn_detached("/usr/bin/open", &["-b", "com.apple.iCal"])),
         "bluetooth" => drop(spawn_detached("/usr/bin/open", &["x-apple.systempreferences:com.apple.BluetoothSettings"])),
+        "sound" => drop(spawn_detached("/usr/bin/open", &["x-apple.systempreferences:com.apple.Sound-Settings.extension"])),
+        "network" => drop(spawn_detached("/usr/bin/open", &["x-apple.systempreferences:com.apple.wifi-settings-extension"])),
         _ => {}
     }
 }

@@ -141,3 +141,12 @@ fn kwin_toggle_desktop() -> Result<(), String> {
     let showing: bool = kwin.get_property("showingDesktop").map_err(|e| e.to_string())?;
     kwin.call_method("showDesktop", &(!showing,)).map(|_| ()).map_err(|e| e.to_string())
 }
+
+/// Prévia de uma janela. Só vale quando a lista vem do X11, aí o id é um XID de verdade; com a
+/// extensão do GNOME os ids são do Shell e capturar por eles pegaria outra janela.
+pub fn thumbnail(id: i64) -> Option<Vec<u8>> {
+    if gnome_shell::list_windows().is_some() {
+        return None;
+    }
+    super::png_thumbnail(x11_session()?.thumbnail(id as u32)?)
+}

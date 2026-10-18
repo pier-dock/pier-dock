@@ -10,11 +10,26 @@ const base = {
   pinnedApps: [app("finder"), app("safari")],
   widgets: [widget("media"), widget("clock"), widget("battery", false)],
   showStartButton: true,
+  showLauncher: false,
 };
 
 test("config antiga vira os grupos do botão de apps, apps, mídia e sistema, com separadores", () => {
   assert.deepEqual(resolveOrder(base), [
     "start",
+    "divider:apps",
+    "app:finder",
+    "app:safari",
+    "divider:media",
+    "widget:media",
+    "divider:system",
+    "widget:clock",
+  ]);
+});
+
+test("o lançador de apps entra logo depois do botão de apps", () => {
+  assert.deepEqual(resolveOrder({ ...base, showLauncher: true }), [
+    "start",
+    "launcher",
     "divider:apps",
     "app:finder",
     "app:safari",
@@ -70,6 +85,9 @@ test("removeItem desafixa, desliga, esconde ou apaga conforme o item", () => {
   assert.deepEqual(removeItem(config, "app:finder").pinnedApps?.map((p) => p.id), ["safari"]);
   assert.equal(removeItem(config, "widget:media").widgets?.find((w) => w.kind === "media")?.enabled, false);
   assert.equal(removeItem(config, "start").showStartButton, false);
+  const withoutLauncher = removeItem({ ...config, showLauncher: true }, "launcher");
+  assert.equal(withoutLauncher.showLauncher, false);
+  assert.ok(!withoutLauncher.dockOrder!.includes("launcher"));
   assert.deepEqual(removeItem(config, "divider:a").dockOrder, ["start", "app:finder", "widget:media", "app:safari", "widget:clock"]);
 });
 

@@ -1,0 +1,27 @@
+name: Bug report
+description: Something in Pier isn't working as expected.
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened, what you expected instead, and the steps to make it happen again.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Pier version, OS and version, and on Linux the desktop, compositor and session (X11 or Wayland). Settings › General › Report a problem fills this in.
+      placeholder: |
+        - Pier: 0.6.1
+        - OS: Windows 11 Pro 25H2 (x86_64)
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Recent lines from Pier's log. Check them first, since they can contain paths and window titles.
+      render: shell

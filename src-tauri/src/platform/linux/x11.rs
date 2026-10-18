@@ -5,8 +5,8 @@ use std::sync::OnceLock;
 
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{
-    AtomEnum, ChangeWindowAttributesAux, ClientMessageEvent, ConfigureWindowAux, ConnectionExt as _, EventMask, Keycode, Keysym,
-    PropMode, Window, KEY_PRESS_EVENT, KEY_RELEASE_EVENT,
+    AtomEnum, ChangeWindowAttributesAux, ClientMessageEvent, ConfigureWindowAux, ConnectionExt as _, EventMask, ImageFormat, ImageOrder,
+    Keycode, Keysym, PropMode, Visualtype, Window, KEY_PRESS_EVENT, KEY_RELEASE_EVENT,
 };
 use x11rb::protocol::xtest::ConnectionExt as _;
 use x11rb::protocol::Event;
@@ -238,6 +238,106 @@ impl X11 {
         }
         let _ = self.conn.flush();
     }
+
+    /// Conteúdo atual da janela como RGBA, para as prévias da dock.
+    ///
+    /// `XGetImage` na própria janela devolve o que o servidor X guarda dela — o mesmo caminho do
+    /// `xwd` — e continua valendo com um compositor na frente, já que no X11 puro não há outra
+    /// forma de ler os pixels de outro processo (o pixmap do `Composite` é do compositor).
+    pub fn thumbnail(&self, window: Window) -> Option<image::RgbaImage> {
+        if self.is_minimized(window) {
+            return None;
+        }
+        let geom = self.conn.get_geometry(window).ok()?.reply().ok()?;
+        let (width, height) = (usize::from(geom.width), usize::from(geom.height));
+        // Janelas de utilidade (1x1, 8x8) não viram prévia.
+        if width < 48 || height < 48 {
+            return None;
+        }
+        let setup = self.conn.setup();
+        let format = setup.pixmap_formats.iter().find(|f| f.depth == geom.depth)?;
+        let bytes_per_pixel = usize::from(format.bits_per_pixel).div_ceil(8);
+        let scanline = usize::from(setup.bitmap_format_scanline_pad).max(8) / 8;
+        let stride = (width * bytes_per_pixel).div_ceil(scanline) * scanline;
+        let lsb = setup.image_byte_order == ImageOrder::LSB_FIRST;
+        // As máscaras dos canais vêm do visual da janela: o formato do pixmap só diz o passo.
+        let attrs = self.conn.get_window_attributes(window).ok()?.reply().ok()?;
+        let (red_mask, green_mask, blue_mask) = {
+            let visual = self.visual(attrs.visual)?;
+            (visual.red_mask, visual.green_mask, visual.blue_mask)
+        };
+
+        let mut pixels = Vec::with_capacity(width * height * 4);
+        let mut opaque = true;
+        // Em faixas: uma resposta única de uma janela 4K passaria do tamanho máximo que o servidor
+        // aceita devolver de uma vez.
+        let band = (1 << 16) / width.max(1) + 1;
+        let mut y = 0usize;
+        while y < height {
+            let rows = band.min(height - y);
+            let reply = self
+                .conn
+                .get_image(ImageFormat::Z_PIXMAP, window, 0, y as i16, geom.width, rows as u16, !0)
+                .ok()?
+                .reply()
+                .ok()?;
+            for row in 0..rows {
+                let start = row * stride;
+                let line = reply.data.get(start..start + width * bytes_per_pixel)?;
+                for px in line.chunks_exact(bytes_per_pixel) {
+                    let value = pixel_value(px, lsb);
+                    let alpha = if geom.depth == 32 { ((value >> 24) & 0xff) as u8 } else { 255 };
+                    opaque &= alpha != 0;
+                    pixels.extend_from_slice(&[
+                        channel(value, red_mask),
+                        channel(value, green_mask),
+                        channel(value, blue_mask),
+                        alpha,
+                    ]);
+                }
+            }
+            y += rows;
+        }
+        // Visual de 32 bits sem alfa nenhum no conteúdo: sem isto a prévia sairia vazia.
+        if !opaque {
+            for alpha in pixels.iter_mut().skip(3).step_by(4) {
+                *alpha = 255;
+            }
+        }
+        image::RgbaImage::from_raw(geom.width.into(), geom.height.into(), pixels)
+    }
+
+    /// Visual de uma janela pelo id, dentro do screen que a dock usa.
+    fn visual(&self, id: u32) -> Option<&Visualtype> {
+        let setup = self.conn.setup();
+        let screen = setup.roots.iter().find(|root| root.root == self.root)?;
+        screen.allowed_depths.iter().flat_map(|depth| depth.visuals.iter()).find(|v| v.visual_id == id)
+    }
+}
+
+/// Valor do pixel na ordem de bytes do servidor (LSBFirst guarda o canal azul primeiro).
+fn pixel_value(bytes: &[u8], lsb: bool) -> u32 {
+    let mut value = 0u32;
+    if lsb {
+        for (i, byte) in bytes.iter().enumerate() {
+            value |= u32::from(*byte) << (8 * i);
+        }
+    } else {
+        for byte in bytes {
+            value = (value << 8) | u32::from(*byte);
+        }
+    }
+    value
+}
+
+/// Canal de 0 a 255 a partir da máscara do formato (visual verdadeiro costuma ser 5-6-5).
+fn channel(value: u32, mask: u32) -> u8 {
+    if mask == 0 {
+        return 0;
+    }
+    let shift = mask.trailing_zeros();
+    let max = mask >> shift;
+    (((value & mask) >> shift) * 255 / max) as u8
 }
 
 /// Keycode de `keysym` no mapa do teclado, que traz `per_keycode` keysyms para cada keycode a partir

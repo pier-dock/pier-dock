@@ -89,13 +89,19 @@ pub struct Config {
     pub auto_hide: String,
     /// "fit" (barra do tamanho do conteúdo, centralizada) ou "full" (ponta a ponta, como um painel).
     pub dock_width: String,
+    /// Altura da barra em pixels; `None` acompanha o tamanho do ícone (`iconSize + 24`).
+    pub dock_height: Option<u32>,
     pub github_poll_minutes: u32,
-    /// De quantos em quantos minutos o uso do Claude Code é relido do disco.
-    pub claude_poll_minutes: u32,
+    /// De quantos em quantos minutos o uso das IAs de linha de comando é relido do disco.
+    pub ai_poll_minutes: u32,
+    /// Qual IA o widget de uso lê: "auto" (a de leitura mais recente), "claude" ou "codex".
+    pub ai_provider: String,
     /// Ordem dos itens na dock: `start`, `app:<id>`, `widget:<kind>` e `divider:<id>`. Vazia em
     /// configs antigas; o frontend completa e limpa a lista.
     pub dock_order: Vec<String>,
     pub show_start_button: bool,
+    /// Botão do lançador de apps do próprio Pier (a lista de todos os instalados).
+    pub show_launcher: bool,
     pub weather_location: Option<WeatherLocation>,
     pub pomodoro: PomodoroConfig,
     /// Idioma da interface: "system", "pt" ou "en".
@@ -158,7 +164,7 @@ impl Default for Config {
                 disabled("pomodoro", "wide"),
                 disabled("system-usage", "wide"),
                 disabled("calendar", "wide"),
-                disabled("claude-usage", "small"),
+                disabled("ai-usage", "small"),
                 disabled("show-desktop", "small"),
             ],
             material: "glass".into(),
@@ -170,10 +176,13 @@ impl Default for Config {
             hide_taskbar: true,
             auto_hide: "smart".into(),
             dock_width: "fit".into(),
+            dock_height: None,
             github_poll_minutes: 3,
-            claude_poll_minutes: 1,
+            ai_poll_minutes: 1,
+            ai_provider: "auto".into(),
             dock_order: Vec::new(),
             show_start_button: true,
+            show_launcher: false,
             weather_location: None,
             pomodoro: PomodoroConfig::default(),
             language: "system".into(),
@@ -208,22 +217,49 @@ fn add_missing_widgets(mut config: Config) -> Config {
     config
 }
 
-/// Os temas antigos viram material + cor de destaque: "glass" continua vidro; os outros eram
-/// opacos e ficam sólidos, com o destaque mais próximo da cor do tema.
+/// Reescritas que a config acumulou:
+///
+/// - os temas antigos viram material + cor de destaque: "glass" continua vidro; os outros eram
+///   opacos e ficam sólidos, com o destaque mais próximo da cor do tema;
+/// - o widget "claude-usage" virou "ai-usage" quando ele passou a ler mais de uma IA, na lista de
+///   widgets e na ordem da dock, e `claudePollMinutes` virou `aiPollMinutes`;
+/// - o "theme" já aplicado é removido sem tocar no resto.
 fn migrate(mut value: serde_json::Value) -> serde_json::Value {
     let Some(obj) = value.as_object_mut() else { return value };
-    let Some(theme) = obj.remove("theme") else { return value };
-    if obj.contains_key("material") {
-        return value;
+
+    if let Some(theme) = obj.remove("theme") {
+        if !obj.contains_key("material") {
+            let (material, accent) = match theme.as_str().unwrap_or("glass") {
+                "glass" => ("glass", "coral"),
+                "midnight" => ("solid", "lilac"),
+                "canarinho" => ("solid", "amber"),
+                _ => ("solid", "blue"),
+            };
+            obj.insert("material".into(), material.into());
+            obj.entry("accent").or_insert(accent.into());
+        }
     }
-    let (material, accent) = match theme.as_str().unwrap_or("glass") {
-        "glass" => ("glass", "coral"),
-        "midnight" => ("solid", "lilac"),
-        "canarinho" => ("solid", "amber"),
-        _ => ("solid", "blue"),
-    };
-    obj.insert("material".into(), material.into());
-    obj.entry("accent").or_insert(accent.into());
+
+    if !obj.contains_key("aiPollMinutes") {
+        if let Some(minutes) = obj.remove("claudePollMinutes") {
+            obj.insert("aiPollMinutes".into(), minutes);
+        }
+    }
+
+    if let Some(widgets) = obj.get_mut("widgets").and_then(serde_json::Value::as_array_mut) {
+        for widget in widgets {
+            if widget.get("kind").and_then(serde_json::Value::as_str) == Some("claude-usage") {
+                widget["kind"] = "ai-usage".into();
+            }
+        }
+    }
+    if let Some(order) = obj.get_mut("dockOrder").and_then(serde_json::Value::as_array_mut) {
+        for key in order {
+            if key.as_str() == Some("widget:claude-usage") {
+                *key = "widget:ai-usage".into();
+            }
+        }
+    }
     value
 }
 
@@ -280,6 +316,7 @@ mod tests {
         assert_eq!(config.icon_size, 40);
         assert_eq!(config.accent, "coral");
         assert_eq!(config.dock_width, "fit");
+        assert_eq!(config.ai_provider, "auto");
         assert!(!config.widgets.is_empty());
         assert!(config.dock_order.is_empty());
         assert!(config.show_start_button);
@@ -323,5 +360,24 @@ mod tests {
     fn migration_keeps_new_configs() {
         let config = migrated(r#"{"material":"solid","accent":"blue"}"#);
         assert_eq!((config.material.as_str(), config.accent.as_str()), ("solid", "blue"));
+    }
+
+    #[test]
+    fn claude_widget_becomes_ai_usage() {
+        let config = migrated(
+            r#"{
+                "claudePollMinutes": 7,
+                "widgets": [
+                    { "kind": "claude-usage", "enabled": true, "size": "small" },
+                    { "kind": "clock", "enabled": true, "size": "small" }
+                ],
+                "dockOrder": ["widget:claude-usage", "divider:sistema", "widget:clock"]
+            }"#,
+        );
+        // O tempo de polling escolhido e o lugar do widget na dock sobrevivem à troca de nome.
+        assert_eq!(config.ai_poll_minutes, 7);
+        assert_eq!(config.ai_provider, "auto");
+        assert_eq!(config.widgets.iter().map(|w| w.kind.as_str()).collect::<Vec<_>>(), vec!["ai-usage", "clock"]);
+        assert_eq!(config.dock_order, vec!["widget:ai-usage", "divider:sistema", "widget:clock"]);
     }
 }

@@ -73,7 +73,7 @@
 .dock-item {
   position: relative;
   align-self: flex-end;
-  margin-bottom: 3px;
+  margin-bottom: var(--dock-item-bottom, 3px);
   display: flex;
   touch-action: none;
 }
@@ -228,4 +228,128 @@
     opacity: 0;
     transform: translateX(-50%) translateY(4px);
   }
+}
+
+/* Faixa de prévias das janelas: filha da própria dock, acima da barra. A área clicável da janela
+   cresce junto (ver `dockMetrics`), então o cursor alcança a faixa sem abrir outra janela. */
+.preview-strip {
+  position: absolute;
+  z-index: 20;
+  display: flex;
+  gap: 8px;
+  padding: 4px;
+  /* A faixa fica fora do retângulo onde o sistema desenha o vidro: sem o desfoque atrás, a tinta
+     precisa ser mais fechada que a da barra para o texto continuar legível. */
+  background: rgb(var(--glass-tint) / 0.86);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-dock);
+  box-shadow: var(--glass-highlight), var(--glass-shadow);
+  animation: preview-in 0.14s ease;
+}
+
+@keyframes preview-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.preview-card {
+  position: relative;
+  flex: 0 0 auto;
+  width: 192px;
+}
+
+.preview-card-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+  padding: 0 12px;
+  border-radius: var(--radius-card);
+  transition: background 0.15s ease;
+}
+
+.preview-card-body:is(:hover, :focus-visible) {
+  background: var(--fill-hover);
+}
+
+.preview-thumb {
+  display: grid;
+  place-items: center;
+  width: 168px;
+  height: 96px;
+  border-radius: var(--radius-control);
+  background: var(--surface-icon);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+
+.preview-thumb > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Sem captura (minimizada, ou plataforma que não captura janela): o ícone do app no lugar. */
+.preview-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.preview-fallback > img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.preview-fallback-text,
+.preview-minimized {
+  font-size: 10px;
+  line-height: 12px;
+  color: var(--text-secondary);
+}
+
+.preview-title {
+  width: 100%;
+  font-size: 11px;
+  line-height: 12px;
+  color: var(--text-secondary);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preview-close {
+  position: absolute;
+  /* Ancorado no canto da miniatura: 12px de recuo do card + 4px de folga. */
+  top: 4px;
+  right: 16px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgb(var(--glass-tint) / 0.9);
+  border: 1px solid var(--border);
+  color: var(--text);
+  opacity: 0;
+  transition:
+    opacity 0.12s ease,
+    background 0.12s ease;
+}
+
+.preview-card:is(:hover, :focus-within) .preview-close {
+  opacity: 1;
+}
+
+.preview-close:hover {
+  background: var(--danger);
+  color: var(--text-on-accent);
 }

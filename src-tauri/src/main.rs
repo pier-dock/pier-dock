@@ -1,9 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod ai_usage;
 mod apps;
+mod audio;
 mod backdrop;
 mod calendar;
-mod claude;
 mod config;
 mod dock_window;
 mod github;
@@ -13,12 +14,14 @@ mod media;
 mod panels;
 mod platform;
 mod pomodoro;
+mod report;
 mod system;
 mod taskbar;
 mod updater;
 mod usage;
 mod util;
 mod weather;
+mod wifi;
 mod windows_list;
 
 use std::sync::Mutex;
@@ -77,7 +80,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
                 let app = app.clone();
                 tauri::async_runtime::spawn(async move {
                     if let Err(e) = updater::install_update(app).await {
-                        eprintln!("falha ao instalar a atualização: {e}");
+                        log::error!("falha ao instalar a atualização: {e}");
                     }
                 });
             }
@@ -135,6 +138,9 @@ fn register_shortcuts(app: &AppHandle) {
 fn main() {
     #[cfg(target_os = "linux")]
     platform::linux::prepare_env();
+    // Rodando como AppImage, o Pier se cadastra no menu na primeira execução.
+    #[cfg(target_os = "linux")]
+    platform::linux::desktop_integration::install_if_needed();
     if std::env::args().any(|a| a == "--restore-taskbar") {
         taskbar::restore();
         return;
@@ -152,6 +158,7 @@ fn main() {
         .build();
 
     let app = tauri::Builder::default()
+        .plugin(report::log_plugin())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             let _ = panels::open_settings_window(app);
         }))
@@ -175,6 +182,7 @@ fn main() {
             windows_list::activate_window,
             windows_list::close_windows,
             windows_list::toggle_desktop,
+            windows_list::window_thumbnail,
             apps::list_installed_apps,
             apps::launch_app,
             apps::resolve_app_path,
@@ -189,6 +197,15 @@ fn main() {
             system::open_tray,
             system::bluetooth_status,
             system::set_bluetooth,
+            audio::audio_status,
+            audio::set_output_device,
+            audio::set_app_volume,
+            wifi::wifi_status,
+            wifi::wifi_scan,
+            wifi::wifi_set_enabled,
+            wifi::wifi_connect,
+            wifi::wifi_disconnect,
+            wifi::wifi_request_permission,
             github::github_fetch,
             github::github_cached,
             github::github_auth_status,
@@ -204,16 +221,21 @@ fn main() {
             calendar::calendar_fetch,
             calendar::calendar_cached,
             calendar::calendar_set_url,
-            claude::claude_usage,
-            claude::claude_usage_cached,
+            ai_usage::ai_usage,
+            ai_usage::ai_usage_cached,
+            ai_usage::ai_providers,
             panels::open_panel,
             panels::close_panel,
+            panels::focus_panel,
             panels::open_settings,
             platform::platform_info,
             i18n::system_language,
             platform::platform_setup,
             updater::check_update,
             updater::install_update,
+            report::report_environment,
+            report::recent_logs,
+            report::report_issue,
         ])
         .setup(|app| {
             // Sem ícone no Dock nem barra de menus: a dock é o app.
@@ -262,7 +284,7 @@ fn main() {
             #[cfg(target_os = "linux")]
             platform::linux::gnome_shell::set_shortcuts_enabled(true);
             if let Err(e) = build_tray(&handle) {
-                eprintln!("falha ao criar o ícone da bandeja: {e}");
+                log::error!("falha ao criar o ícone da bandeja: {e}");
             }
             Ok(())
         })

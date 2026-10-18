@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { ipc, type WeatherLocation } from "../../lib/ipc";
+import { useEffect, useState } from "react";
+import { ipc, type AiProvider, type WeatherLocation } from "../../lib/ipc";
+import { AI_PROVIDERS, providerName } from "../../lib/aiUsage";
 import { labels } from "../../lib/platform";
 import { useCalendar } from "../../hooks/useCalendar";
 import { cycles } from "../../popovers/Pomodoro";
@@ -119,6 +120,41 @@ export function PomodoroOptions({ config, update }: OptionsProps) {
       )}
       <Row label={t.notifications} description={t.notificationsHint} />
     </>
+  );
+}
+
+/**
+ * Qual IA o widget lê. A escolha sempre existe; as que não têm dados nesta máquina aparecem no
+ * aviso, porque aí o widget fica no estado "sem dado" mesmo depois de escolhidas.
+ */
+export function AiUsageOptions({ config, update }: OptionsProps) {
+  const [providers, setProviders] = useState<AiProvider[] | null>(null);
+  const { widgetOptions: t } = useT();
+
+  useEffect(() => {
+    ipc.aiProviders().then(setProviders).catch(() => setProviders([]));
+  }, []);
+
+  // Sem a resposta ainda, tudo conta como presente: o aviso de "não encontrado" só aparece depois
+  // de o Rust confirmar.
+  const detected = (id: string) => providers?.find((p) => p.id === id)?.detected ?? true;
+  const name = providerName;
+  const hint =
+    config.aiProvider === "auto"
+      ? t.providerAutoHint
+      : detected(config.aiProvider)
+        ? t.providerReading(name(config.aiProvider))
+        : t.providerMissing(name(config.aiProvider));
+
+  return (
+    <Row label={t.provider} description={hint}>
+      <Segmented
+        label={t.provider}
+        value={config.aiProvider}
+        onChange={(aiProvider) => update({ aiProvider })}
+        options={[{ value: "auto", label: t.providerAuto }, ...AI_PROVIDERS.map((id) => ({ value: id, label: name(id) }))]}
+      />
+    </Row>
   );
 }
 

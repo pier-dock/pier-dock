@@ -12,6 +12,9 @@ export const PANEL_SIZES: Record<string, [number, number]> = {
   pomodoro: [360, 406],
   "system-usage": [360, 460],
   calendar: [360, 372],
-  "claude-usage": [340, 296],
+  "ai-usage": [340, 296],
   bluetooth: [340, 264],
+  launcher: [420, 460],
+  volume: [340, 420],
+  network: [340, 400],
 };

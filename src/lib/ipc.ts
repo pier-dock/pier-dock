@@ -27,13 +27,16 @@ export type WidgetKind =
   | "pomodoro"
   | "system-usage"
   | "calendar"
-  | "claude-usage";
+  | "ai-usage";
 
 export interface WidgetConfig {
   kind: WidgetKind;
   enabled: boolean;
-  size: "small" | "wide";
+  size: WidgetSize;
 }
+
+/** "count" só existe nas contribuições: o total do ano, sem o mapa. */
+export type WidgetSize = "small" | "wide" | "count";
 
 export interface WeatherLocation {
   name: string;
@@ -62,11 +65,17 @@ export interface Config {
   autoHide: "never" | "smart" | "always";
   /** "fit" (barra do tamanho do conteúdo) ou "full" (ponta a ponta, como um painel). */
   dockWidth: "fit" | "full";
+  /** Altura da barra em pixels; `null` acompanha o tamanho do ícone (`iconSize + 24`). */
+  dockHeight: number | null;
   githubPollMinutes: number;
-  claudePollMinutes: number;
+  aiPollMinutes: number;
+  /** Qual IA o widget de uso lê: "auto" (a de leitura mais recente), "claude" ou "codex". */
+  aiProvider: AiProviderChoice;
   /** Ordem dos itens na dock: `start`, `app:<id>`, `widget:<kind>` e `divider:<id>`. */
   dockOrder: string[];
   showStartButton: boolean;
+  /** Botão do lançador de apps do próprio Pier (a lista de todos os instalados). */
+  showLauncher: boolean;
   weatherLocation: WeatherLocation | null;
   pomodoro: PomodoroConfig;
   language: LanguageSetting;
@@ -218,14 +227,23 @@ export interface CalendarData {
   error?: string | null;
 }
 
-export interface ClaudeUsage {
-  /** Percentuais reais do `/usage`. `null` é desconhecido — cache ausente ou janela virada. */
-  sessionPercent: number | null;
+export interface AiUsageWindow {
+  /** Papel da janela na ferramenta (`session`, `weekly`, `primary`, `secondary`); só uma chave. */
+  id: string;
+  /** Duração da janela em minutos, quando a ferramenta informa (300 = 5h, 10080 = semana). */
+  minutes: number | null;
+  /** Percentual já usado. `null` é desconhecido — cache ausente ou janela que já virou. */
+  percent: number | null;
   /** Minutos até o reset; negativo se a janela já passou. */
-  sessionResetsIn: number | null;
-  weeklyPercent: number | null;
-  weeklyResetsIn: number | null;
-  /** Idade do cache de limites, em minutos. */
+  resetsIn: number | null;
+}
+
+/** Uso de uma IA de linha de comando, já normalizado entre os provedores. */
+export interface AiUsage {
+  /** Qual IA respondeu: "claude" ou "codex". */
+  provider: AiProviderId;
+  windows: AiUsageWindow[];
+  /** Idade da leitura dos limites, em minutos. */
   ageMin: number | null;
   stale: boolean;
   todayTokens: number;
@@ -236,6 +254,17 @@ export interface ClaudeUsage {
   error?: string | null;
 }
 
+/** As IAs que o widget sabe ler. */
+export type AiProviderId = "claude" | "codex";
+/** O que fica salvo na config: "auto" segue a IA com a leitura mais recente. */
+export type AiProviderChoice = "auto" | AiProviderId;
+
+export interface AiProvider {
+  id: AiProviderId;
+  /** Se os arquivos de dados da IA existem nesta máquina. */
+  detected: boolean;
+}
+
 export interface Volume {
   level: number;
   muted: boolean;
@@ -243,7 +272,7 @@ export interface Volume {
 
 export interface PlatformInfo {
   os: "windows" | "linux" | "macos";
-  windowList: "ok" | "needs-extension" | "needs-relogin" | "needs-accessibility" | "unsupported";
+  windowList: "ok" | "needs-extension" | "needs-relogin" | "needs-accessibility" | "x11-only" | "unsupported";
   hideNative: boolean;
   shortcuts: boolean;
   /** O sistema desenha o vidro; sem ele o material é sempre sólido. */
@@ -253,6 +282,63 @@ export interface PlatformInfo {
 export interface UpdateInfo {
   version: string;
   notes?: string | null;
+}
+
+export type ReportKind = "bug" | "feature";
+
+export interface ReportEnvironment {
+  version: string;
+  os: string;
+  arch: string;
+  /** Só no Linux: área de trabalho, compositor e sessão. */
+  desktop: string | null;
+}
+
+/** "fallback": sem conta conectada (ou a API recusou), a página issues/new preenchida. */
+export type ReportResult = { kind: "created"; url: string } | { kind: "fallback"; url: string; reason: string | null };
+
+export interface OutputDevice {
+  id: string;
+  name: string;
+  default: boolean;
+}
+
+/** Um app tocando áudio; `id` cobre todos os streams dele. */
+export interface AppStream {
+  id: string;
+  name: string;
+  /** Chave para o `getIcon` (caminho do executável). */
+  icon: string | null;
+  level: number;
+  muted: boolean;
+}
+
+export interface AudioState {
+  outputs: OutputDevice[];
+  /** `null` quando o sistema não permite o volume por app (macOS). */
+  apps: AppStream[] | null;
+}
+
+export interface WifiNetwork {
+  ssid: string;
+  /** 0–100. */
+  strength: number;
+  signalBars: number;
+  secured: boolean;
+  /** Tem perfil salvo: conecta sem pedir a senha. */
+  known: boolean;
+  connected: boolean;
+}
+
+export interface WifiState {
+  available: boolean;
+  enabled: boolean;
+  canToggle: boolean;
+  /** Sem isso, clicar numa rede abre as configurações do sistema. */
+  canConnect: boolean;
+  /** O sistema só mostra as redes com a permissão de Localização. */
+  needsPermission: boolean;
+  networks: WifiNetwork[];
 }
 
 export const ipc = {
@@ -272,6 +358,7 @@ export const ipc = {
   activateWindow: (id: number) => invoke<void>("activate_window", { id }),
   closeWindows: (ids: number[]) => invoke<void>("close_windows", { ids }),
   toggleDesktop: () => invoke<void>("toggle_desktop"),
+  windowThumbnail: (id: number) => invoke<string | null>("window_thumbnail", { id }),
 
   listInstalledApps: () => invoke<AppEntry[]>("list_installed_apps"),
   launchApp: (target: string) => invoke<void>("launch_app", { target }),
@@ -289,8 +376,18 @@ export const ipc = {
   getVolume: () => invoke<Volume>("get_volume"),
   setVolume: (args: { level?: number; muted?: boolean }) => invoke<void>("set_volume", args),
   openTray: (anchorX: number) => invoke<void>("open_tray", { anchorX }),
-  openShell: (kind: "start" | "quick-settings" | "notifications" | "system-monitor" | "calendar" | "bluetooth") =>
+  openShell: (kind: "start" | "quick-settings" | "notifications" | "system-monitor" | "calendar" | "bluetooth" | "sound" | "network") =>
     invoke<void>("open_shell", { kind }),
+  audioStatus: () => invoke<AudioState>("audio_status"),
+  setOutputDevice: (id: string) => invoke<void>("set_output_device", { id }),
+  setAppVolume: (id: string, patch: { level?: number; muted?: boolean }) => invoke<void>("set_app_volume", { id, ...patch }),
+  wifiStatus: () => invoke<WifiState>("wifi_status"),
+  wifiScan: () => invoke<void>("wifi_scan"),
+  wifiSetEnabled: (enabled: boolean) => invoke<void>("wifi_set_enabled", { enabled }),
+  /** Rejeita com "auth" (senha errada ou faltando) ou "unsupported" (só pelas configurações do sistema). */
+  wifiConnect: (ssid: string, password: string | null) => invoke<void>("wifi_connect", { ssid, password }),
+  wifiDisconnect: () => invoke<void>("wifi_disconnect"),
+  wifiRequestPermission: () => invoke<void>("wifi_request_permission"),
 
   githubFetch: () => invoke<GithubData>("github_fetch"),
   githubCached: () => invoke<GithubData | null>("github_cached"),
@@ -312,12 +409,14 @@ export const ipc = {
   calendarCached: () => invoke<CalendarData | null>("calendar_cached"),
   calendarSetUrl: (url: string | null) => invoke<void>("calendar_set_url", { url }),
 
-  claudeUsage: () => invoke<ClaudeUsage>("claude_usage"),
-  claudeUsageCached: () => invoke<ClaudeUsage | null>("claude_usage_cached"),
+  aiUsage: (provider: AiProviderChoice) => invoke<AiUsage>("ai_usage", { provider }),
+  aiUsageCached: () => invoke<AiUsage | null>("ai_usage_cached"),
+  aiProviders: () => invoke<AiProvider[]>("ai_providers"),
 
   openPanel: (kind: string, anchorX: number, width: number, height: number) =>
     invoke<void>("open_panel", { kind, anchorX, width, height }),
   closePanel: () => invoke<void>("close_panel"),
+  focusPanel: () => invoke<void>("focus_panel"),
   openSettings: () => invoke<void>("open_settings"),
 
   platformInfo: () => invoke<PlatformInfo>("platform_info"),
@@ -326,4 +425,9 @@ export const ipc = {
 
   checkUpdate: () => invoke<UpdateInfo | null>("check_update"),
   installUpdate: () => invoke<void>("install_update"),
+
+  reportEnvironment: () => invoke<ReportEnvironment>("report_environment"),
+  recentLogs: () => invoke<string>("recent_logs"),
+  reportIssue: (args: { kind: ReportKind; title: string; description: string; logs: string | null }) =>
+    invoke<ReportResult>("report_issue", args),
 };

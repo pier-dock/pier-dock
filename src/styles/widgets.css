@@ -331,12 +331,12 @@
   background: var(--heat-4);
 }
 
-/* Widgets largos de 176 px (clima, Pomodoro, uso do sistema, agenda e Claude). */
+/* Widgets largos de 176 px (clima, Pomodoro, uso do sistema, agenda e uso de IA). */
 .weather-tile.wide,
 .pomo-tile.wide,
 .usage-tile.wide,
 .cal-tile.wide,
-.claude-tile.wide {
+.ai-tile.wide {
   width: 176px;
   height: 48px;
   border-radius: var(--radius-card);
@@ -346,7 +346,7 @@
 .pomo-tile.small,
 .usage-tile.small,
 .cal-tile.small,
-.claude-tile.small {
+.ai-tile.small {
   width: 48px;
   height: 48px;
   padding: 0;
@@ -775,43 +775,43 @@
   transform: scale(0.96);
 }
 
-/* Uso do Claude */
-.claude-tile {
+/* Uso de IA */
+.ai-tile {
   position: relative;
 }
 
 /* Faixas do limite: o anel e a barra do painel seguem estas cores. Verde, âmbar e vermelho em vez
    da cor de destaque, que no tema padrão é a mesma do perigo — num medidor as faixas têm de se
    distinguir sozinhas, qualquer que seja o destaque escolhido. */
-.claude-normal {
-  --claude: var(--success);
+.ai-normal {
+  --ai-level: var(--success);
 }
 
-.claude-warn {
-  --claude: var(--warning);
+.ai-warn {
+  --ai-level: var(--warning);
 }
 
-.claude-critical {
-  --claude: var(--danger);
+.ai-critical {
+  --ai-level: var(--danger);
 }
 
 /* Sem dado o anel fica só com o trilho, sem sugerir um valor. */
-.claude-unknown {
-  --claude: transparent;
+.ai-unknown {
+  --ai-level: transparent;
 }
 
-.claude-tile .ring {
-  color: var(--claude);
+.ai-tile .ring {
+  color: var(--ai-level);
 }
 
 /* Quadrado: anel de 40 px com o número dentro, como o Pomodoro. */
-.claude-tile.small .ring {
+.ai-tile.small .ring {
   position: absolute;
   left: 4px;
   top: 4px;
 }
 
-.claude-mark {
+.ai-mark {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -820,30 +820,30 @@
   line-height: 1;
 }
 
-.claude-mark svg,
-.claude-ring > svg:not(.ring) {
+.ai-mark svg,
+.ai-ring > svg:not(.ring) {
   color: var(--text-tertiary);
 }
 
-.claude-percent {
+.ai-percent {
   font-size: 12px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
-.claude-percent small {
+.ai-percent small {
   font-size: 8px;
   font-weight: 500;
   color: var(--text-tertiary);
 }
 
 /* Largo: anel de 34 px e duas linhas, como o Pomodoro. */
-.claude-tile.wide {
+.ai-tile.wide {
   gap: 9px;
   padding: 0 10px;
 }
 
-.claude-ring {
+.ai-ring {
   position: relative;
   width: 34px;
   height: 34px;
@@ -852,30 +852,30 @@
   place-items: center;
 }
 
-.claude-ring .ring {
+.ai-ring .ring {
   position: absolute;
   inset: 0;
 }
 
-.claude-ring > svg:not(.ring) {
+.ai-ring > svg:not(.ring) {
   position: relative;
 }
 
-.claude-text {
+.ai-text {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   min-width: 0;
 }
 
-.claude-value {
+.ai-value {
   font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
 }
 
-.claude-caption {
+.ai-caption {
   max-width: 100%;
   font-size: 11px;
   color: var(--text-tertiary);
@@ -884,9 +884,9 @@
   text-overflow: ellipsis;
 }
 
-/* Dado velho (Claude Code fechado): o número esmaece como no Pomodoro pausado. O anel mantém a cor
+/* Dado velho (a IA fechada): o número esmaece como no Pomodoro pausado. O anel mantém a cor
    da faixa, porque um limite quase no fim continua sendo um aviso mesmo sem leitura nova. */
-.claude-tile.stale .claude-percent,
-.claude-tile.stale .claude-value {
+.ai-tile.stale .ai-percent,
+.ai-tile.stale .ai-value {
   color: var(--text-secondary);
 }

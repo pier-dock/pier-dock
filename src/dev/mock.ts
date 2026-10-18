@@ -7,7 +7,7 @@
  * chama `listen` ao ser carregado. Dentro do Tauri ele não faz nada.
  */
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
-import type { AppEntry, BluetoothState, CalendarData, ClaudeUsage, Config, GithubData, MediaState, PomodoroState, SystemUsage, WeatherData, WindowsSnapshot } from "../lib/ipc";
+import type { AiUsage, AppEntry, BluetoothState, CalendarData, Config, GithubData, MediaState, PomodoroState, SystemUsage, WeatherData, WindowsSnapshot } from "../lib/ipc";
 import { PANEL_INSET, PANEL_SIZES } from "../popovers/sizes";
 
 const insideTauri = "__TAURI_INTERNALS__" in window;
@@ -57,7 +57,7 @@ const config: Config = {
     { kind: "pomodoro", enabled: params.has("new"), size: "wide" },
     { kind: "system-usage", enabled: params.has("new"), size: "wide" },
     { kind: "calendar", enabled: params.has("new"), size: "wide" },
-    { kind: "claude-usage", enabled: params.has("new"), size: "wide" },
+    { kind: "ai-usage", enabled: params.has("new"), size: "wide" },
     { kind: "show-desktop", enabled: params.has("new"), size: "small" },
   ],
   material: "glass",
@@ -69,10 +69,13 @@ const config: Config = {
   hideTaskbar: true,
   autoHide: "smart",
   dockWidth: "fit",
+  dockHeight: null,
   githubPollMinutes: 3,
-  claudePollMinutes: 1,
+  aiPollMinutes: 1,
+  aiProvider: "auto",
   dockOrder: [],
   showStartButton: true,
+  showLauncher: false,
   weatherLocation: { name: "Campinas", admin: "São Paulo, Brasil", latitude: -22.9, longitude: -47.06 },
   pomodoro: { preset: "25-5", focusMinutes: 25, breakMinutes: 5 },
   language: "system",
@@ -240,17 +243,31 @@ const calendar: CalendarData = {
   fetchedAt: Date.now() - MINUTE,
 };
 
-const claudeUsage: ClaudeUsage = {
-  sessionPercent: 42,
-  sessionResetsIn: 229,
-  weeklyPercent: 78,
-  weeklyResetsIn: 3_128,
+const claudeUsage: AiUsage = {
+  provider: "claude",
+  windows: [
+    { id: "session", minutes: 300, percent: 42, resetsIn: 229 },
+    { id: "weekly", minutes: 10080, percent: 78, resetsIn: 3_128 },
+  ],
   ageMin: 4,
   stale: false,
   todayTokens: 12_400_000,
   todayMessages: 210,
   blockTokens: 3_100_000,
   topModel: "claude-opus-5",
+  fetchedAt: Date.now(),
+};
+
+/** Uma conta Plus: uma janela só, a da semana, e o modelo do Codex. */
+const codexUsage: AiUsage = {
+  provider: "codex",
+  windows: [{ id: "primary", minutes: 10080, percent: 12, resetsIn: 9_545 }],
+  ageMin: 35,
+  stale: true,
+  todayTokens: 1_240_000,
+  todayMessages: 48,
+  blockTokens: 420_000,
+  topModel: "gpt-5.6-luna",
   fetchedAt: Date.now(),
 };
 
@@ -271,6 +288,29 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
     network: { connected: true, internet: true, wifi: true, signalBars: 4, name: "Casa" },
   }),
   get_volume: () => ({ level: 0.6, muted: false }),
+  audio_status: () => ({
+    outputs: [
+      { id: "speakers", name: "MacBook Air Speakers", default: true },
+      { id: "headphones", name: "WH-1000XM4", default: false },
+    ],
+    apps: [
+      { id: "1", name: "Spotify", icon: null, level: 0.8, muted: false },
+      { id: "2", name: "Firefox", icon: null, level: 0.45, muted: true },
+    ],
+  }),
+  wifi_status: () => ({
+    available: true,
+    enabled: true,
+    canToggle: true,
+    canConnect: true,
+    needsPermission: false,
+    networks: [
+      { ssid: "Casa", strength: 82, signalBars: 5, secured: true, known: true, connected: true },
+      { ssid: "Escritório", strength: 64, signalBars: 4, secured: true, known: true, connected: false },
+      { ssid: "Café do Centro", strength: 45, signalBars: 3, secured: false, known: false, connected: false },
+      { ssid: "VIVO-8F21", strength: 22, signalBars: 2, secured: true, known: false, connected: false },
+    ],
+  }),
   bluetooth_status: () => bluetooth,
   set_bluetooth: (args) => {
     bluetooth = { ...bluetooth, powered: Boolean(args.powered) };
@@ -300,13 +340,21 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   ],
   calendar_cached: () => calendar,
   calendar_fetch: () => calendar,
-  claude_usage: () => claudeUsage,
-  claude_usage_cached: () => claudeUsage,
+  // O preview da escolha nas configurações pede cada IA pelo nome.
+  ai_usage: (args) => (args.provider === "codex" ? codexUsage : claudeUsage),
+  ai_usage_cached: () => claudeUsage,
+  ai_providers: () => [
+    { id: "claude", detected: true },
+    { id: "codex", detected: true },
+  ],
   system_language: () => (navigator.language.toLowerCase().startsWith("pt") ? "pt" : "en"),
   platform_info: () => ({ os: "macos", windowList: "needs-accessibility", hideNative: true, shortcuts: true, glass: true }),
   "plugin:autostart|is_enabled": () => true,
   "plugin:app|version": () => "0.1.0",
   check_update: () => ({ version: "0.2.0", notes: null }),
+  report_environment: () => ({ version: "0.1.0", os: "macOS 15.6 Sequoia", arch: "aarch64", desktop: null }),
+  recent_logs: () => "[2026-10-18][10:02:11][pier][WARN] falha ao procurar atualização: timeout",
+  report_issue: () => ({ kind: "created", url: "https://github.com/pier-dock/pier-dock/issues/1" }),
 };
 
 if (!insideTauri) {

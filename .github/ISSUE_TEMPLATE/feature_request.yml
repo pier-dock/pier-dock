@@ -1,0 +1,11 @@
+name: Feature request
+description: Suggest an idea or an improvement for Pier.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What you'd like Pier to do, and the problem it would solve for you.
+    validations:
+      required: true

@@ -1178,3 +1178,66 @@ input[type="range"] {
 .widget-dialog-footer .btn {
   margin-left: auto;
 }
+
+/* Reportar um problema / sugerir um recurso */
+.report-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.report-body {
+  gap: 14px;
+  padding: 18px 20px 20px;
+}
+
+.report-body > .card {
+  margin: 0;
+}
+
+.report-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.report-field .text-input {
+  flex: none;
+}
+
+.report-textarea {
+  height: auto;
+  padding: 8px 12px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.report-logs {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: pre;
+}
+
+.report-env {
+  white-space: pre-line;
+}
+
+.report-error {
+  color: var(--text-danger);
+}
+
+.report-done {
+  align-items: flex-start;
+  gap: 10px;
+  padding: 24px 20px;
+}
+
+.report-done-title {
+  margin: 0;
+  font-size: 14px;
+}
+
+.report-dialog .widget-dialog-footer .field-hint {
+  flex: 1;
+  min-width: 0;
+}

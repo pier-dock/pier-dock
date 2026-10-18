@@ -956,8 +956,8 @@
   color: var(--text-tertiary);
 }
 
-/* Uso do Claude: as barras logo abaixo do cabeçalho, sem a divisória das seções seguintes. */
-.claude-limits {
+/* Uso de IA: as barras logo abaixo do cabeçalho, sem a divisória das seções seguintes. */
+.ai-limits {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -965,18 +965,18 @@
 }
 
 /* As barras usam as faixas de cor definidas em widgets.css. */
-.usage-fill.claude-normal,
-.usage-fill.claude-warn,
-.usage-fill.claude-critical {
-  background: var(--claude);
+.usage-fill.ai-normal,
+.usage-fill.ai-warn,
+.usage-fill.ai-critical {
+  background: var(--ai-level);
 }
 
 /* Percentual desconhecido: barra vazia em vez de zero pintado. */
-.usage-fill.claude-unknown {
+.usage-fill.ai-unknown {
   background: transparent;
 }
 
-.popover-meta.claude-stale {
+.popover-meta.ai-stale {
   color: var(--warning);
 }
 
@@ -1040,4 +1040,336 @@
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   color: var(--text-tertiary);
+}
+
+/* Lançador de apps: mesma janela de painel dos widgets (ver `popovers/Launcher.tsx`). */
+.launcher-grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 2px;
+  align-content: start;
+  padding: 6px;
+}
+
+.launcher-app {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px 8px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  cursor: default;
+}
+
+.launcher-app:is(:hover, [aria-selected="true"]) {
+  background: var(--fill-selected);
+}
+
+.launcher-icon {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.launcher-icon.fallback {
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--surface-icon);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.launcher-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.launcher-pin {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  color: var(--text-secondary);
+}
+
+/* Som */
+.sound-heading {
+  font-weight: 600;
+}
+
+.sound-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding-bottom: 8px;
+}
+
+.sound-master {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px 4px 10px;
+}
+
+.sound-eyebrow {
+  padding: 12px 16px 6px;
+}
+
+.sound-list {
+  padding: 0 8px;
+}
+
+.sound-output {
+  height: 36px;
+  padding: 0 8px;
+  color: var(--text-secondary);
+}
+
+.sound-output[aria-checked="true"] {
+  color: var(--text);
+}
+
+.sound-output-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sound-check {
+  color: var(--accent);
+}
+
+.sound-app {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0 6px 8px;
+}
+
+.sound-app-icon {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: var(--radius-control);
+  background: var(--fill-control);
+  display: grid;
+  place-items: center;
+}
+
+.sound-app-icon img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.sound-app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sound-app-name {
+  font-size: 12px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sound-mute[aria-pressed="true"] {
+  color: var(--text-secondary);
+}
+
+.sound-none {
+  padding: 4px 16px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* Slider (popover de som) */
+.slider {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  outline: none;
+}
+
+.slider.disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.slider-track {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--fill-control);
+  overflow: hidden;
+}
+
+.slider-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.slider-thumb {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-strong);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  transform: translate(-50%, -50%);
+  transition: transform 0.1s ease;
+}
+
+.slider:is(:hover, [data-hover]) .slider-thumb,
+.slider.dragging .slider-thumb {
+  transform: translate(-50%, -50%) scale(1.15);
+}
+
+.slider:focus-visible .slider-thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Wi-Fi */
+.wifi-heading {
+  font-weight: 600;
+}
+
+.wifi-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding-bottom: 8px;
+}
+
+.wifi-eyebrow {
+  padding: 12px 16px 6px;
+}
+
+.wifi-list {
+  padding: 0 8px;
+}
+
+.wifi-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.wifi-row {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 6px 8px;
+}
+
+.wifi-row:disabled {
+  cursor: default;
+  background: none;
+}
+
+.wifi-signal {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: var(--radius-control);
+  background: var(--fill-control);
+  display: grid;
+  place-items: center;
+}
+
+.wifi-lock {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  color: var(--text-secondary);
+}
+
+.wifi-name {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wifi-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.wifi-sub.error,
+.wifi-error {
+  color: var(--text-danger, var(--warning));
+}
+
+.wifi-saved {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.wifi-disconnect {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  margin-right: 4px;
+}
+
+.wifi-password {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 8px 48px;
+}
+
+.wifi-password .text-input {
+  height: 30px;
+}
+
+.wifi-password .btn {
+  height: 30px;
+  padding: 0 12px;
+}
+
+.wifi-error {
+  flex-basis: 100%;
+  font-size: 11px;
+}
+
+.wifi-empty-action {
+  margin-top: 12px;
 }

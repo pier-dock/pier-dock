@@ -1,5 +1,5 @@
 import { GitCommitHorizontal, GitCompare, GitPullRequest } from "lucide-react";
-import type { GithubData, PullRequest } from "../lib/ipc";
+import type { GithubData, PullRequest, WidgetSize } from "../lib/ipc";
 import { Tile } from "./Tile";
 import { locale, useT } from "../i18n";
 
@@ -97,19 +97,19 @@ function MiniHeatmap({ weeks }: { weeks: ContributionDay[][] }) {
 
 const DOCK_WEEKS = 20;
 
-export function ContributionsWidget({ data, wide }: { data: GithubData | null; wide: boolean }) {
+export function ContributionsWidget({ data, size }: { data: GithubData | null; size: WidgetSize }) {
   const all = data?.weeks ?? [];
   const year = contributionsThisYear(all).toLocaleString(locale());
   const t = useT().github;
   return (
     <Tile kind="github-contrib" label={t.contribTile(year)} className="contrib-tile">
-      {wide && (
+      {size !== "small" && (
         <span className="contrib-summary">
           <span className="contrib-total">{year}</span>
           <span className="contrib-caption">{t.thisYear}</span>
         </span>
       )}
-      <MiniHeatmap weeks={all.slice(-DOCK_WEEKS)} />
+      {size !== "count" && <MiniHeatmap weeks={all.slice(-DOCK_WEEKS)} />}
     </Tile>
   );
 }

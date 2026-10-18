@@ -1,9 +1,11 @@
 import type { Config } from "../lib/ipc";
 
 /** Ordem livre dos itens da dock. `pinnedApps` e `widgets` guardam os dados; `dockOrder`, só a posição. */
-type OrderConfig = Pick<Config, "dockOrder" | "pinnedApps" | "widgets" | "showStartButton">;
+type OrderConfig = Pick<Config, "dockOrder" | "pinnedApps" | "widgets" | "showStartButton" | "showLauncher">;
 
 export const START_KEY = "start";
+/** Lançador de apps do Pier (o `start` abre o menu do sistema). */
+export const LAUNCHER_KEY = "launcher";
 export const appKey = (id: string) => `app:${id}`;
 export const widgetKey = (kind: string) => `widget:${kind}`;
 export const isDivider = (key: string) => key.startsWith("divider:");
@@ -12,15 +14,16 @@ export const isDivider = (key: string) => key.startsWith("divider:");
 function itemKeys(config: OrderConfig): string[] {
   return [
     ...(config.showStartButton ? [START_KEY] : []),
+    ...(config.showLauncher ? [LAUNCHER_KEY] : []),
     ...config.pinnedApps.map((p) => appKey(p.id)),
     ...config.widgets.filter((w) => w.enabled).map((w) => widgetKey(w.kind)),
   ];
 }
 
-/** Grupo de um widget na ordem padrão: mídia, GitHub, Claude ou sistema. */
+/** Grupo de um widget na ordem padrão: mídia, GitHub, IA ou sistema. */
 function widgetGroup(kind: string): string {
   if (kind === "media") return "media";
-  if (kind === "claude-usage") return "claude";
+  if (kind === "ai-usage") return "ai";
   return kind.startsWith("github-") ? "github" : "system";
 }
 
@@ -30,7 +33,7 @@ function widgetGroup(kind: string): string {
  */
 function legacyOrder(config: OrderConfig): string[] {
   const groups = new Map<string, string[]>([
-    ["start", config.showStartButton ? [START_KEY] : []],
+    ["start", [...(config.showStartButton ? [START_KEY] : []), ...(config.showLauncher ? [LAUNCHER_KEY] : [])]],
     ["apps", config.pinnedApps.map((p) => appKey(p.id))],
   ]);
   for (const w of config.widgets.filter((w) => w.enabled)) {
@@ -76,6 +79,7 @@ export function applyOrder(config: OrderConfig, keys: string[]): Pick<Config, "d
 export function removeItem(config: OrderConfig, key: string): Partial<Config> {
   const dockOrder = resolveOrder(config).filter((k) => k !== key);
   if (key === START_KEY) return { dockOrder, showStartButton: false };
+  if (key === LAUNCHER_KEY) return { dockOrder, showLauncher: false };
   if (key.startsWith("app:")) {
     const id = key.slice("app:".length);
     return { dockOrder, pinnedApps: config.pinnedApps.filter((p) => p.id !== id) };

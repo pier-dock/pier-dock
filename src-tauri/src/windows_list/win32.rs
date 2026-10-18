@@ -70,7 +70,7 @@ fn window_pid(h: HWND) -> u32 {
     pid
 }
 
-fn process_path(pid: u32) -> String {
+pub(crate) fn process_path(pid: u32) -> String {
     unsafe {
         let Ok(handle) = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) else { return String::new() };
         let mut buf = [0u16; 1024];
@@ -232,4 +232,10 @@ pub fn toggle_desktop() -> Result<(), String> {
         let shell: IShellDispatch4 = CoCreateInstance(&Shell, None, CLSCTX_ALL).err_str()?;
         shell.ToggleDesktop().err_str()
     }
+}
+
+/// Sem captura no Windows por enquanto (o frontend cai no ícone do app). O caminho é
+/// `PrintWindow` com `PW_RENDERFULLCONTENT`, e `DwmRegisterThumbnail` para uma prévia ao vivo.
+pub fn thumbnail(_id: i64) -> Option<Vec<u8>> {
+    None
 }

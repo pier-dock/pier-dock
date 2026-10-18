@@ -2,14 +2,17 @@ import { useEffect } from "react";
 import { ipc } from "../lib/ipc";
 import { BluetoothPanel } from "./Bluetooth";
 import { Calendar } from "./Calendar";
-import { ClaudeUsage } from "./ClaudeUsage";
+import { AiUsagePanel } from "./AiUsagePanel";
 import { Commits } from "./Commits";
 import { Contributions } from "./Contributions";
+import { Launcher } from "./Launcher";
 import { NowPlaying } from "./NowPlaying";
 import { Pomodoro } from "./Pomodoro";
 import { PullRequests } from "./PullRequests";
+import { SoundPanel } from "./Sound";
 import { SystemUsage } from "./SystemUsage";
 import { Weather } from "./Weather";
+import { WifiPanel } from "./Wifi";
 import { useT } from "../i18n";
 
 function Content({ kind }: { kind: string }) {
@@ -33,10 +36,16 @@ function Content({ kind }: { kind: string }) {
       return <SystemUsage />;
     case "calendar":
       return <Calendar />;
-    case "claude-usage":
-      return <ClaudeUsage />;
+    case "ai-usage":
+      return <AiUsagePanel />;
     case "bluetooth":
       return <BluetoothPanel />;
+    case "launcher":
+      return <Launcher />;
+    case "volume":
+      return <SoundPanel />;
+    case "network":
+      return <WifiPanel />;
     default:
       return <div className="popover-empty">{t.popover.unknown}</div>;
   }

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Minus, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, LayoutGrid, Minus, Plus, Search, Trash2 } from "lucide-react";
 import { ipc, type AppEntry, type Config } from "../../lib/ipc";
 import { keys, labels } from "../../lib/platform";
 import { useIcon } from "../../hooks/useIcon";
 import { iconKeyForEntry } from "../../dock/apps";
-import { appKey, isDivider, moveAmong, removeItem, resolveOrder, START_KEY } from "../../dock/order";
+import { appKey, isDivider, LAUNCHER_KEY, moveAmong, removeItem, resolveOrder, START_KEY } from "../../dock/order";
 import { Card, Row, SectionLabel } from "../../ui/Card";
 import { Kbd } from "../../ui/Kbd";
 import type { TabProps } from "../shared";
@@ -19,7 +19,7 @@ function AppIconImg({ entry, size }: { entry: AppEntry; size: number }) {
 /** Itens da aba Apps: apps fixados, o botão de apps e os separadores (os widgets têm a aba deles). */
 const isAppsItem = (config: Config) => {
   const ids = new Set(config.pinnedApps.map((p) => appKey(p.id)));
-  return (key: string) => ids.has(key) || key === START_KEY || isDivider(key);
+  return (key: string) => ids.has(key) || key === START_KEY || key === LAUNCHER_KEY || isDivider(key);
 };
 
 export function AppsTab({ config, update }: TabProps) {
@@ -36,7 +36,9 @@ export function AppsTab({ config, update }: TabProps) {
   const among = isAppsItem(config);
   const items = resolveOrder(config).filter(among);
   const current = selected && items.includes(selected) ? selected : (items.find((k) => appsByKey.has(k)) ?? items[0]);
-  const nameOf = (key: string) => appsByKey.get(key)?.name ?? (key === START_KEY ? t.startButton(platformLabels.startButton) : t.divider);
+  const nameOf = (key: string) =>
+    appsByKey.get(key)?.name ??
+    (key === START_KEY ? t.startButton(platformLabels.startButton) : key === LAUNCHER_KEY ? t.launcher : t.divider);
   const shortcutOf = (key: string) => {
     const n = config.pinnedApps.findIndex((p) => appKey(p.id) === key) + 1;
     return n >= 1 && n <= 9 ? `${keys.appShortcut} ${n}` : null;
@@ -75,7 +77,13 @@ export function AppsTab({ config, update }: TabProps) {
             const shortcut = shortcutOf(key);
             return (
               <button key={key} className="list-item" aria-current={key === current} onClick={() => setSelected(key)}>
-                {app ? <AppIconImg entry={app} size={24} /> : <span className="row-icon glyph">{key === START_KEY ? <Search size={14} /> : <Minus size={14} />}</span>}
+                {app ? (
+                  <AppIconImg entry={app} size={24} />
+                ) : (
+                  <span className="row-icon glyph">
+                    {key === START_KEY ? <Search size={14} /> : key === LAUNCHER_KEY ? <LayoutGrid size={14} /> : <Minus size={14} />}
+                  </span>
+                )}
                 <span className="list-item-name">{nameOf(key)}</span>
                 {shortcut && <Kbd keys={shortcut} />}
               </button>
@@ -85,6 +93,11 @@ export function AppsTab({ config, update }: TabProps) {
           {!config.showStartButton && (
             <button className="btn-text" onClick={() => update({ showStartButton: true })}>
               <Plus size={14} aria-hidden /> {t.showStartButton(platformLabels.startButton)}
+            </button>
+          )}
+          {!config.showLauncher && (
+            <button className="btn-text" onClick={() => update({ showLauncher: true })}>
+              <Plus size={14} aria-hidden /> {t.showLauncher}
             </button>
           )}
           <SectionLabel aside={installed ? results.length : undefined}>{t.installed}</SectionLabel>

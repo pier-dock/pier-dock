@@ -83,6 +83,7 @@ export function AppearanceTab({ config, update, platform }: TabProps) {
   const glassAvailable = platform?.glass !== false;
   const glass = config.material === "glass" && glassAvailable;
   const magnify = config.magnification > 1;
+  const customHeight = config.dockHeight != null;
   const t = useT().appearance;
 
   return (
@@ -158,6 +159,31 @@ export function AppearanceTab({ config, update, platform }: TabProps) {
             ]}
           />
           <p className="field-hint">{t.dockWidthHint}</p>
+        </div>
+        <div className="field">
+          <span className="field-label">{t.panelHeight}</span>
+          <Segmented
+            label={t.panelHeight}
+            value={customHeight ? "custom" : "auto"}
+            onChange={(mode) => update({ dockHeight: mode === "custom" ? config.iconSize + 32 : null })}
+            options={[
+              { value: "auto", label: t.panelAuto },
+              { value: "custom", label: t.panelCustom },
+            ]}
+          />
+          {customHeight && (
+            <Slider
+              id="dock-height"
+              label={t.panelHeight}
+              value={config.dockHeight!}
+              display={`${config.dockHeight} px`}
+              min={config.iconSize + 16}
+              max={160}
+              step={2}
+              onChange={(dockHeight) => update({ dockHeight })}
+            />
+          )}
+          <p className="field-hint">{t.panelHeightHint}</p>
         </div>
         <Card>
           <Row label={t.magnify}>

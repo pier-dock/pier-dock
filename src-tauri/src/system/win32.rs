@@ -171,6 +171,8 @@ pub fn open_shell(kind: &str) {
         "system-monitor" => shell_open(&format!(r"{}\System32\Taskmgr.exe", windows_dir())),
         "calendar" => shell_open("outlookcal:"),
         "bluetooth" => shell_open("ms-settings:bluetooth"),
+        "sound" => shell_open("ms-settings:sound"),
+        "network" => shell_open("ms-settings:network-wifi"),
         _ => {}
     }
 }

@@ -6,6 +6,10 @@
   <true/>
   <key>NSBluetoothAlwaysUsageDescription</key>
   <string>O Pier mostra no widget de Bluetooth se ele está ligado e quais dispositivos estão conectados.</string>
+  <key>NSLocationWhenInUseUsageDescription</key>
+  <string>O macOS só mostra os nomes das redes Wi-Fi para apps com acesso à Localização. O Pier usa isso para listar as redes no widget de Wi-Fi.</string>
+  <key>NSLocationUsageDescription</key>
+  <string>O macOS só mostra os nomes das redes Wi-Fi para apps com acesso à Localização. O Pier usa isso para listar as redes no widget de Wi-Fi.</string>
   <key>NSAppleEventsUsageDescription</key>
   <string>O Pier controla o Spotify e o Música para mostrar o que está tocando no widget de mídia.</string>
 </dict>
