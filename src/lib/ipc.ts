@@ -31,8 +31,11 @@ export type WidgetKind =
 export interface WidgetConfig {
   kind: WidgetKind;
   enabled: boolean;
-  size: "small" | "wide";
+  size: WidgetSize;
 }
+
+/** "count" só existe nas contribuições: o total do ano, sem o mapa. */
+export type WidgetSize = "small" | "wide" | "count";
 
 export interface WeatherLocation {
   name: string;

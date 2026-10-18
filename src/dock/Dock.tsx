@@ -224,7 +224,7 @@ export function Dock({ config }: { config: Config }) {
     calendar,
     claude,
   };
-  const renderWidget = (w: WidgetConfig) => <WidgetView kind={w.kind} wide={w.size === "wide"} data={widgetData} />;
+  const renderWidget = (w: WidgetConfig) => <WidgetView kind={w.kind} size={w.size} data={widgetData} />;
 
   const pinnedApps = new Map(apps.filter((a) => a.pinned).map((a) => [a.key, a]));
   const unpinnedApps = apps.filter((a) => !a.pinned);

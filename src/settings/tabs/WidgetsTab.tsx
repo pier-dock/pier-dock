@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, Search, Settings, X } from "lucide-react";
-import type { BluetoothState, WidgetConfig, WidgetKind } from "../../lib/ipc";
+import type { BluetoothState, WidgetConfig, WidgetKind, WidgetSize } from "../../lib/ipc";
 import { os, widgetSupported } from "../../lib/platform";
 import { moveAmong, widgetKey } from "../../dock/order";
 import { useGithub } from "../../hooks/useGithub";
@@ -9,7 +9,7 @@ import { useBluetooth, useSystemStatus } from "../../hooks/useSystem";
 import { useWeather } from "../../hooks/useWeather";
 import { useCalendar } from "../../hooks/useCalendar";
 import { useClaudeUsage } from "../../hooks/useClaudeUsage";
-import { RESIZABLE, WidgetView, type WidgetData } from "../../widgets/WidgetView";
+import { RESIZABLE, WidgetView, formatsOf, type WidgetData } from "../../widgets/WidgetView";
 import { CalendarOptions, PomodoroOptions, WeatherOptions } from "./WidgetOptions";
 import { Card, Row } from "../../ui/Card";
 import { Segmented } from "../../ui/Segmented";
@@ -93,7 +93,7 @@ function FitScale({ max = 1, children }: { max?: number; children: ReactNode }) 
 }
 
 /** Palco com o widget de verdade, em vidro como na dock, mas inerte (não abre painel nem pega foco). */
-function Stage({ kind, sizes, data, large }: { kind: WidgetKind; sizes: boolean[]; data: WidgetData; large?: boolean }) {
+function Stage({ kind, sizes, data, large }: { kind: WidgetKind; sizes: WidgetSize[]; data: WidgetData; large?: boolean }) {
   const t = useT().widgets;
   return (
     <div className={`widget-stage ${large ? "large" : ""}`} style={tintStyle(kind)} aria-hidden ref={(el) => el && (el.inert = true)}>
@@ -101,9 +101,9 @@ function Stage({ kind, sizes, data, large }: { kind: WidgetKind; sizes: boolean[
       {available(kind, data) ? (
         <FitScale max={large ? 1.6 : 1}>
           <div className="widget-pills">
-            {sizes.map((wide) => (
-              <div key={String(wide)} className="preview-bar widget-pill" data-glass>
-                <WidgetView kind={kind} wide={wide} data={data} />
+            {sizes.map((size) => (
+              <div key={size} className="preview-bar widget-pill" data-glass>
+                <WidgetView kind={kind} size={size} data={data} />
               </div>
             ))}
           </div>
@@ -123,7 +123,7 @@ interface WidgetActions {
 function WidgetCard({ widget, data, actions, onConfigure }: { widget: WidgetConfig; data: WidgetData; actions: WidgetActions; onConfigure: () => void }) {
   const t = useT().widgets;
   const info = t.info[widget.kind];
-  const sizes = RESIZABLE.has(widget.kind) ? [true, false] : [widget.size === "wide"];
+  const sizes = RESIZABLE.has(widget.kind) ? formatsOf(widget.kind) : [widget.size];
   return (
     <article className={`widget-card ${widget.enabled ? "" : "off"}`} data-kind={widget.kind} aria-label={info.name}>
       <Stage kind={widget.kind} sizes={sizes} data={data} />
@@ -190,7 +190,7 @@ function WidgetDialog({
           </button>
         </header>
         <div className="widget-dialog-body">
-          <Stage kind={widget.kind} sizes={[widget.size === "wide"]} data={data} large />
+          <Stage kind={widget.kind} sizes={[widget.size]} data={data} large />
           <p className="widget-dialog-description">{info.description}</p>
           <Card>
             {RESIZABLE.has(widget.kind) && (
@@ -199,10 +199,7 @@ function WidgetDialog({
                   label={t.format}
                   value={widget.size}
                   onChange={(size) => actions.set(widget.kind, { size })}
-                  options={[
-                    { value: "wide", label: t.formatWide },
-                    { value: "small", label: t.formatSquare },
-                  ]}
+                  options={formatsOf(widget.kind).map((value) => ({ value, label: t.formats[value] }))}
                 />
               </Row>
             )}
