@@ -231,7 +231,10 @@ fn click_tray_chevron_win10() -> windows::core::Result<()> {
 }
 
 fn click_tray_chevron() -> windows::core::Result<()> {
-    find_tray_chevron().and_then(|chevron| invoke(&chevron)).or_else(|_| click_tray_chevron_win10())
+    match poll(Duration::from_millis(300), || find_tray_chevron().ok()) {
+        Some(chevron) => invoke(&chevron),
+        None => click_tray_chevron_win10(),
+    }
 }
 
 /// Clica na seta e espera a gaveta aparecer.
@@ -252,6 +255,15 @@ fn show_tray_overflow() -> Option<HWND> {
     poll(Duration::from_secs(1), tray_overflow)
 }
 
+/// Escondida pelo Pier (`SW_HIDE`), a taskbar não expõe nenhum elemento à UI Automation: ela
+/// reaparece só durante `f`. A gaveta é uma janela própria e continua aberta depois.
+fn with_taskbar<T>(f: impl FnOnce() -> T) -> T {
+    crate::taskbar::show_for_tray(true);
+    let result = f();
+    crate::taskbar::show_for_tray(false);
+    result
+}
+
 /// Abre a gaveta de ícones ocultos centrada em `anchor_x`, com a base em `bottom` (pixels
 /// físicos de tela). Com ela aberta, fecha: clicar na dock nem sempre a fecha sozinho.
 pub fn open_tray(anchor_x: i32, bottom: i32) -> Result<(), String> {
@@ -262,15 +274,10 @@ pub fn open_tray(anchor_x: i32, bottom: i32) -> Result<(), String> {
         return Ok(());
     }
     if tray_overflow().is_some() {
-        let _ = click_tray_chevron();
+        let _ = with_taskbar(click_tray_chevron);
         return Ok(());
     }
-    // Escondida pelo Pier (`SW_HIDE`), a taskbar não expõe nenhum elemento à UI Automation.
-    crate::taskbar::show_for_tray(true);
-    let Some(overflow) = show_tray_overflow() else {
-        crate::taskbar::show_for_tray(false);
-        return Err("não foi possível abrir a bandeja".into());
-    };
+    let overflow = with_taskbar(show_tray_overflow).ok_or("não foi possível abrir a bandeja")?;
     unsafe {
         let mut rect = RECT::default();
         if GetWindowRect(overflow, &mut rect).is_ok() {
@@ -286,7 +293,6 @@ pub fn open_tray(anchor_x: i32, bottom: i32) -> Result<(), String> {
             std::thread::sleep(Duration::from_millis(50));
         }
         *TRAY_CLOSED_AT.lock().unwrap() = Some(Instant::now());
-        crate::taskbar::show_for_tray(false);
     });
     Ok(())
 }

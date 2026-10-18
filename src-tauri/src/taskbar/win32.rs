@@ -108,9 +108,9 @@ fn is_hidden() -> bool {
     HIDDEN.load(Ordering::SeqCst)
 }
 
-/// Com a taskbar escondida a seta da bandeja pode não abrir a gaveta de ícones ocultos. Aqui ela
-/// volta a ficar visível (em "ocultar automaticamente", só uma faixa fora da dock) enquanto a gaveta
-/// estiver aberta; o watchdog a esconde de novo quando `shown` vira `false`.
+/// Escondida (`SW_HIDE`), a taskbar não expõe a seta da bandeja à UI Automation. Aqui ela volta a
+/// ficar visível só enquanto a seta é acionada: com a gaveta aberta o Windows revela a taskbar
+/// inteira, então ela é escondida de novo assim que a gaveta aparece.
 pub fn show_for_tray(shown: bool) {
     if !is_hidden() {
         return;
@@ -122,6 +122,8 @@ pub fn show_for_tray(shown: bool) {
                 let _ = ShowWindow(h, SW_SHOWNA);
             }
         }
+    } else {
+        set_visible(false);
     }
 }
 
