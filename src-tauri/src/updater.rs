@@ -108,7 +108,7 @@ pub fn start(app: AppHandle) {
         std::thread::sleep(Duration::from_secs(30));
         loop {
             if let Err(e) = tauri::async_runtime::block_on(check(&app)) {
-                eprintln!("falha ao procurar atualização: {e}");
+                log::warn!("falha ao procurar atualização: {e}");
             }
             std::thread::sleep(CHECK_INTERVAL);
         }

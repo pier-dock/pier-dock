@@ -149,7 +149,7 @@ fn gh_token() -> Option<String> {
     (!token.is_empty()).then_some(token)
 }
 
-fn token() -> Option<(String, &'static str)> {
+pub(crate) fn token() -> Option<(String, &'static str)> {
     stored_token().map(|t| (t, "pat")).or_else(|| gh_token().map(|t| (t, "gh")))
 }
 

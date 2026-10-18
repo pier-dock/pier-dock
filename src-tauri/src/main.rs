@@ -13,6 +13,7 @@ mod media;
 mod panels;
 mod platform;
 mod pomodoro;
+mod report;
 mod system;
 mod taskbar;
 mod updater;
@@ -77,7 +78,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
                 let app = app.clone();
                 tauri::async_runtime::spawn(async move {
                     if let Err(e) = updater::install_update(app).await {
-                        eprintln!("falha ao instalar a atualização: {e}");
+                        log::error!("falha ao instalar a atualização: {e}");
                     }
                 });
             }
@@ -152,6 +153,7 @@ fn main() {
         .build();
 
     let app = tauri::Builder::default()
+        .plugin(report::log_plugin())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             let _ = panels::open_settings_window(app);
         }))
@@ -213,6 +215,9 @@ fn main() {
             platform::platform_setup,
             updater::check_update,
             updater::install_update,
+            report::report_environment,
+            report::recent_logs,
+            report::report_issue,
         ])
         .setup(|app| {
             // Sem ícone no Dock nem barra de menus: a dock é o app.
@@ -261,7 +266,7 @@ fn main() {
             #[cfg(target_os = "linux")]
             platform::linux::gnome_shell::set_shortcuts_enabled(true);
             if let Err(e) = build_tray(&handle) {
-                eprintln!("falha ao criar o ícone da bandeja: {e}");
+                log::error!("falha ao criar o ícone da bandeja: {e}");
             }
             Ok(())
         })

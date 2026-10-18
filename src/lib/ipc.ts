@@ -254,6 +254,19 @@ export interface UpdateInfo {
   notes?: string | null;
 }
 
+export type ReportKind = "bug" | "feature";
+
+export interface ReportEnvironment {
+  version: string;
+  os: string;
+  arch: string;
+  /** Só no Linux: área de trabalho, compositor e sessão. */
+  desktop: string | null;
+}
+
+/** "fallback": sem conta conectada (ou a API recusou), a página issues/new preenchida. */
+export type ReportResult = { kind: "created"; url: string } | { kind: "fallback"; url: string; reason: string | null };
+
 export const ipc = {
   getConfig: () => invoke<Config>("get_config"),
   saveConfig: (config: Config) => invoke<void>("save_config", { config }),
@@ -324,4 +337,9 @@ export const ipc = {
 
   checkUpdate: () => invoke<UpdateInfo | null>("check_update"),
   installUpdate: () => invoke<void>("install_update"),
+
+  reportEnvironment: () => invoke<ReportEnvironment>("report_environment"),
+  recentLogs: () => invoke<string>("recent_logs"),
+  reportIssue: (args: { kind: ReportKind; title: string; description: string; logs: string | null }) =>
+    invoke<ReportResult>("report_issue", args),
 };

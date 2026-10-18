@@ -16,6 +16,7 @@ pub use backend::{show_for_tray, start_watchdog};
 pub fn install_crash_guards() {
     let default_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
+        log::error!("{info}");
         restore();
         default_hook(info);
     }));

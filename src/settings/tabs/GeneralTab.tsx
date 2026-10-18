@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { listen } from "@tauri-apps/api/event";
 import { disable as disableAutostart, enable as enableAutostart, isEnabled as autostartEnabled } from "@tauri-apps/plugin-autostart";
-import { ipc, type UpdateInfo } from "../../lib/ipc";
+import { Bug, Lightbulb } from "lucide-react";
+import { ipc, type ReportKind, type UpdateInfo } from "../../lib/ipc";
 import { labels, os } from "../../lib/platform";
 import { Card, Row, SectionLabel } from "../../ui/Card";
 import { Logo } from "../../ui/Logo";
 import { Segmented } from "../../ui/Segmented";
 import { Switch } from "../../ui/Switch";
 import type { TabProps } from "../shared";
+import { ReportDialog } from "../ReportDialog";
 import { useT, type Dict, type LanguageSetting } from "../../i18n";
 
 const LANGUAGES: { value: LanguageSetting; label: string }[] = [
@@ -42,7 +44,8 @@ export function GeneralTab({ config, update, platform }: TabProps) {
   const [autostart, setAutostart] = useState<boolean | null>(null);
   const [version, setVersion] = useState("");
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ kind: "checking" });
-  const t = useT().general;
+  const [report, setReport] = useState<ReportKind | null>(null);
+  const { general: t, report: reportT } = useT();
   const platformLabels = labels();
 
   const checkUpdate = () => {
@@ -126,6 +129,18 @@ export function GeneralTab({ config, update, platform }: TabProps) {
           </button>
         )}
       </div>
+
+      <div className="report-actions">
+        <button className="btn" onClick={() => setReport("bug")}>
+          <Bug size={14} />
+          {reportT.reportProblem}
+        </button>
+        <button className="btn-text" onClick={() => setReport("feature")}>
+          <Lightbulb size={14} />
+          {reportT.suggestFeature}
+        </button>
+      </div>
+      {report && <ReportDialog kind={report} onClose={() => setReport(null)} />}
 
       <p className="field-hint">{t.restoreHint[os]}</p>
     </div>

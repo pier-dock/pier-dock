@@ -305,6 +305,9 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   "plugin:autostart|is_enabled": () => true,
   "plugin:app|version": () => "0.1.0",
   check_update: () => ({ version: "0.2.0", notes: null }),
+  report_environment: () => ({ version: "0.1.0", os: "macOS 15.6 Sequoia", arch: "aarch64", desktop: null }),
+  recent_logs: () => "[2026-10-18][10:02:11][pier][WARN] falha ao procurar atualização: timeout",
+  report_issue: () => ({ kind: "created", url: "https://github.com/pier-dock/pier-dock/issues/1" }),
 };
 
 if (!insideTauri) {

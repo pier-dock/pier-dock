@@ -1,0 +1,25 @@
+name: Label reports
+
+# Issues criadas pelo "Reportar um problema" do app usam a conta de quem reporta, e a API descarta as
+# labels de quem não tem push no repositório. O corpo traz a marca `<!-- pier-report: <label> -->`.
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  label:
+    if: contains(github.event.issue.body, '<!-- pier-report:')
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          BODY: ${{ github.event.issue.body }}
+          NUMBER: ${{ github.event.issue.number }}
+        run: |
+          label=$(printf '%s' "$BODY" | grep -oE '<!-- pier-report: (bug|enhancement) -->' | head -1 | sed -E 's/.*: ([a-z]+) .*/\1/')
+          if [ -n "$label" ]; then
+            gh issue edit "$NUMBER" --repo "$GITHUB_REPOSITORY" --add-label "$label"
+          fi

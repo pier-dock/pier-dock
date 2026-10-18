@@ -28,6 +28,8 @@ chrono-tz = "0.10.4"
 rrule = "0.14.0"
 tauri-plugin-notification = "2"
 sys-locale = "0.3"
+tauri-plugin-log = "2"
+log = "0.4"
 
 [target.'cfg(unix)'.dependencies]
 signal-hook = "0.3"
