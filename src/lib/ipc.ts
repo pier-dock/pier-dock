@@ -296,6 +296,28 @@ export interface AudioState {
   apps: AppStream[] | null;
 }
 
+export interface WifiNetwork {
+  ssid: string;
+  /** 0–100. */
+  strength: number;
+  signalBars: number;
+  secured: boolean;
+  /** Tem perfil salvo: conecta sem pedir a senha. */
+  known: boolean;
+  connected: boolean;
+}
+
+export interface WifiState {
+  available: boolean;
+  enabled: boolean;
+  canToggle: boolean;
+  /** Sem isso, clicar numa rede abre as configurações do sistema. */
+  canConnect: boolean;
+  /** O sistema só mostra as redes com a permissão de Localização. */
+  needsPermission: boolean;
+  networks: WifiNetwork[];
+}
+
 export const ipc = {
   getConfig: () => invoke<Config>("get_config"),
   saveConfig: (config: Config) => invoke<void>("save_config", { config }),
@@ -329,11 +351,18 @@ export const ipc = {
   getVolume: () => invoke<Volume>("get_volume"),
   setVolume: (args: { level?: number; muted?: boolean }) => invoke<void>("set_volume", args),
   openTray: (anchorX: number) => invoke<void>("open_tray", { anchorX }),
-  openShell: (kind: "start" | "quick-settings" | "notifications" | "system-monitor" | "calendar" | "bluetooth" | "sound") =>
+  openShell: (kind: "start" | "quick-settings" | "notifications" | "system-monitor" | "calendar" | "bluetooth" | "sound" | "network") =>
     invoke<void>("open_shell", { kind }),
   audioStatus: () => invoke<AudioState>("audio_status"),
   setOutputDevice: (id: string) => invoke<void>("set_output_device", { id }),
   setAppVolume: (id: string, patch: { level?: number; muted?: boolean }) => invoke<void>("set_app_volume", { id, ...patch }),
+  wifiStatus: () => invoke<WifiState>("wifi_status"),
+  wifiScan: () => invoke<void>("wifi_scan"),
+  wifiSetEnabled: (enabled: boolean) => invoke<void>("wifi_set_enabled", { enabled }),
+  /** Rejeita com "auth" (senha errada ou faltando) ou "unsupported" (só pelas configurações do sistema). */
+  wifiConnect: (ssid: string, password: string | null) => invoke<void>("wifi_connect", { ssid, password }),
+  wifiDisconnect: () => invoke<void>("wifi_disconnect"),
+  wifiRequestPermission: () => invoke<void>("wifi_request_permission"),
 
   githubFetch: () => invoke<GithubData>("github_fetch"),
   githubCached: () => invoke<GithubData | null>("github_cached"),
@@ -361,6 +390,7 @@ export const ipc = {
   openPanel: (kind: string, anchorX: number, width: number, height: number) =>
     invoke<void>("open_panel", { kind, anchorX, width, height }),
   closePanel: () => invoke<void>("close_panel"),
+  focusPanel: () => invoke<void>("focus_panel"),
   openSettings: () => invoke<void>("open_settings"),
 
   platformInfo: () => invoke<PlatformInfo>("platform_info"),

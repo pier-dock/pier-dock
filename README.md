@@ -25,7 +25,7 @@ Pier replaces your system's taskbar or dock with a single bar that holds your pi
 - **Apps:** Pinned and running apps with magnification, drag-to-reorder, window lists, and dividers.
 - **Media player:** Shows what's playing in Spotify, YouTube Music, and other players, with playback controls.
 - **GitHub widgets:** Pull requests waiting for your review, your open pull requests, recent commits, and your contribution graph.
-- **System widgets:** Network, volume (with the output device and per-app volume), Bluetooth (with connected devices), battery, clock, system usage (CPU and memory with the last minute of history), and, on Windows, the tray arrow that opens the hidden icons.
+- **System widgets:** Network (with the Wi-Fi networks nearby), volume (with the output device and per-app volume), Bluetooth (with connected devices), battery, clock, system usage (CPU and memory with the last minute of history), and, on Windows, the tray arrow that opens the hidden icons.
 - **Productivity widgets:** Weather, a Pomodoro timer, your next calendar event with a join button for video calls, and your Claude Code usage.
 - **Keyboard shortcuts:** Open or focus the app in position 1 to 9 from anywhere.
 - **Automatic updates:** Pier checks for new versions and installs them in one click.
@@ -105,7 +105,7 @@ macOS has some limitations compared to Windows:
 - Apps can't reserve screen space, so maximized windows extend under the dock. To avoid this, set **Hide automatically** in **Settings** > **Appearance**.
 - The native Dock can't be removed. Pier sets it to auto-hide with a very long reveal delay and restores your original preferences when it quits.
 - The media widget supports only Spotify and Music.
-- The Wi-Fi widget shows the network name only if Pier has Location permission.
+- The Wi-Fi widget shows the network name and the networks nearby only if Pier has Location permission. Its panel asks for it.
 - The Bluetooth widget asks for Bluetooth permission the first time, can't turn Bluetooth on or off (macOS doesn't allow it), and doesn't show device battery levels.
 
 ### Linux
@@ -163,7 +163,7 @@ When you run `npm run tauri dev` on macOS, the system grants permissions to the 
 Outside Tauri, `npm run dev` answers IPC calls with sample data so you can review the UI in a browser. Open `http://localhost:1420` with one of these query strings:
 
 - `?view=dock`
-- `?view=panel&kind=media` (or `github-mine`, `github-review`, `github-contrib`, `volume`)
+- `?view=panel&kind=media` (or `github-mine`, `github-review`, `github-contrib`, `volume`, `network`)
 - `?view=settings`
 
 ### Tests

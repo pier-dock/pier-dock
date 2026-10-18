@@ -21,6 +21,7 @@ mod updater;
 mod usage;
 mod util;
 mod weather;
+mod wifi;
 mod windows_list;
 
 use std::sync::Mutex;
@@ -197,6 +198,12 @@ fn main() {
             audio::audio_status,
             audio::set_output_device,
             audio::set_app_volume,
+            wifi::wifi_status,
+            wifi::wifi_scan,
+            wifi::wifi_set_enabled,
+            wifi::wifi_connect,
+            wifi::wifi_disconnect,
+            wifi::wifi_request_permission,
             github::github_fetch,
             github::github_cached,
             github::github_auth_status,
@@ -216,6 +223,7 @@ fn main() {
             claude::claude_usage_cached,
             panels::open_panel,
             panels::close_panel,
+            panels::focus_panel,
             panels::open_settings,
             platform::platform_info,
             i18n::system_language,

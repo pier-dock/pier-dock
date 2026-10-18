@@ -54,6 +54,7 @@ objc2-io-bluetooth = "0.3"
 objc2-quartz-core = "0.3"
 block2 = "0.6"
 objc2-core-audio = "0.3"
+objc2-core-location = { version = "0.3", default-features = false, features = ["std", "CLLocationManager"] }
 
 [target.'cfg(windows)'.dependencies]
 keyring = { version = "3", features = ["windows-native"] }
@@ -77,6 +78,8 @@ features = [
   "Win32_Graphics_Gdi",
   "Win32_Media_Audio",
   "Win32_Media_Audio_Endpoints",
+  "Win32_NetworkManagement_Ndis",
+  "Win32_NetworkManagement_WiFi",
   "Win32_Storage_EnhancedStorage",
   "Win32_Storage_FileSystem",
   "Win32_System_Com",

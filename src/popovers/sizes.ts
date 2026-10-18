@@ -16,4 +16,5 @@ export const PANEL_SIZES: Record<string, [number, number]> = {
   bluetooth: [340, 264],
   launcher: [420, 460],
   volume: [340, 420],
+  network: [340, 400],
 };

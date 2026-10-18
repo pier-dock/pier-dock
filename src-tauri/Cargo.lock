@@ -3214,6 +3214,7 @@ dependencies = [
  "objc2",
  "objc2-app-kit",
  "objc2-core-audio",
+ "objc2-core-location",
  "objc2-core-wlan",
  "objc2-foundation",
  "objc2-io-bluetooth",

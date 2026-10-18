@@ -25,7 +25,7 @@ O Pier substitui a barra de tarefas ou a dock do sistema por uma barra única co
 - **Apps:** apps fixados e abertos, com ampliação, reordenação por arrastar, lista de janelas e separadores.
 - **Player de mídia:** mostra o que está tocando no Spotify, no YouTube Music e em outros players, com os controles de reprodução.
 - **Widgets do GitHub:** pull requests aguardando a sua revisão, os seus pull requests abertos, commits recentes e o gráfico de contribuições.
-- **Widgets do sistema:** rede, volume (com a saída de áudio e o volume por app), Bluetooth (com os dispositivos conectados), bateria, relógio, uso do sistema (CPU e memória com o histórico do último minuto) e, no Windows, a seta da bandeja que abre os ícones ocultos.
+- **Widgets do sistema:** rede (com as redes Wi-Fi por perto), volume (com a saída de áudio e o volume por app), Bluetooth (com os dispositivos conectados), bateria, relógio, uso do sistema (CPU e memória com o histórico do último minuto) e, no Windows, a seta da bandeja que abre os ícones ocultos.
 - **Widgets de produtividade:** clima, timer Pomodoro e o próximo compromisso da agenda, com botão para entrar na videochamada.
 - **Atalhos de teclado:** abra ou foque o app da posição 1 a 9 de qualquer lugar.
 - **Atualização automática:** o Pier procura versões novas e as instala com um clique.
@@ -93,7 +93,7 @@ O macOS tem algumas limitações em relação ao Windows:
 - Os apps não podem reservar espaço na tela, então janelas maximizadas passam por baixo da dock. Para evitar isso, ative **Ocultar automaticamente** em **Configurações** > **Aparência**.
 - O Dock nativo não pode ser removido. O Pier o deixa em ocultar automaticamente com um atraso muito longo para reaparecer e devolve as suas preferências originais ao sair.
 - O widget de mídia só funciona com o Spotify e o Música.
-- O widget de Wi-Fi só mostra o nome da rede se o Pier tiver permissão de Localização.
+- O widget de Wi-Fi só mostra o nome da rede e as redes por perto se o Pier tiver permissão de Localização. O painel dele pede a permissão.
 - O widget de Bluetooth pede a permissão de Bluetooth na primeira vez, não liga nem desliga o Bluetooth (o macOS não permite) e não mostra a bateria dos dispositivos.
 
 ### Linux
@@ -151,7 +151,7 @@ Quando você roda `npm run tauri dev` no macOS, o sistema concede as permissões
 Fora do Tauri, o `npm run dev` responde as chamadas de IPC com dados de exemplo, para você conferir a interface no navegador. Abra `http://localhost:1420` com um destes parâmetros:
 
 - `?view=dock`
-- `?view=panel&kind=media` (ou `github-mine`, `github-review`, `github-contrib`, `volume`)
+- `?view=panel&kind=media` (ou `github-mine`, `github-review`, `github-contrib`, `volume`, `network`)
 - `?view=settings`
 
 ### Testes

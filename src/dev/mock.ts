@@ -281,6 +281,19 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
       { id: "2", name: "Firefox", icon: null, level: 0.45, muted: true },
     ],
   }),
+  wifi_status: () => ({
+    available: true,
+    enabled: true,
+    canToggle: true,
+    canConnect: true,
+    needsPermission: false,
+    networks: [
+      { ssid: "Casa", strength: 82, signalBars: 5, secured: true, known: true, connected: true },
+      { ssid: "Escritório", strength: 64, signalBars: 4, secured: true, known: true, connected: false },
+      { ssid: "Café do Centro", strength: 45, signalBars: 3, secured: false, known: false, connected: false },
+      { ssid: "VIVO-8F21", strength: 22, signalBars: 2, secured: true, known: false, connected: false },
+    ],
+  }),
   bluetooth_status: () => bluetooth,
   set_bluetooth: (args) => {
     bluetooth = { ...bluetooth, powered: Boolean(args.powered) };

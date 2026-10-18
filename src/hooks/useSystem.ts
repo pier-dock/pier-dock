@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ipc, type AppStream, type AudioState, type BluetoothState, type SystemStatus, type Volume } from "../lib/ipc";
+import { ipc, type AppStream, type AudioState, type BluetoothState, type SystemStatus, type Volume, type WifiState } from "../lib/ipc";
 
 export function useSystemStatus(): SystemStatus | null {
   const [status, setStatus] = useState<SystemStatus | null>(null);
@@ -48,6 +48,34 @@ export function useAudio(intervalMs = 1_500) {
     ipc.setAppVolume(id, patch).catch(console.error);
   }, []);
   return { audio: state, setOutput, setApp };
+}
+
+/** Redes do popover de Wi-Fi: estado a cada 3 s e uma busca nova a cada 10 s. */
+export function useWifi() {
+  const [state, setState] = useState<WifiState | null>(null);
+  const refresh = useCallback(() => ipc.wifiStatus().then(setState).catch(() => {}), []);
+  useEffect(() => {
+    const scan = () => ipc.wifiScan().catch(() => {}).finally(refresh);
+    refresh();
+    scan();
+    const poll = setInterval(refresh, 3_000);
+    const rescan = setInterval(scan, 10_000);
+    return () => {
+      clearInterval(poll);
+      clearInterval(rescan);
+    };
+  }, [refresh]);
+  const setEnabled = useCallback(
+    (enabled: boolean) => {
+      setState((s) => s && { ...s, enabled, networks: enabled ? s.networks : [] });
+      ipc
+        .wifiSetEnabled(enabled)
+        .catch(console.error)
+        .finally(() => (enabled ? ipc.wifiScan().catch(() => {}).finally(refresh) : refresh()));
+    },
+    [refresh],
+  );
+  return { wifi: state, refresh, setEnabled };
 }
 
 /** Só consulta com `enabled`: no macOS a primeira leitura pede a permissão de Bluetooth. */

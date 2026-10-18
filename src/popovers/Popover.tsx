@@ -12,6 +12,7 @@ import { PullRequests } from "./PullRequests";
 import { SoundPanel } from "./Sound";
 import { SystemUsage } from "./SystemUsage";
 import { Weather } from "./Weather";
+import { WifiPanel } from "./Wifi";
 import { useT } from "../i18n";
 
 function Content({ kind }: { kind: string }) {
@@ -43,6 +44,8 @@ function Content({ kind }: { kind: string }) {
       return <Launcher />;
     case "volume":
       return <SoundPanel />;
+    case "network":
+      return <WifiPanel />;
     default:
       return <div className="popover-empty">{t.popover.unknown}</div>;
   }

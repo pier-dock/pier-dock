@@ -45,7 +45,7 @@ export function NetworkWidget({ status }: { status: SystemStatus | null }) {
   }
   const label = !net?.connected ? t.offline : `${net.name || t.connected}${net.internet ? "" : t.noInternet}`;
   return (
-    <Tile kind="network" label={label} className="sys-tile" onClick={() => ipc.openShell("quick-settings")}>
+    <Tile kind="network" label={label} className="sys-tile">
       <Icon size={17} />
     </Tile>
   );
