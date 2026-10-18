@@ -14,7 +14,7 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import {ExtensionState} from 'resource:///org/gnome/shell/misc/extensionUtils.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-const VERSION = 1;
+const VERSION = 2;
 const APP_NAME = 'dev.pier.App';
 const BUS_NAME = 'dev.pier.Shell';
 const OBJECT_PATH = '/dev/pier/Shell';
@@ -36,6 +36,7 @@ const IFACE = `
     <method name="ShowApps"/>
     <method name="OpenQuickSettings"/>
     <method name="OpenCalendar"/>
+    <method name="ToggleDesktop"/>
     <method name="SetHideNative"><arg type="b" direction="in" name="hide"/></method>
     <method name="SetReservedHeight"><arg type="u" direction="in" name="height"/></method>
     <method name="SetShortcutsEnabled"><arg type="b" direction="in" name="enabled"/></method>
@@ -57,6 +58,7 @@ class PierService {
         this._hiddenNative = null;
         this._accelerators = new Map();
         this._acceleratorSignal = 0;
+        this._desktopWindows = new Set();
     }
 
     enable() {
@@ -176,6 +178,10 @@ class PierService {
         this._handle(invocation, () => Main.panel.statusArea.dateMenu?.menu.toggle());
     }
 
+    ToggleDesktopAsync(_params, invocation) {
+        this._handle(invocation, () => this._toggleDesktop());
+    }
+
     SetHideNativeAsync([hide], invocation) {
         this._handle(invocation, () => this._setHideNative(hide));
     }
@@ -200,6 +206,7 @@ class PierService {
             win.connect('unmanaged', () => {
                 ids.forEach(id => win.disconnect(id));
                 this._windowSignals.delete(win);
+                this._desktopWindows.delete(win);
                 this._changed();
             }),
         ];
@@ -246,6 +253,34 @@ class PierService {
             focus: focus ? {id: focus.get_id(), pid: focus.get_pid(), fullscreen: focus.is_fullscreen()} : null,
             overview: Main.overview.visible,
         };
+    }
+
+    // ---- Mostrar a área de trabalho ----
+
+    // O Mutter tem esse modo internamente (`showing_desktop`), mas não o expõe para extensões:
+    // as janelas minimizadas daqui ficam lembradas para o próximo toque devolvê-las.
+    _toggleDesktop() {
+        if (this._desktopWindows.size > 0) {
+            this._restoreDesktop();
+            return;
+        }
+        const workspace = global.workspace_manager.get_active_workspace();
+        for (const actor of global.get_window_actors()) {
+            const win = actor.meta_window;
+            if (win.is_skip_taskbar() || win.minimized)
+                continue;
+            if (win.get_workspace() !== workspace && !win.is_on_all_workspaces())
+                continue;
+            this._desktopWindows.add(win);
+            win.minimize();
+        }
+    }
+
+    _restoreDesktop() {
+        const windows = [...this._desktopWindows];
+        this._desktopWindows.clear();
+        for (const win of windows)
+            win.unminimize();
     }
 
     // ---- Esconder o Dash e docks de outras extensões ----
@@ -344,6 +379,8 @@ class PierService {
     }
 
     _reset() {
+        // Sem o Pier por perto ninguém chamaria o toque de volta: as janelas voltam agora.
+        this._restoreDesktop();
         this._setHideNative(false);
         this._setReservedHeight(0);
         this._setShortcuts(false);
