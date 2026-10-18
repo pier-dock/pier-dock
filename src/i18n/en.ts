@@ -176,6 +176,7 @@ export const en: Dict = {
     volume: "Volume",
     volumeTile: (level, muted) => `Volume ${level}%${muted ? " (muted)" : ""} · scroll to adjust, right-click to mute`,
     battery: (percent, charging) => `Battery ${percent}%${charging ? " (charging)" : ""}`,
+    showDesktop: "Show desktop",
   },
   bluetooth: {
     tileOn: "Bluetooth · on",
@@ -338,6 +339,7 @@ export const en: Dict = {
       bluetooth: { summary: "Connected devices and battery.", name: "Bluetooth", description: "Whether it's on and how many devices are connected. Clicking opens the list, with each one's battery when the system reports it." },
       battery: { summary: "Charge and whether it's charging.", name: "Battery", description: "Charge level and whether it's charging. Hidden on computers without a battery." },
       clock: { summary: "Time and date.", name: "Clock", description: "Time and date. Clicking opens the notification center." },
+      "show-desktop": { summary: "Minimizes everything and shows the desktop.", name: "Desktop", description: "Minimizes all windows and shows the desktop. Clicking again brings them back." },
       weather: { summary: "Current temperature and conditions.", name: "Weather", description: "Current temperature and conditions. Clicking opens the hourly and 5-day forecast." },
       pomodoro: { summary: "Focus cycles with a progress ring.",
         name: "Pomodoro",

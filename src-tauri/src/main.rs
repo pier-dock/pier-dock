@@ -174,6 +174,7 @@ fn main() {
             windows_list::toggle_app_windows,
             windows_list::activate_window,
             windows_list::close_windows,
+            windows_list::toggle_desktop,
             apps::list_installed_apps,
             apps::launch_app,
             apps::resolve_app_path,

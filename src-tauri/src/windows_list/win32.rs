@@ -12,7 +12,9 @@ use windows::Win32::System::Threading::{
 };
 use windows::Win32::UI::Accessibility::{SetWinEventHook, HWINEVENTHOOK};
 use windows::Win32::System::Com::StructuredStorage::PropVariantToStringAlloc;
+use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_ALL};
 use windows::Win32::UI::Shell::PropertiesSystem::{IPropertyStore, SHGetPropertyStoreForWindow};
+use windows::Win32::UI::Shell::{IShellDispatch4, Shell};
 use windows::Win32::UI::WindowsAndMessaging::{
     BringWindowToTop, DispatchMessageW, EnumWindows, GetAncestor, GetForegroundWindow, GetMessageW, GetWindow,
     GetWindowLongPtrW, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindowVisible,
@@ -24,7 +26,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use super::{mark_dirty, WindowInfo, WindowsSnapshot};
-use crate::util::{com_init, wide_to_string};
+use crate::util::{com_init, wide_to_string, ErrStr};
 
 /// Última janela de outro processo que esteve em primeiro plano. Clicar na dock pode mover o foco
 /// para o WebView, então "qual app está ativo" é lembrado aqui.
@@ -219,5 +221,15 @@ pub fn minimize(id: i64) {
 pub fn close(id: i64) {
     unsafe {
         let _ = PostMessageW(hwnd(id), WM_CLOSE, WPARAM(0), LPARAM(0));
+    }
+}
+
+/// O mesmo "mostrar área de trabalho" do botão do canto da barra de tarefas: o shell minimiza
+/// todas as janelas e, chamado de novo, as restaura.
+pub fn toggle_desktop() -> Result<(), String> {
+    com_init();
+    unsafe {
+        let shell: IShellDispatch4 = CoCreateInstance(&Shell, None, CLSCTX_ALL).err_str()?;
+        shell.ToggleDesktop().err_str()
     }
 }

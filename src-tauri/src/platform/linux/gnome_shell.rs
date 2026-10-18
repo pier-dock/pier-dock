@@ -18,6 +18,9 @@ const UUID: &str = "pier@pier.dev";
 const METADATA_JSON: &str = include_str!("../../../../gnome-extension/pier@pier.dev/metadata.json");
 const EXTENSION_JS: &str = include_str!("../../../../gnome-extension/pier@pier.dev/extension.js");
 
+/// Versão da extensão em que o `ToggleDesktop` (mostrar a área de trabalho) apareceu.
+pub const SHOW_DESKTOP_VERSION: u32 = 2;
+
 #[zbus::proxy(
     interface = "dev.pier.Shell",
     default_service = "dev.pier.Shell",
@@ -33,6 +36,7 @@ pub trait Shell {
     fn show_apps(&self) -> zbus::Result<()>;
     fn open_quick_settings(&self) -> zbus::Result<()>;
     fn open_calendar(&self) -> zbus::Result<()>;
+    fn toggle_desktop(&self) -> zbus::Result<()>;
     fn set_hide_native(&self, hide: bool) -> zbus::Result<()>;
     fn set_reserved_height(&self, height: u32) -> zbus::Result<()>;
     fn set_shortcuts_enabled(&self, enabled: bool) -> zbus::Result<()>;

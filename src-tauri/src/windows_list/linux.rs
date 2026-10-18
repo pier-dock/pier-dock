@@ -7,7 +7,7 @@ use tauri::{AppHandle, Emitter};
 
 use super::{mark_dirty, WindowInfo, WindowsSnapshot};
 use crate::dock_window::DOCK_LABEL;
-use crate::platform::linux::{desktop_entry, gnome_shell, is_x11_session, x11};
+use crate::platform::linux::{dbus, desktop_entry, gnome_shell, is_x11_session, x11};
 
 /// Última janela de outro processo que esteve em foco.
 static LAST_FOREGROUND: AtomicI64 = AtomicI64::new(0);
@@ -117,4 +117,27 @@ pub fn close(id: i64) {
     } else if let Some(x) = x11_session() {
         x.close(id as u32);
     }
+}
+
+/// Mostra a área de trabalho. Em X11 é o `_NET_SHOWING_DESKTOP` do EWMH, que o gerenciador de
+/// janelas obedece; no Wayland, cada área de trabalho tem a sua ação: a extensão do GNOME ou o
+/// `showDesktop` do KWin (KDE).
+pub fn toggle_desktop() -> Result<(), String> {
+    if is_x11_session() {
+        return x11::get().map(|x| x.toggle_showing_desktop()).ok_or_else(|| "sem conexão com o X11".into());
+    }
+    if let Some(shell) = gnome_shell::shell() {
+        if shell.version().unwrap_or(0) >= gnome_shell::SHOW_DESKTOP_VERSION {
+            return shell.toggle_desktop().map_err(|e| e.to_string());
+        }
+    }
+    kwin_toggle_desktop()
+}
+
+/// KDE Plasma no Wayland: o KWin expõe o estado e a ação de mostrar a área de trabalho no D-Bus.
+fn kwin_toggle_desktop() -> Result<(), String> {
+    let conn = dbus::session().ok_or("sem acesso ao D-Bus da sessão")?;
+    let kwin = dbus::proxy(conn, "org.kde.KWin", "/KWin", "org.kde.KWin").ok_or("nem a extensão do GNOME nem o KWin responderam")?;
+    let showing: bool = kwin.get_property("showingDesktop").map_err(|e| e.to_string())?;
+    kwin.call_method("showDesktop", &(!showing,)).map(|_| ()).map_err(|e| e.to_string())
 }

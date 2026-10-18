@@ -32,6 +32,7 @@ const WIDGETS: Record<WidgetKind, { group: Group; tint: [string, string] }> = {
   bluetooth: { group: "system", tint: ["#1E3A6A", "#20242C"] },
   battery: { group: "system", tint: ["#1E3A2A", "#20242C"] },
   clock: { group: "system", tint: ["#2A2A3A", "#3A1E2A"] },
+  "show-desktop": { group: "system", tint: ["#2A2A3A", "#1E3A3A"] },
   weather: { group: "productivity", tint: ["#1E3A6A", "#6A4A12"] },
   pomodoro: { group: "productivity", tint: ["#6A1E22", "#3A1A2A"] },
   "system-usage": { group: "system", tint: ["#3A1E6A", "#1E2A4A"] },

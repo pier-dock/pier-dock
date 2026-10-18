@@ -1,7 +1,8 @@
 //! Janelas abertas (o que a taskbar mostraria), eventos ao vivo e ações de focar/minimizar.
 //!
 //! Cada sistema tem um backend com as mesmas funções: `start` (liga a fonte de eventos, que chama
-//! [`mark_dirty`]), `snapshot`, `foreground`, `is_minimized`, `activate`, `minimize` e `close`.
+//! [`mark_dirty`]), `snapshot`, `foreground`, `is_minimized`, `activate`, `minimize`, `close` e
+//! `toggle_desktop`.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -96,6 +97,15 @@ pub fn activate_window(id: i64) {
 #[tauri::command]
 pub fn close_windows(ids: Vec<i64>) {
     ids.into_iter().for_each(backend::close);
+}
+
+/// Mostra a área de trabalho minimizando todas as janelas; chamado de novo, restaura — o mesmo
+/// "mostrar área de trabalho" do botão do canto da barra de tarefas.
+#[tauri::command]
+pub fn toggle_desktop() -> Result<(), String> {
+    backend::toggle_desktop()?;
+    mark_dirty();
+    Ok(())
 }
 
 #[cfg(test)]

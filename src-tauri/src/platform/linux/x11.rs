@@ -31,6 +31,7 @@ x11rb::atom_manager! {
         _NET_WM_STRUT,
         _NET_WM_STRUT_PARTIAL,
         _NET_CLOSE_WINDOW,
+        _NET_SHOWING_DESKTOP,
         WM_CHANGE_STATE,
         UTF8_STRING,
         _KDE_NET_WM_BLUR_BEHIND_REGION,
@@ -157,6 +158,18 @@ impl X11 {
 
     pub fn close(&self, window: Window) {
         self.send_to_root(window, self.atoms._NET_CLOSE_WINDOW, [x11rb::CURRENT_TIME, 2, 0, 0, 0]);
+    }
+
+    /// O WM mantém `_NET_SHOWING_DESKTOP` em 1 enquanto as janelas estão escondidas.
+    fn showing_desktop(&self) -> bool {
+        self.property32(self.root, self.atoms._NET_SHOWING_DESKTOP, AtomEnum::CARDINAL).first().copied() == Some(1)
+    }
+
+    /// Entra ou sai do modo "mostrar área de trabalho". O EWMH define isso como um ClientMessage
+    /// para a janela raiz; é o WM que esconde e devolve as janelas, conforme o pedido.
+    pub fn toggle_showing_desktop(&self) {
+        let showing = !self.showing_desktop();
+        self.send_to_root(self.root, self.atoms._NET_SHOWING_DESKTOP, [showing as u32, 0, 0, 0, 0]);
     }
 
     pub fn move_resize(&self, window: Window, x: i32, y: i32, width: u32, height: u32) {

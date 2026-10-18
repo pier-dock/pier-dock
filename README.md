@@ -25,7 +25,7 @@ Pier replaces your system's taskbar or dock with a single bar that holds your pi
 - **Apps:** Pinned and running apps with magnification, drag-to-reorder, window lists, and dividers.
 - **Media player:** Shows what's playing in Spotify, YouTube Music, and other players, with playback controls.
 - **GitHub widgets:** Pull requests waiting for your review, your open pull requests, recent commits, and your contribution graph.
-- **System widgets:** Network, volume, Bluetooth (with connected devices), battery, clock, system usage (CPU and memory with the last minute of history), and, on Windows, the tray arrow that opens the hidden icons.
+- **System widgets:** Network, volume, Bluetooth (with connected devices), battery, clock, show desktop (minimizes every window with one click), system usage (CPU and memory with the last minute of history), and, on Windows, the tray arrow that opens the hidden icons.
 - **Productivity widgets:** Weather, a Pomodoro timer, your next calendar event with a join button for video calls, and your Claude Code usage.
 - **Keyboard shortcuts:** Open or focus the app in position 1 to 9 from anywhere.
 - **Automatic updates:** Pier checks for new versions and installs them in one click.
@@ -50,7 +50,7 @@ The installers aren't code-signed yet, so your system warns you the first time y
 
 - **Windows:** When SmartScreen appears, select **More info**, and then select **Run anyway**.
 - **macOS:** Drag Pier to **Applications** and open it. When macOS says it can't verify the app, go to **System Settings** > **Privacy & Security** and select **Open Anyway**. Alternatively, run `xattr -dr com.apple.quarantine /Applications/Pier.app` in Terminal.
-- **Linux:** On GNOME, open Pier's settings and select **Install extension**, and then log out and log back in. The extension lets Pier see and focus windows, reserve screen space, hide the Dash, and register shortcuts.
+- **Linux:** On GNOME, open Pier's settings and select **Install extension**, and then log out and log back in. The extension lets Pier see and focus windows, reserve screen space, hide the Dash, show the desktop, and register shortcuts.
 
 ### Updates
 

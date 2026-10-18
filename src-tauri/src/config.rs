@@ -159,6 +159,7 @@ impl Default for Config {
                 disabled("system-usage", "wide"),
                 disabled("calendar", "wide"),
                 disabled("claude-usage", "small"),
+                disabled("show-desktop", "small"),
             ],
             material: "glass".into(),
             glass_opacity: 0.4,

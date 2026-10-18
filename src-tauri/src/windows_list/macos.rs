@@ -12,6 +12,8 @@ use accessibility_sys::{
     kAXCloseButtonAttribute, kAXFocusedWindowAttribute, kAXMainAttribute, kAXMinimizedAttribute, kAXPressAction,
     kAXRaiseAction, kAXStandardWindowSubrole, kAXSubroleAttribute, kAXTitleAttribute, kAXWindowsAttribute,
 };
+use core_foundation::base::TCFType;
+use core_foundation::string::{CFString, CFStringRef};
 use tauri::AppHandle;
 
 use super::{mark_dirty, WindowInfo, WindowsSnapshot};
@@ -19,6 +21,13 @@ use crate::platform::macos::ax::{self, Element};
 use crate::platform::macos::workspace;
 
 const FINDER: &str = "com.apple.finder";
+
+#[link(name = "ApplicationServices", kind = "framework")]
+extern "C" {
+    /// SPI do Dock que dispara as ações do Mission Control (não há API pública para elas); o
+    /// mesmo caminho que o app do Mission Control usa.
+    fn CoreDockSendNotification(notification: CFStringRef, unknown: i32) -> i32;
+}
 
 /// Janela (ou app, se negativo) em foco no último app da frente que não era a própria dock.
 static LAST_FOREGROUND: AtomicI64 = AtomicI64::new(0);
@@ -159,5 +168,17 @@ pub fn close(id: i64) {
         workspace::terminate(-id as i32);
     } else if let Some(button) = cached(id).and_then(|w| w.element(kAXCloseButtonAttribute)) {
         button.perform(kAXPressAction);
+    }
+}
+
+/// A ação "Mostrar Área de Trabalho" do Mission Control: minimiza todas as janelas e, chamada de
+/// novo, o Dock as restaura.
+pub fn toggle_desktop() -> Result<(), String> {
+    let notification = CFString::from_static_string("com.apple.showdesktop.awake");
+    let error = unsafe { CoreDockSendNotification(notification.as_concrete_TypeRef(), 0) };
+    if error == 0 {
+        Ok(())
+    } else {
+        Err(format!("CoreDockSendNotification falhou ({error})"))
     }
 }

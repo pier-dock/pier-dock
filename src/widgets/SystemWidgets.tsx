@@ -8,6 +8,7 @@ import {
   BluetoothOff,
   ChevronUp,
   Globe,
+  Monitor,
   Volume1,
   Volume2,
   VolumeX,
@@ -122,6 +123,16 @@ export function ClockWidget() {
     <Tile kind="clock" label={full} className="clock-tile" onClick={() => ipc.openShell("notifications")}>
       <span className="clock-time">{time}</span>
       <span className="clock-date">{date}</span>
+    </Tile>
+  );
+}
+
+/** Minimiza todas as janelas e mostra a área de trabalho; clicar de novo as traz de volta. */
+export function ShowDesktopWidget() {
+  const t = useT().system;
+  return (
+    <Tile kind="show-desktop" label={t.showDesktop} className="sys-tile" onClick={() => ipc.toggleDesktop().catch(console.error)}>
+      <Monitor size={17} />
     </Tile>
   );
 }

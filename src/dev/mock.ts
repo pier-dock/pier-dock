@@ -58,6 +58,7 @@ const config: Config = {
     { kind: "system-usage", enabled: params.has("new"), size: "wide" },
     { kind: "calendar", enabled: params.has("new"), size: "wide" },
     { kind: "claude-usage", enabled: params.has("new"), size: "wide" },
+    { kind: "show-desktop", enabled: params.has("new"), size: "small" },
   ],
   material: "glass",
   glassOpacity: 0.4,
@@ -257,6 +258,7 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   get_config: () => config,
   save_config: (args) => Object.assign(config, args.config),
   get_windows: () => windows,
+  toggle_desktop: () => null,
   list_installed_apps: () => installed,
   get_icon: (args) => {
     const app = apps.find((a) => a.target === args.key);
