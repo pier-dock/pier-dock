@@ -258,25 +258,13 @@ fn show_tray_overflow() -> Option<HWND> {
         click_win10(button);
         return poll(Duration::from_secs(1), tray_overflow);
     }
-    let start = Instant::now();
-    let Some(chevron) = wait_tray_chevron() else {
-        eprintln!("[tray] seta não encontrada em {:?}", start.elapsed());
-        return None;
-    };
-    eprintln!("[tray] seta encontrada em {:?}", start.elapsed());
-    if let Err(e) = invoke(&chevron) {
-        eprintln!("[tray] invoke falhou: {e}");
-        return None;
-    }
+    let chevron = wait_tray_chevron()?;
+    invoke(&chevron).ok()?;
     let overflow = poll(Duration::from_secs(1), tray_overflow);
-    eprintln!("[tray] gaveta {} em {:?}", if overflow.is_some() { "apareceu" } else { "não apareceu" }, start.elapsed());
     if overflow.is_none() {
         // Sem ícones ocultos o Windows tira a seta, e o botão encontrado é o indicador de
         // idioma: o segundo clique fecha o que ele abriu.
-        eprintln!("[tray] segundo invoke (indicador de idioma?)");
         let _ = invoke(&chevron);
-        let late = poll(Duration::from_secs(1), tray_overflow);
-        eprintln!("[tray] depois do segundo invoke a gaveta {} em {:?}", if late.is_some() { "apareceu" } else { "não apareceu" }, start.elapsed());
     }
     overflow
 }
@@ -295,7 +283,6 @@ fn with_taskbar<T>(f: impl FnOnce() -> T) -> T {
 pub fn open_tray(anchor_x: i32, bottom: i32) -> Result<(), String> {
     // Abrir leva até ~1,5 s; um clique nesse meio-tempo esconderia a taskbar no meio da busca.
     if TRAY_BUSY.swap(true, Ordering::SeqCst) {
-        eprintln!("[tray] ignorado: outro clique em andamento");
         return Ok(());
     }
     let result = toggle_tray(anchor_x, bottom);
@@ -308,18 +295,13 @@ fn toggle_tray(anchor_x: i32, bottom: i32) -> Result<(), String> {
     // deve reabri-la.
     let just_closed = TRAY_CLOSED_AT.lock().unwrap().is_some_and(|t| t.elapsed() < Duration::from_millis(400));
     if just_closed {
-        eprintln!("[tray] ignorado: gaveta acabou de fechar");
         return Ok(());
     }
     if tray_overflow().is_some() {
-        eprintln!("[tray] gaveta já aberta, fechando");
-        let start = Instant::now();
-        let result = with_taskbar(click_tray_chevron);
-        let gone = poll(Duration::from_millis(500), || tray_overflow().is_none().then_some(()));
-        eprintln!("[tray] fechar: {result:?}, gaveta sumiu: {} em {:?}", gone.is_some(), start.elapsed());
+        let _ = with_taskbar(click_tray_chevron);
+        poll(Duration::from_millis(500), || tray_overflow().is_none().then_some(()));
         return Ok(());
     }
-    eprintln!("[tray] abrindo");
     let overflow = with_taskbar(show_tray_overflow).ok_or("não foi possível abrir a bandeja")?;
     unsafe {
         let mut rect = RECT::default();
@@ -336,7 +318,6 @@ fn toggle_tray(anchor_x: i32, bottom: i32) -> Result<(), String> {
             std::thread::sleep(Duration::from_millis(50));
         }
         *TRAY_CLOSED_AT.lock().unwrap() = Some(Instant::now());
-        eprintln!("[tray] gaveta fechou");
     });
     Ok(())
 }
