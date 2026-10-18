@@ -175,8 +175,10 @@ pub fn open_shell(kind: &str) {
     }
 }
 
-/// Quando a gaveta de ícones ocultos fechou pela última vez.
+/// Quando a gaveta de ícones ocultos fechou sozinha (clique fora) pela última vez.
 static TRAY_CLOSED_AT: Mutex<Option<Instant>> = Mutex::new(None);
+/// A gaveta está sendo fechada pela seta da dock: esse fechamento não conta para `TRAY_CLOSED_AT`.
+static TRAY_CLOSING: AtomicBool = AtomicBool::new(false);
 static TRAY_BUSY: AtomicBool = AtomicBool::new(false);
 
 /// A gaveta de ícones ocultos aberta: a do Windows 11 (XAML) ou a do Windows 10.
@@ -298,8 +300,11 @@ fn toggle_tray(anchor_x: i32, bottom: i32) -> Result<(), String> {
         return Ok(());
     }
     if tray_overflow().is_some() {
+        TRAY_CLOSING.store(true, Ordering::SeqCst);
         let _ = with_taskbar(click_tray_chevron);
-        poll(Duration::from_millis(500), || tray_overflow().is_none().then_some(()));
+        if poll(Duration::from_millis(500), || tray_overflow().is_none().then_some(())).is_none() {
+            TRAY_CLOSING.store(false, Ordering::SeqCst);
+        }
         return Ok(());
     }
     let overflow = with_taskbar(show_tray_overflow).ok_or("não foi possível abrir a bandeja")?;
@@ -317,7 +322,9 @@ fn toggle_tray(anchor_x: i32, bottom: i32) -> Result<(), String> {
         while unsafe { IsWindowVisible(overflow) }.as_bool() {
             std::thread::sleep(Duration::from_millis(50));
         }
-        *TRAY_CLOSED_AT.lock().unwrap() = Some(Instant::now());
+        if !TRAY_CLOSING.swap(false, Ordering::SeqCst) {
+            *TRAY_CLOSED_AT.lock().unwrap() = Some(Instant::now());
+        }
     });
     Ok(())
 }
