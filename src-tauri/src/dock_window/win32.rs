@@ -13,9 +13,9 @@ use windows::Win32::UI::Shell::{
     SHAppBarMessage, ABE_BOTTOM, ABE_LEFT, ABE_RIGHT, ABE_TOP, ABM_NEW, ABM_QUERYPOS, ABM_REMOVE, ABM_SETPOS, APPBARDATA,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetClassNameW, GetCursorPos, GetForegroundWindow, GetWindowLongPtrW, GetWindowRect, GetWindowThreadProcessId, IsZoomed,
-    SetWindowLongPtrW, GWL_EXSTYLE, WM_USER, WS_EX_APPWINDOW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
-    WS_EX_TRANSPARENT,
+    GetAncestor, GetClassNameW, GetCursorPos, GetForegroundWindow, GetWindow, GetWindowLongPtrW, GetWindowRect, GetWindowThreadProcessId,
+    IsZoomed, SetWindowLongPtrW, SetWindowPos, WindowFromPoint, GA_ROOT, GWL_EXSTYLE, GW_HWNDNEXT, SWP_FRAMECHANGED, SWP_NOACTIVATE,
+    SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, WM_USER, WS_EX_APPWINDOW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT,
 };
 
 use super::{
@@ -48,6 +48,43 @@ fn ensure_ex_style(hwnd: HWND, click_through: bool) {
         if desired != current {
             SetWindowLongPtrW(hwnd, GWL_EXSTYLE, desired as isize);
         }
+    }
+}
+
+/// De quanto em quanto tempo a thread de ponteiro confere se o hit-test do Windows ainda acerta a
+/// barra (`hit_test_falls_through`).
+const HIT_TEST_CHECK: Duration = Duration::from_millis(250);
+
+/// Com a dock interativa e o cursor sobre a barra, o Windows às vezes entrega o mouse à janela de
+/// baixo: a máscara de alfa que ele usa no hit-test da janela layered fica velha e marca a barra
+/// como transparente (visto no Windows 11 passando o mouse pelos ícones). Só conta uma janela achada
+/// abaixo da dock na ordem Z; uma por cima dela (o Iniciar, um popover) é legítima.
+fn hit_test_falls_through(hwnd: HWND, cursor: POINT) -> bool {
+    unsafe {
+        let root = GetAncestor(WindowFromPoint(cursor), GA_ROOT);
+        if root.is_invalid() || root == hwnd {
+            return false;
+        }
+        let mut next = GetWindow(hwnd, GW_HWNDNEXT);
+        while let Ok(below) = next {
+            if below == root {
+                return true;
+            }
+            next = GetWindow(below, GW_HWNDNEXT);
+        }
+        false
+    }
+}
+
+/// Tirar e recolocar o `WS_EX_LAYERED` faz o Windows refazer a máscara de hit-test da janela; o
+/// `SWP_FRAMECHANGED` sozinho não basta.
+fn refresh_layered(hwnd: HWND) {
+    unsafe {
+        let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex & !(WS_EX_LAYERED.0 as isize));
+        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex);
+        let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED;
+        let _ = SetWindowPos(hwnd, HWND::default(), 0, 0, 0, 0, flags);
     }
 }
 
@@ -162,6 +199,7 @@ fn start_pointer_thread(window: WebviewWindow) {
         let mut ignoring = true;
         let mut hover_until = Instant::now();
         let mut backdrop_checked = Instant::now();
+        let mut hit_test_checked = Instant::now();
         let mut was_pressed = false;
         loop {
             std::thread::sleep(Duration::from_millis(if ignoring { 30 } else { 16 }));
@@ -215,6 +253,22 @@ fn start_pointer_thread(window: WebviewWindow) {
                 ensure_ex_style(hwnd, ignoring);
                 if ignoring {
                     let _ = window.emit("dock-pointer-left", ());
+                }
+            }
+
+            // Só sobre a própria barra, longe dos cantos arredondados: na folga acima dela e na
+            // margem até a borda da tela os pixels são transparentes, e lá o mouse atravessa mesmo.
+            let inset = (hit.radius.max(2.0) * scale, 2.0 * scale);
+            let bar_left = win.left as f64 + hit.x * scale + inset.0;
+            let bar_top = win.top as f64 + hit.y * scale + inset.1;
+            let bar_right = win.left as f64 + (hit.x + hit.width) * scale - inset.0;
+            let bar_bottom = win.top as f64 + (hit.y + hit.height) * scale - inset.1;
+            let over_bar = cx > bar_left && cx < bar_right && cy > bar_top && cy < bar_bottom;
+            if !ignoring && over_bar && hit_test_checked.elapsed() >= HIT_TEST_CHECK {
+                hit_test_checked = Instant::now();
+                if hit_test_falls_through(hwnd, cursor) {
+                    log::warn!("o hit-test atravessou a barra da dock; refazendo o WS_EX_LAYERED");
+                    refresh_layered(hwnd);
                 }
             }
         }
