@@ -24,9 +24,12 @@ export function dockMetrics(
   const reservedHeight = fullWidth ? barHeight : barHeight + margin * 2;
   const tooltipSpace = 48;
   const base = Math.max(0, iconSize * (magnification - 1)) + tooltipSpace;
-  // A faixa de prévias fica acima da barra: sem folga extra na janela ela seria cortada, e o Rust
-  // recortaria a área clicável antes de o cursor alcançá-la.
+  // A faixa de prévias fica acima da barra: sem folga extra na área clicável o Rust a recortaria
+  // antes de o cursor alcançá-la.
   const hoverHeadroom = Math.max(base, previewSpace);
+  // A janela já nasce com altura para a faixa: redimensioná-la ao abrir e fechar a faixa faz a
+  // barra piscar no macOS, porque o WebView leva um quadro para se reposicionar.
+  const windowHeadroom = Math.max(base, PREVIEW_HEIGHT + PREVIEW_GAP);
   return {
     padding,
     margin,
@@ -36,7 +39,7 @@ export function dockMetrics(
     itemBottom: 3 + (barHeight - autoHeight) / 2,
     reservedHeight,
     hoverHeadroom,
-    windowHeight: reservedHeight + hoverHeadroom,
+    windowHeight: reservedHeight + windowHeadroom,
   };
 }
 

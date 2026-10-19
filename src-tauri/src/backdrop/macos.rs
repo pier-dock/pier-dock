@@ -70,60 +70,87 @@ pub fn supported() -> bool {
     true
 }
 
-/// Aplica `change` ao vidro da janela, criando-o atrás do WebView na primeira vez (se `create`).
-fn update(window: &WebviewWindow, create: bool, change: impl FnOnce(&mut Backdrop) -> bool + Send + 'static) {
+/// Chave do vidro principal de uma janela (`label`) ou de um vidro com nome (`label#nome`).
+fn key(label: &str, name: Option<&str>) -> String {
+    name.map_or_else(|| label.to_string(), |name| format!("{label}#{name}"))
+}
+
+fn owner(key: &str) -> &str {
+    key.split('#').next().unwrap_or(key)
+}
+
+/// Aplica `change` ao vidro `only` da janela (criando-o atrás do WebView na primeira vez, se
+/// `create`) ou, sem `only`, a todos os vidros dela.
+fn update(window: &WebviewWindow, only: Option<String>, create: bool, change: impl Fn(&mut Backdrop) -> bool + Send + 'static) {
     let label = window.label().to_string();
     let _ = window.with_webview(move |platform| {
         let Some(mtm) = MainThreadMarker::new() else { return };
         let webview = unsafe { &*(platform.inner() as *const NSView) };
         let Some(parent) = (unsafe { webview.superview() }) else { return };
         BACKDROPS.with_borrow_mut(|backdrops| {
-            if !create && !backdrops.contains_key(&label) {
-                return;
-            }
-            let b = backdrops.entry(label).or_insert_with(|| {
+            if let Some(key) = only.as_ref().filter(|key| create && !backdrops.contains_key(*key)) {
                 let view = make_view(mtm);
                 parent.addSubview_positioned_relativeTo(&view, NSWindowOrderingMode::Below, Some(webview));
-                Backdrop { view, rect: Rect::default(), radius: 0.0, hidden: false }
-            });
-            let animate = change(b);
-            set_radius(&b.view, b.radius);
-            let target = frame(&parent, webview, b);
-            let alpha = if b.hidden || !super::active() { 0.0 } else { 1.0 };
-            if animate {
-                // O `animator` usa a duração padrão do AppKit (0,25 s), a mesma da transição do CSS.
-                let animator = b.view.animator();
-                animator.setFrame(target);
-                animator.setAlphaValue(alpha);
-            } else {
-                b.view.setFrame(target);
-                b.view.setAlphaValue(alpha);
+                backdrops.insert(key.clone(), Backdrop { view, rect: Rect::default(), radius: 0.0, hidden: false });
+            }
+            let targets = backdrops.iter_mut().filter(|(k, _)| only.as_ref().map_or(owner(k) == label, |key| *k == key));
+            for (_, b) in targets {
+                let animate = change(b);
+                set_radius(&b.view, b.radius);
+                let target = frame(&parent, webview, b);
+                let alpha = if b.hidden || !super::active() { 0.0 } else { 1.0 };
+                if animate {
+                    // O `animator` usa a duração padrão do AppKit (0,25 s), a mesma da transição do CSS.
+                    let animator = b.view.animator();
+                    animator.setFrame(target);
+                    animator.setAlphaValue(alpha);
+                } else {
+                    b.view.setFrame(target);
+                    b.view.setAlphaValue(alpha);
+                }
             }
         });
     });
 }
 
 pub fn set_frame(window: &WebviewWindow, rect: Rect, radius: f64) {
-    update(window, true, move |b| {
+    set_named_frame_key(window, key(window.label(), None), rect, radius);
+}
+
+pub fn set_named_frame(window: &WebviewWindow, name: &str, rect: Rect, radius: f64) {
+    set_named_frame_key(window, key(window.label(), Some(name)), rect, radius);
+}
+
+fn set_named_frame_key(window: &WebviewWindow, key: String, rect: Rect, radius: f64) {
+    update(window, Some(key), true, move |b| {
         b.rect = rect;
         b.radius = radius;
         false
     });
 }
 
+pub fn remove_named(window: &WebviewWindow, name: &str) {
+    let key = key(window.label(), Some(name));
+    let _ = window.with_webview(move |_| {
+        if let Some(b) = BACKDROPS.with_borrow_mut(|backdrops| backdrops.remove(&key)) {
+            b.view.removeFromSuperview();
+        }
+    });
+}
+
 pub fn set_hidden(window: &WebviewWindow, hidden: bool) {
-    update(window, false, move |b| {
+    update(window, None, false, move |b| {
         b.hidden = hidden;
         true
     });
 }
 
-/// Reaplica o material escolhido (vidro ou sólido) ao vidro que a janela já tem.
+/// Reaplica o material escolhido (vidro ou sólido) aos vidros que a janela já tem.
 pub fn refresh(window: &WebviewWindow) {
-    update(window, false, |_| true);
+    update(window, None, false, |_| true);
 }
 
-/// Esquece o vidro de uma janela destruída. Chamado na thread principal (eventos de janela).
+/// Esquece os vidros de uma janela destruída. Chamado na thread principal (eventos de janela).
 pub fn forget(label: &str) {
-    BACKDROPS.with_borrow_mut(|backdrops| backdrops.remove(label));
+    BACKDROPS.with_borrow_mut(|backdrops| backdrops.retain(|key, _| owner(key) != label));
 }

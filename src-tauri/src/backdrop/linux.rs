@@ -61,63 +61,102 @@ fn rounded_rect_bands(x: i32, y: i32, width: i32, height: i32, radius: i32) -> V
     bands
 }
 
-fn apply(window: &WebviewWindow, b: Backdrop) {
+/// Faixas de todos os vidros visíveis da janela juntas: a propriedade é uma lista só por janela.
+fn blur_bands(backdrops: &[Backdrop], scale: f64) -> Vec<[u32; 4]> {
+    let px = |v: f64| (v * scale).round() as i32;
+    backdrops
+        .iter()
+        .filter(|b| !b.hidden && b.rect.width > 0.0)
+        .flat_map(|b| rounded_rect_bands(px(b.rect.x), px(b.rect.y), px(b.rect.width), px(b.rect.height), px(b.radius)))
+        .collect()
+}
+
+fn apply(window: &WebviewWindow, backdrops: &[Backdrop]) {
     let Ok(gtk_window) = window.gtk_window() else { return };
     let Some(xid) = gtk_window.window().and_then(|g| g.downcast::<gdkx11::X11Window>().ok()).map(|x| x.xid() as u32) else {
         return;
     };
     let Some(x11) = x11::get() else { return };
-    // Sem regiões o KWin borraria a janela inteira; sem a propriedade, nada.
-    if b.hidden || !super::active() || b.rect.width <= 0.0 {
-        x11.set_blur_region(xid, &[]);
-        return;
-    }
-    let scale = gtk_window.scale_factor().max(1) as f64;
-    let px = |v: f64| (v * scale).round() as i32;
-    let bands = rounded_rect_bands(px(b.rect.x), px(b.rect.y), px(b.rect.width), px(b.rect.height), px(b.radius));
+    let bands = if super::active() { blur_bands(backdrops, gtk_window.scale_factor().max(1) as f64) } else { Vec::new() };
     x11.set_blur_region(xid, &bands);
 }
 
-fn update(window: &WebviewWindow, create: bool, change: impl FnOnce(&mut Backdrop) + Send + 'static) {
+/// Chave do vidro principal de uma janela (`label`) ou de um vidro com nome (`label#nome`).
+fn key(label: &str, name: Option<&str>) -> String {
+    name.map_or_else(|| label.to_string(), |name| format!("{label}#{name}"))
+}
+
+fn owner(key: &str) -> &str {
+    key.split('#').next().unwrap_or(key)
+}
+
+/// Aplica `change` ao vidro `only` da janela (criando-o, se `create`) ou, sem `only`, a todos os
+/// vidros dela, e reescreve a região de blur da janela.
+fn update(window: &WebviewWindow, only: Option<String>, create: bool, change: impl Fn(&mut Backdrop) + Send + 'static) {
     let label = window.label().to_string();
     let w = window.clone();
     let _ = window.run_on_main_thread(move || {
-        let b = with_backdrops(|backdrops| {
-            if !create && !backdrops.contains_key(&label) {
-                return None;
+        let shapes = with_backdrops(|backdrops| {
+            if let Some(key) = only.as_ref().filter(|key| create && !backdrops.contains_key(*key)) {
+                backdrops.insert(key.clone(), Backdrop::default());
             }
-            let b = backdrops.entry(label).or_default();
-            change(b);
-            Some(*b)
+            let mut found = false;
+            for (_, b) in backdrops.iter_mut().filter(|(k, _)| only.as_ref().map_or(owner(k) == label, |key| *k == key)) {
+                change(b);
+                found = true;
+            }
+            found.then(|| backdrops.iter().filter(|(k, _)| owner(k) == label).map(|(_, b)| *b).collect::<Vec<_>>())
         });
-        if let Some(b) = b {
-            apply(&w, b);
+        if let Some(shapes) = shapes {
+            apply(&w, &shapes);
         }
     });
 }
 
 pub fn set_frame(window: &WebviewWindow, rect: Rect, radius: f64) {
-    update(window, true, move |b| {
+    set_frame_key(window, key(window.label(), None), rect, radius);
+}
+
+pub fn set_named_frame(window: &WebviewWindow, name: &str, rect: Rect, radius: f64) {
+    set_frame_key(window, key(window.label(), Some(name)), rect, radius);
+}
+
+fn set_frame_key(window: &WebviewWindow, key: String, rect: Rect, radius: f64) {
+    update(window, Some(key), true, move |b| {
         b.rect = rect;
         b.radius = radius;
     });
 }
 
+pub fn remove_named(window: &WebviewWindow, name: &str) {
+    let (label, key) = (window.label().to_string(), key(window.label(), Some(name)));
+    let w = window.clone();
+    let _ = window.run_on_main_thread(move || {
+        let rest = with_backdrops(|backdrops| {
+            backdrops.remove(&key)?;
+            Some(backdrops.iter().filter(|(k, _)| owner(k) == label).map(|(_, b)| *b).collect::<Vec<_>>())
+        });
+        if let Some(rest) = rest {
+            apply(&w, &rest);
+        }
+    });
+}
+
 pub fn set_hidden(window: &WebviewWindow, hidden: bool) {
-    update(window, false, move |b| b.hidden = hidden);
+    update(window, None, false, move |b| b.hidden = hidden);
 }
 
 pub fn refresh(window: &WebviewWindow) {
-    update(window, false, |_| {});
+    update(window, None, false, |_| {});
 }
 
 pub fn forget(label: &str) {
-    with_backdrops(|backdrops| backdrops.remove(label));
+    with_backdrops(|backdrops| backdrops.retain(|key, _| owner(key) != label));
 }
 
 #[cfg(test)]
 mod tests {
-    use super::rounded_rect_bands;
+    use super::{blur_bands, rounded_rect_bands, Backdrop, Rect};
 
     #[test]
     fn bands_cover_the_rect_without_overlap() {
@@ -132,5 +171,13 @@ mod tests {
     #[test]
     fn no_radius_is_a_single_band() {
         assert_eq!(rounded_rect_bands(0, 0, 50, 30, 0), vec![[0, 0, 50, 30]]);
+    }
+
+    #[test]
+    fn joins_the_visible_backdrops_of_a_window() {
+        let shape = |x: f64, hidden: bool| Backdrop { rect: Rect { x, y: 0.0, width: 40.0, height: 20.0 }, radius: 0.0, hidden };
+        let empty = Backdrop::default();
+        assert_eq!(blur_bands(&[shape(0.0, false), shape(100.0, false), empty], 1.0), vec![[0, 0, 40, 20], [100, 0, 40, 20]]);
+        assert_eq!(blur_bands(&[shape(0.0, false), shape(100.0, true)], 2.0), vec![[0, 0, 80, 40]]);
     }
 }

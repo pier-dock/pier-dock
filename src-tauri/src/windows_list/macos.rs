@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
-use std::sync::Mutex;
+use std::sync::{mpsc, Mutex};
 use std::time::Duration;
 
 use accessibility_sys::{
@@ -13,7 +13,17 @@ use accessibility_sys::{
     kAXRaiseAction, kAXStandardWindowSubrole, kAXSubroleAttribute, kAXTitleAttribute, kAXWindowsAttribute,
 };
 use core_foundation::base::TCFType;
+use block2::RcBlock;
 use core_foundation::string::{CFString, CFStringRef};
+use objc2::rc::Retained;
+use objc2::runtime::AnyClass;
+use objc2::AllocAnyThread;
+use objc2_core_graphics::{
+    CGBitmapContextCreate, CGColorSpace, CGContext, CGImage, CGImageAlphaInfo, CGImageByteOrderInfo, CGPreflightScreenCaptureAccess,
+    CGRequestScreenCaptureAccess,
+};
+use objc2_foundation::{NSError, NSPoint, NSRect, NSSize};
+use objc2_screen_capture_kit::{SCContentFilter, SCScreenshotManager, SCShareableContent, SCStreamConfiguration, SCWindow};
 use tauri::AppHandle;
 
 use super::{mark_dirty, WindowInfo, WindowsSnapshot};
@@ -183,9 +193,79 @@ pub fn toggle_desktop() -> Result<(), String> {
     }
 }
 
-/// Sem captura no macOS por enquanto (o frontend cai no ícone do app). O caminho é o
-/// `SCScreenshotManager`/`CGWindowListCreateImage` do ScreenCaptureKit, que pede a permissão de
-/// gravação de tela.
-pub fn thumbnail(_id: i64) -> Option<Vec<u8>> {
-    None
+/// Quanto esperar por cada resposta do ScreenCaptureKit, que chega num callback de outra fila.
+const CAPTURE_TIMEOUT: Duration = Duration::from_secs(3);
+/// Largura da captura em pixels: a mesma que o `png_thumbnail` guarda (2x o card).
+const CAPTURE_WIDTH: f64 = 336.0;
+
+/// Miniatura pelo ScreenCaptureKit (macOS 14+), que precisa da permissão de Gravação de Tela. Sem
+/// ela, antes do 14 ou numa entrada sem janela (id negativo), o frontend mostra o ícone do app.
+pub fn thumbnail(id: i64) -> Option<Vec<u8>> {
+    let id = u32::try_from(id).ok()?;
+    if AnyClass::get(c"SCScreenshotManager").is_none() || !screen_capture_allowed() {
+        return None;
+    }
+    let window = shareable_window(id)?;
+    super::png_thumbnail(capture(&window)?)
+}
+
+/// Pede a permissão uma vez por execução: depois de negada o sistema não mostra o pedido de novo,
+/// e só as Configurações liberam.
+fn screen_capture_allowed() -> bool {
+    static ASKED: AtomicBool = AtomicBool::new(false);
+    if CGPreflightScreenCaptureAccess() {
+        return true;
+    }
+    if !ASKED.swap(true, Ordering::SeqCst) {
+        CGRequestScreenCaptureAccess();
+    }
+    false
+}
+
+/// A janela no ScreenCaptureKit, inclusive em outro Space (`onScreenWindowsOnly` falso).
+fn shareable_window(id: u32) -> Option<Retained<SCWindow>> {
+    let (tx, rx) = mpsc::sync_channel(1);
+    let handler = RcBlock::new(move |content: *mut SCShareableContent, _error: *mut NSError| {
+        let window = unsafe { content.as_ref() }.and_then(|c| unsafe { c.windows() }.iter().find(|w| unsafe { w.windowID() } == id));
+        let _ = tx.send(window);
+    });
+    unsafe { SCShareableContent::getShareableContentExcludingDesktopWindows_onScreenWindowsOnly_completionHandler(true, false, &handler) };
+    rx.recv_timeout(CAPTURE_TIMEOUT).ok().flatten()
+}
+
+fn capture(window: &SCWindow) -> Option<image::RgbaImage> {
+    let frame = unsafe { window.frame() };
+    if frame.size.width < 1.0 || frame.size.height < 1.0 {
+        return None;
+    }
+    let width = CAPTURE_WIDTH.min(frame.size.width * 2.0);
+    let height = (frame.size.height * width / frame.size.width).round().max(1.0);
+    let filter = unsafe { SCContentFilter::initWithDesktopIndependentWindow(SCContentFilter::alloc(), window) };
+    let config = unsafe { SCStreamConfiguration::new() };
+    unsafe {
+        config.setWidth(width as usize);
+        config.setHeight(height as usize);
+        config.setShowsCursor(false);
+        config.setIgnoreShadowsSingleWindow(true);
+    }
+    let (tx, rx) = mpsc::sync_channel(1);
+    // A imagem só vale dentro do callback: a conversão para RGBA acontece ali mesmo.
+    let handler = RcBlock::new(move |image: *mut CGImage, _error: *mut NSError| {
+        let _ = tx.send(unsafe { image.as_ref() }.and_then(rgba));
+    });
+    unsafe { SCScreenshotManager::captureImageWithFilter_configuration_completionHandler(&filter, &config, Some(&handler)) };
+    rx.recv_timeout(CAPTURE_TIMEOUT).ok().flatten()
+}
+
+/// Desenha o `CGImage` (BGRA, no formato do ScreenCaptureKit) num buffer RGBA.
+fn rgba(image: &CGImage) -> Option<image::RgbaImage> {
+    let (width, height) = (CGImage::width(Some(image)), CGImage::height(Some(image)));
+    let mut pixels = vec![0u8; width * height * 4];
+    let space = CGColorSpace::new_device_rgb()?;
+    let info = CGImageAlphaInfo::PremultipliedLast.0 | CGImageByteOrderInfo::Order32Big.0;
+    let context = unsafe { CGBitmapContextCreate(pixels.as_mut_ptr().cast(), width, height, 8, width * 4, Some(&space), info) }?;
+    let rect = NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(width as f64, height as f64));
+    CGContext::draw_image(Some(&context), rect, Some(image));
+    drop(context);
+    image::RgbaImage::from_raw(width as u32, height as u32, pixels)
 }

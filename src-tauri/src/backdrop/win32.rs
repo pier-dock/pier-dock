@@ -185,45 +185,72 @@ fn owner_of(window: &WebviewWindow) -> Option<HWND> {
     window.hwnd().ok().map(|h| HWND(h.0))
 }
 
-/// Aplica `change` ao vidro da janela, criando-o na primeira vez (se `create`).
-fn update(window: &WebviewWindow, create: bool, change: impl FnOnce(&mut Backdrop) + Send + 'static) {
+/// Chave do vidro principal de uma janela (`label`) ou de um vidro com nome (`label#nome`).
+fn key(label: &str, name: Option<&str>) -> String {
+    name.map_or_else(|| label.to_string(), |name| format!("{label}#{name}"))
+}
+
+fn owner(key: &str) -> &str {
+    key.split('#').next().unwrap_or(key)
+}
+
+/// Aplica `change` ao vidro `only` da janela (criando-o na primeira vez, se `create`) ou, sem
+/// `only`, a todos os vidros dela.
+fn update(window: &WebviewWindow, only: Option<String>, create: bool, change: impl Fn(&mut Backdrop) + Send + 'static) {
     let label = window.label().to_string();
     let w = window.clone();
     let _ = window.run_on_main_thread(move || {
-        let Some(owner) = owner_of(&w) else { return };
+        let Some(owner_hwnd) = owner_of(&w) else { return };
         with_backdrops(|backdrops| {
-            if !backdrops.contains_key(&label) {
-                if !create {
-                    return;
-                }
+            if let Some(key) = only.as_ref().filter(|key| create && !backdrops.contains_key(*key)) {
                 let Some(hwnd) = create_window() else { return };
-                backdrops.insert(label.clone(), Backdrop { hwnd, rect: Rect::default(), radius: 0.0, hidden: false });
+                backdrops.insert(key.clone(), Backdrop { hwnd, rect: Rect::default(), radius: 0.0, hidden: false });
             }
-            let b = backdrops.get_mut(&label).unwrap();
-            change(b);
-            apply(owner, b);
+            for (_, b) in backdrops.iter_mut().filter(|(k, _)| only.as_ref().map_or(owner(k) == label, |key| *k == key)) {
+                change(b);
+                apply(owner_hwnd, b);
+            }
         });
     });
 }
 
 pub fn set_frame(window: &WebviewWindow, rect: Rect, radius: f64) {
-    update(window, true, move |b| {
+    set_frame_key(window, key(window.label(), None), rect, radius);
+}
+
+pub fn set_named_frame(window: &WebviewWindow, name: &str, rect: Rect, radius: f64) {
+    set_frame_key(window, key(window.label(), Some(name)), rect, radius);
+}
+
+fn set_frame_key(window: &WebviewWindow, key: String, rect: Rect, radius: f64) {
+    update(window, Some(key), true, move |b| {
         b.rect = rect;
         b.radius = radius;
+    });
+}
+
+pub fn remove_named(window: &WebviewWindow, name: &str) {
+    let key = key(window.label(), Some(name));
+    let _ = window.run_on_main_thread(move || {
+        if let Some(b) = with_backdrops(|backdrops| backdrops.remove(&key)) {
+            unsafe {
+                let _ = DestroyWindow(HWND(b.hwnd as *mut c_void));
+            }
+        }
     });
 }
 
 pub fn set_hidden(window: &WebviewWindow, hidden: bool) {
     let seq = VISIBILITY_SEQ.fetch_add(1, Ordering::SeqCst) + 1;
     if hidden {
-        update(window, false, |b| b.hidden = true);
+        update(window, None, false, |b| b.hidden = true);
         return;
     }
     let window = window.clone();
     std::thread::spawn(move || {
         std::thread::sleep(REVEAL_DELAY);
         if VISIBILITY_SEQ.load(Ordering::SeqCst) == seq {
-            update(&window, false, |b| b.hidden = false);
+            update(&window, None, false, |b| b.hidden = false);
         }
     });
 }
@@ -231,12 +258,16 @@ pub fn set_hidden(window: &WebviewWindow, hidden: bool) {
 /// Reaplica o material e a posição: também devolve o vidro para baixo da janela dona se outra
 /// janela "sempre visível" entrou entre as duas.
 pub fn refresh(window: &WebviewWindow) {
-    update(window, false, |_| {});
+    update(window, None, false, |_| {});
 }
 
-/// Destrói o vidro de uma janela destruída. Chamado na thread principal (eventos de janela).
+/// Destrói os vidros de uma janela destruída. Chamado na thread principal (eventos de janela).
 pub fn forget(label: &str) {
-    if let Some(b) = with_backdrops(|backdrops| backdrops.remove(label)) {
+    let removed: Vec<Backdrop> = with_backdrops(|backdrops| {
+        let keys: Vec<String> = backdrops.keys().filter(|k| owner(k) == label).cloned().collect();
+        keys.iter().filter_map(|k| backdrops.remove(k)).collect()
+    });
+    for b in removed {
         unsafe {
             let _ = DestroyWindow(HWND(b.hwnd as *mut c_void));
         }

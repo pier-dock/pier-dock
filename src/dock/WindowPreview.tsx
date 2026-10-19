@@ -15,6 +15,7 @@ interface Props {
   app: DockApp;
   centerX: number;
   onClose: () => void;
+  onHoverChange: (inside: boolean) => void;
 }
 
 interface CardProps {
@@ -59,7 +60,7 @@ function PreviewCard({ info, thumbnail, icon, onActivate, onClose }: CardProps) 
 }
 
 /** Fileira de prévias das janelas de um app, acima da barra da dock. */
-export function WindowPreview({ app, centerX, onClose }: Props) {
+export function WindowPreview({ app, centerX, onClose, onHoverChange }: Props) {
   const t = useT().preview;
   const icon = useIcon(app.iconKey);
   const stripRef = useRef<HTMLDivElement>(null);
@@ -115,13 +116,29 @@ export function WindowPreview({ app, centerX, onClose }: Props) {
     return () => observer.disconnect();
   }, []);
 
+  const left = previewLeft(centerX, viewport, width || estimate);
+
+  // A faixa fica fora do retângulo da barra: o vidro nativo atrás dela é um segundo, que segue a
+  // posição e o tamanho medidos e some junto com ela.
+  useLayoutEffect(() => {
+    const strip = stripRef.current;
+    if (!strip || !width) return;
+    const r = strip.getBoundingClientRect();
+    const radius = parseFloat(getComputedStyle(strip).borderTopLeftRadius) || 0;
+    ipc.setPreviewGlass({ x: r.left, y: r.top, width: r.width, height: r.height, radius }).catch(console.error);
+  }, [left, width]);
+
+  useEffect(() => () => void ipc.setPreviewGlass(null).catch(console.error), []);
+
   return (
     <div
       ref={stripRef}
       className="preview-strip"
       role="dialog"
       aria-label={t.label(app.name)}
-      style={{ bottom: "var(--preview-bottom)", height: PREVIEW_HEIGHT, left: previewLeft(centerX, viewport, width || estimate) }}
+      style={{ bottom: "var(--preview-bottom)", height: PREVIEW_HEIGHT, left }}
+      onMouseEnter={() => onHoverChange(true)}
+      onMouseLeave={() => onHoverChange(false)}
     >
       {windows.map((w) => (
         <PreviewCard

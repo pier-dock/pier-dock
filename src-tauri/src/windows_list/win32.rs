@@ -3,8 +3,13 @@
 use std::sync::atomic::{AtomicIsize, Ordering};
 
 use tauri::AppHandle;
-use windows::Win32::Foundation::{CloseHandle, BOOL, HWND, LPARAM, TRUE, WPARAM};
-use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED};
+use windows::Win32::Foundation::{CloseHandle, BOOL, HANDLE, HWND, LPARAM, RECT, TRUE, WPARAM};
+use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED, DWMWA_EXTENDED_FRAME_BOUNDS};
+use windows::Win32::Graphics::Gdi::{
+    CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GetDC, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB,
+    DIB_RGB_COLORS,
+};
+use windows::Win32::Storage::Xps::{PrintWindow, PRINT_WINDOW_FLAGS};
 use windows::Win32::Storage::EnhancedStorage::PKEY_AppUserModel_ID;
 use windows::Win32::System::Threading::{
     AttachThreadInput, GetCurrentThreadId, OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
@@ -17,12 +22,12 @@ use windows::Win32::UI::Shell::PropertiesSystem::{IPropertyStore, SHGetPropertyS
 use windows::Win32::UI::Shell::{IShellDispatch4, Shell};
 use windows::Win32::UI::WindowsAndMessaging::{
     BringWindowToTop, DispatchMessageW, EnumWindows, GetAncestor, GetForegroundWindow, GetMessageW, GetWindow,
-    GetWindowLongPtrW, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindowVisible,
+    GetWindowLongPtrW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindowVisible,
     PostMessageW, SetForegroundWindow, ShowWindow, TranslateMessage, CHILDID_SELF, EVENT_OBJECT_CLOAKED,
     EVENT_OBJECT_DESTROY, EVENT_OBJECT_HIDE, EVENT_OBJECT_NAMECHANGE, EVENT_OBJECT_UNCLOAKED,
     EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART, GA_ROOTOWNER, GWL_EXSTYLE,
     GW_OWNER, MSG, OBJID_WINDOW, SW_MINIMIZE, SW_RESTORE, WINEVENT_OUTOFCONTEXT, WINEVENT_SKIPOWNPROCESS, WM_CLOSE,
-    WS_EX_APPWINDOW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
+    WS_EX_APPWINDOW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, PW_RENDERFULLCONTENT,
 };
 
 use super::{mark_dirty, WindowInfo, WindowsSnapshot};
@@ -234,8 +239,70 @@ pub fn toggle_desktop() -> Result<(), String> {
     }
 }
 
-/// Sem captura no Windows por enquanto (o frontend cai no ícone do app). O caminho é
-/// `PrintWindow` com `PW_RENDERFULLCONTENT`, e `DwmRegisterThumbnail` para uma prévia ao vivo.
-pub fn thumbnail(_id: i64) -> Option<Vec<u8>> {
-    None
+/// `PrintWindow` com `PW_RENDERFULLCONTENT` desenha num bitmap nosso também as janelas aceleradas
+/// (navegadores, apps UWP), sem elas precisarem estar à vista. Minimizada não tem o que desenhar, e
+/// o frontend mostra o ícone do app.
+pub fn thumbnail(id: i64) -> Option<Vec<u8>> {
+    let window = hwnd(id);
+    unsafe {
+        if IsIconic(window).as_bool() {
+            return None;
+        }
+        let mut rect = RECT::default();
+        GetWindowRect(window, &mut rect).ok()?;
+        let (width, height) = (rect.right - rect.left, rect.bottom - rect.top);
+        if width <= 0 || height <= 0 {
+            return None;
+        }
+        let screen = GetDC(HWND::default());
+        let dc = CreateCompatibleDC(screen);
+        ReleaseDC(HWND::default(), screen);
+        let header = BITMAPINFOHEADER {
+            biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+            biWidth: width,
+            // Altura negativa: linhas de cima para baixo, como o `RgbaImage`.
+            biHeight: -height,
+            biPlanes: 1,
+            biBitCount: 32,
+            biCompression: BI_RGB.0,
+            ..Default::default()
+        };
+        let info = BITMAPINFO { bmiHeader: header, ..Default::default() };
+        let mut bits = std::ptr::null_mut();
+        let pixels = CreateDIBSection(dc, &info, DIB_RGB_COLORS, &mut bits, HANDLE::default(), 0).ok().and_then(|bitmap| {
+            let previous = SelectObject(dc, bitmap);
+            let drawn = PrintWindow(window, dc, PRINT_WINDOW_FLAGS(PW_RENDERFULLCONTENT)).as_bool();
+            let pixels = drawn.then(|| std::slice::from_raw_parts(bits as *const u8, (width * height * 4) as usize).to_vec());
+            SelectObject(dc, previous);
+            let _ = DeleteObject(bitmap);
+            pixels
+        });
+        let _ = DeleteDC(dc);
+        let mut pixels = pixels?;
+        // BGRA do GDI, com o alfa zerado na maior parte das janelas.
+        for px in pixels.chunks_exact_mut(4) {
+            px.swap(0, 2);
+            px[3] = 255;
+        }
+        let image = image::RgbaImage::from_raw(width as u32, height as u32, pixels)?;
+        super::png_thumbnail(crop_to_visible_frame(window, &rect, image))
+    }
+}
+
+/// O `GetWindowRect` inclui a moldura invisível do DWM (a borda de redimensionar, uns 7 px em
+/// volta); a parte visível é a `DWMWA_EXTENDED_FRAME_BOUNDS`.
+fn crop_to_visible_frame(window: HWND, rect: &RECT, image: image::RgbaImage) -> image::RgbaImage {
+    let mut visible = RECT::default();
+    let size = std::mem::size_of::<RECT>() as u32;
+    if unsafe { DwmGetWindowAttribute(window, DWMWA_EXTENDED_FRAME_BOUNDS, &mut visible as *mut RECT as *mut _, size) }.is_err() {
+        return image;
+    }
+    let x = (visible.left - rect.left).clamp(0, image.width() as i32) as u32;
+    let y = (visible.top - rect.top).clamp(0, image.height() as i32) as u32;
+    let width = ((visible.right - visible.left).max(1) as u32).min(image.width() - x);
+    let height = ((visible.bottom - visible.top).max(1) as u32).min(image.height() - y);
+    if width == 0 || height == 0 {
+        return image;
+    }
+    image::imageops::crop_imm(&image, x, y, width, height).to_image()
 }

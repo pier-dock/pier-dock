@@ -99,8 +99,9 @@ Pier asks for two permissions:
 
 - **Accessibility** (**System Settings** > **Privacy & Security** > **Accessibility**) to list, focus, minimize, and close windows. Without it, Pier still shows running apps and can focus, hide, and quit them. Pier's settings show a **Grant permission** button that requests it.
 - **Automation**, the first time Spotify or Music plays something, so the media widget can read and control them through AppleScript.
+- **Screen Recording** (macOS 14 or later), the first time the window previews open, so each card shows a thumbnail of the window. Without it, the cards show the app icon.
 
-Because the app isn't signed with an Apple Developer ID yet, macOS asks for the Accessibility permission again after each update.
+Because the app isn't signed with an Apple Developer ID yet, macOS asks for the Accessibility and Screen Recording permissions again after each update.
 
 macOS has some limitations compared to Windows:
 

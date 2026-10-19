@@ -18,7 +18,7 @@ use tauri::{AppHandle, Manager};
 #[cfg_attr(target_os = "macos", path = "macos.rs")]
 mod backend;
 
-pub use backend::{forget, refresh, set_frame, set_hidden};
+pub use backend::{forget, refresh, remove_named, set_frame, set_hidden, set_named_frame};
 
 /// Retângulo em pixels CSS, relativo ao topo esquerdo do WebView.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]

@@ -350,6 +350,8 @@ export const ipc = {
     invoke<void>("set_dock_layout", { layout }),
   setHitRect: (rect: { x: number; y: number; width: number; height: number; radius: number }) =>
     invoke<void>("set_hit_rect", { rect }),
+  setPreviewGlass: (rect: { x: number; y: number; width: number; height: number; radius: number } | null) =>
+    invoke<void>("set_preview_glass", { rect }),
   dockVisible: () => invoke<boolean>("dock_visible"),
   setDockHover: (hovering: boolean) => invoke<void>("set_dock_hover", { hovering }),
 

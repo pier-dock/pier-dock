@@ -148,6 +148,17 @@ pub fn set_hit_rect(app: AppHandle, rect: HitRect) {
     backend::hit_rect_changed(&app);
 }
 
+/// A faixa de prévias das janelas abriu, mudou de tamanho (`Some`) ou fechou (`None`): o vidro
+/// acompanha, como o da barra.
+#[tauri::command]
+pub fn set_preview_glass(app: AppHandle, rect: Option<HitRect>) {
+    let Some(window) = app.get_webview_window(DOCK_LABEL) else { return };
+    match rect {
+        Some(r) => crate::backdrop::set_named_frame(&window, "preview", crate::backdrop::Rect { x: r.x, y: r.y, width: r.width, height: r.height }, r.radius),
+        None => crate::backdrop::remove_named(&window, "preview"),
+    }
+}
+
 /// Retângulo da área reservada, em pixels físicos de tela — usado para ancorar painéis.
 pub fn reserved_top_and_scale(window: &WebviewWindow) -> Option<(f64, f64, f64, f64)> {
     let monitor = window.primary_monitor().ok().flatten()?;

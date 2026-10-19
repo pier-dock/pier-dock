@@ -96,8 +96,9 @@ O Pier pede duas permissões:
 
 - **Acessibilidade** (**Ajustes do Sistema** > **Privacidade e Segurança** > **Acessibilidade**), para listar, focar, minimizar e fechar janelas. Sem ela, o Pier ainda mostra os apps abertos e consegue focá-los, escondê-los e encerrá-los. As configurações do Pier mostram o botão **Conceder permissão** para pedi-la.
 - **Automação**, na primeira vez que o Spotify ou o Música tocarem algo, para que o widget de mídia leia e controle esses apps por AppleScript.
+- **Gravação de Tela** (macOS 14 ou mais novo), na primeira vez que as prévias das janelas abrirem, para que cada cartão mostre a miniatura da janela. Sem ela, os cartões mostram o ícone do app.
 
-Como o app ainda não é assinado com um Apple Developer ID, o macOS pede a permissão de Acessibilidade de novo a cada atualização.
+Como o app ainda não é assinado com um Apple Developer ID, o macOS pede as permissões de Acessibilidade e de Gravação de Tela de novo a cada atualização.
 
 O macOS tem algumas limitações em relação ao Windows:
 

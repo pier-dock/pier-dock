@@ -119,8 +119,8 @@ export function Dock({ config }: { config: Config }) {
     return () => clearInterval(id);
   }, []);
 
-  // Com a faixa aberta a janela cresce e a área clicável sobe junto, senão o cursor não alcança a
-  // faixa (app nenhum fica por cima da área reservada da dock).
+  // Com a faixa aberta a área clicável sobe até ela, senão o cursor não a alcança (app nenhum fica
+  // por cima da área reservada da dock). A janela já tem altura para a faixa (`dockMetrics`).
   const metrics = dockMetrics(
     config.iconSize,
     config.magnification,
@@ -270,9 +270,31 @@ export function Dock({ config }: { config: Config }) {
 
   const remove = (key: string) => update((c) => removeItem(c, key));
 
+  // A faixa fecha quando o cursor sai dela e do ícone do app dela (para outro ícone, por exemplo).
+  // A espera dá tempo de cruzar o vão entre o ícone e a faixa sem ela sumir no caminho.
+  const previewLeaveTimer = useRef<number | null>(null);
+  const keepPreview = () => {
+    if (previewLeaveTimer.current !== null) window.clearTimeout(previewLeaveTimer.current);
+    previewLeaveTimer.current = null;
+  };
+  const releasePreview = () => {
+    keepPreview();
+    previewLeaveTimer.current = window.setTimeout(() => {
+      previewLeaveTimer.current = null;
+      setPreview(null);
+    }, PREVIEW_CLOSE_DELAY);
+  };
+  useEffect(() => keepPreview, []);
+  const onPreviewHover = (inside: boolean) => (inside ? keepPreview() : releasePreview());
+  const onIconHover = (app: DockApp, inside: boolean) => {
+    if (app.key === preview?.key) onPreviewHover(inside);
+  };
+
   // Só abre a faixa com mais de uma janela: com uma só o clique no ícone já resolve.
-  const showPreview = (app: DockApp, centerX: number) =>
+  const showPreview = (app: DockApp, centerX: number) => {
+    keepPreview();
     setPreview(app.windows.length > 1 ? { key: app.key, centerX } : null);
+  };
 
   const onBackgroundMenu = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -310,7 +332,7 @@ export function Dock({ config }: { config: Config }) {
   const widgets = new Map(config.widgets.filter((w) => w.enabled && widgetSupported(w.kind)).map((w) => [widgetKey(w.kind), w]));
   const activeKey = apps.find((a) => a.windows.some((w) => w.id === snapshot.foreground))?.key;
   const previewApp = preview ? apps.find((a) => a.key === preview.key) : undefined;
-  // A faixa fica logo acima da barra; a folga extra da janela (`hoverHeadroom`) já reserva o espaço.
+  // A faixa fica logo acima da barra; a altura da janela (`windowHeight`) já reserva o espaço.
   const previewBottom = (config.dockWidth === "full" ? 0 : metrics.margin) + metrics.barHeight + PREVIEW_GAP;
   const shortcutFor = (app: DockApp) => {
     const n = apps.indexOf(app) + 1;
@@ -322,7 +344,18 @@ export function Dock({ config }: { config: Config }) {
     if (key === LAUNCHER_KEY) return <LauncherButton key={key} onRemove={() => remove(key)} />;
     if (isDivider(key)) return <Divider key={key} id={key} onRemove={() => remove(key)} />;
     const app = pinnedApps.get(key);
-    if (app) return <AppIcon key={key} app={app} active={key === activeKey} sortable shortcut={shortcutFor(app)} onPreview={showPreview} />;
+    if (app)
+      return (
+        <AppIcon
+          key={key}
+          app={app}
+          active={key === activeKey}
+          sortable
+          shortcut={shortcutFor(app)}
+          onPreview={showPreview}
+          onHoverChange={onIconHover}
+        />
+      );
     const widget = widgets.get(key);
     if (widget) {
       return (
@@ -369,12 +402,20 @@ export function Dock({ config }: { config: Config }) {
             </SortableContext>
           </DndContext>
           {unpinnedApps.map((app) => (
-            <AppIcon key={app.key} app={app} active={app.key === activeKey} sortable={false} shortcut={shortcutFor(app)} onPreview={showPreview} />
+            <AppIcon
+              key={app.key}
+              app={app}
+              active={app.key === activeKey}
+              sortable={false}
+              shortcut={shortcutFor(app)}
+              onPreview={showPreview}
+              onHoverChange={onIconHover}
+            />
           ))}
         </MagnifyCtx.Provider>
       </div>
       {previewApp && preview && (
-        <WindowPreview app={previewApp} centerX={preview.centerX} onClose={() => setPreview(null)} />
+        <WindowPreview app={previewApp} centerX={preview.centerX} onClose={() => setPreview(null)} onHoverChange={onPreviewHover} />
       )}
     </div>
   );

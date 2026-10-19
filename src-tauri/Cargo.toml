@@ -55,6 +55,8 @@ objc2-quartz-core = "0.3"
 block2 = "0.6"
 objc2-core-audio = "0.3"
 objc2-core-location = { version = "0.3", default-features = false, features = ["std", "CLLocationManager"] }
+objc2-screen-capture-kit = { version = "0.3", default-features = false, features = ["std", "block2", "objc2-core-foundation", "objc2-core-graphics", "SCScreenshotManager", "SCShareableContent", "SCStream"] }
+objc2-core-graphics = { version = "0.3", default-features = false, features = ["std", "CGImage", "CGContext", "CGBitmapContext", "CGColorSpace", "CGWindow"] }
 
 [target.'cfg(windows)'.dependencies]
 keyring = { version = "3", features = ["windows-native"] }
@@ -82,6 +84,7 @@ features = [
   "Win32_NetworkManagement_WiFi",
   "Win32_Storage_EnhancedStorage",
   "Win32_Storage_FileSystem",
+  "Win32_Storage_Xps",
   "Win32_System_Com",
   "Win32_System_Com_StructuredStorage",
   "Win32_System_Console",
