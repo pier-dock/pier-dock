@@ -69,6 +69,12 @@ export function WifiPanel() {
   const current = networks.find((n) => n.connected);
   const others = networks.filter((n) => !n.connected);
 
+  // A resposta ao pedido chega sem aviso: busca de novo algumas vezes para os nomes aparecerem logo.
+  const requestPermission = () => {
+    ipc.wifiRequestPermission();
+    for (const delay of [2_000, 5_000]) setTimeout(() => ipc.wifiScan().catch(() => {}).finally(refresh), delay);
+  };
+
   const connect = (network: WifiNetwork, password: string | null) => {
     if (!wifi?.canConnect) return ipc.openShell("network");
     setBusy(network.ssid);
@@ -163,7 +169,7 @@ export function WifiPanel() {
   if (!wifi) body = <span className="popover-loading">…</span>;
   else if (!wifi.available) body = empty(WifiOff, t.unavailable, t.unavailableSub);
   else if (!wifi.enabled) body = empty(WifiOff, t.off, t.offSub);
-  else if (wifi.needsPermission) body = empty(MapPin, t.permission, t.permissionSub, { label: t.allow, onClick: () => ipc.wifiRequestPermission() });
+  else if (wifi.needsPermission) body = empty(MapPin, t.permission, t.permissionSub, { label: t.allow, onClick: requestPermission });
   else if (!networks.length) body = empty(WifiIcon, t.searching, t.searchingSub);
   else
     body = (
