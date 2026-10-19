@@ -46,10 +46,13 @@ pub struct Volume {
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct BluetoothDevice {
+    /// Endereço no macOS, caminho do objeto no BlueZ e id do `DeviceInformation` no Windows.
+    pub id: String,
     pub name: String,
     /// "audio", "mouse", "keyboard", "gamepad", "phone" ou "other".
     pub kind: &'static str,
     pub battery: Option<u8>,
+    pub connected: bool,
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -60,14 +63,20 @@ pub struct Bluetooth {
     pub powered: bool,
     /// Dá para ligar e desligar pelo Pier (no macOS não há API pública para isso).
     pub can_toggle: bool,
-    /// Só os conectados.
+    /// Dá para conectar e desconectar pelo Pier; senão o clique abre as configurações.
+    pub can_connect: bool,
+    /// Os pareados, com os conectados primeiro.
     pub devices: Vec<BluetoothDevice>,
 }
 
 impl Bluetooth {
     fn absent() -> Self {
-        Bluetooth { available: false, powered: false, can_toggle: false, devices: Vec::new() }
+        Bluetooth { available: false, powered: false, can_toggle: false, can_connect: false, devices: Vec::new() }
     }
+}
+
+fn sort_devices(devices: &mut [BluetoothDevice]) {
+    devices.sort_by(|a, b| b.connected.cmp(&a.connected).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())));
 }
 
 /// Tipo do dispositivo pelo Class of Device do Bluetooth clássico (Assigned Numbers, "Baseband").
@@ -125,7 +134,13 @@ pub async fn set_volume(level: Option<f32>, muted: Option<bool>) -> Result<(), S
 /// roda com o widget ligado.
 #[tauri::command]
 pub async fn bluetooth_status() -> Result<Bluetooth, String> {
-    tauri::async_runtime::spawn_blocking(backend::bluetooth).await.err_str()
+    tauri::async_runtime::spawn_blocking(|| {
+        let mut bluetooth = backend::bluetooth();
+        sort_devices(&mut bluetooth.devices);
+        bluetooth
+    })
+    .await
+    .err_str()
 }
 
 #[tauri::command]
@@ -133,22 +148,43 @@ pub async fn set_bluetooth(powered: bool) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || backend::set_bluetooth(powered)).await.err_str()?
 }
 
-/// Abre a gaveta de ícones ocultos da bandeja do Windows acima de `anchor_x` (px da dock). Nos
-/// outros sistemas não existe.
+/// Espera a conexão terminar: assim o popover sabe se ela falhou.
 #[tauri::command]
-pub async fn open_tray(app: tauri::AppHandle, anchor_x: f64) -> Result<(), String> {
+pub async fn bluetooth_connect(id: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || backend::connect_bluetooth(&id)).await.err_str()?
+}
+
+#[tauri::command]
+pub async fn bluetooth_disconnect(id: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || backend::disconnect_bluetooth(&id)).await.err_str()?
+}
+
+/// Abre a gaveta de ícones ocultos da bandeja do Windows encostada na dock, centrada no widget
+/// (`anchor_x`/`anchor_y` em pixels lógicos da dock). Nos outros sistemas não existe.
+#[tauri::command]
+pub async fn open_tray(app: tauri::AppHandle, anchor_x: f64, anchor_y: f64) -> Result<(), String> {
     #[cfg(windows)]
     {
         use tauri::Manager;
         let dock = app.get_webview_window(crate::dock_window::DOCK_LABEL).ok_or("dock não encontrada")?;
-        let (reserved_top, scale, _, _) = crate::dock_window::reserved_top_and_scale(&dock).ok_or("monitor não encontrado")?;
-        let x = dock.outer_position().err_str()?.x as f64 + anchor_x * scale;
-        let bottom = reserved_top - 8.0 * scale;
-        tauri::async_runtime::spawn_blocking(move || backend::open_tray(x.round() as i32, bottom.round() as i32)).await.err_str()?
+        let reserved = crate::dock_window::reserved_rect(&dock).ok_or("monitor não encontrado")?;
+        let dock_pos = dock.outer_position().err_str()?;
+        let scale = reserved.scale;
+        // O ponto de ancoragem fica um pouco fora da faixa reservada; a gaveta cresce para dentro
+        // da tela a partir dele.
+        let gap = 8.0 * scale;
+        let (x, y) = match crate::dock_window::position() {
+            crate::dock_window::TOP => (dock_pos.x as f64 + anchor_x * scale, reserved.band.bottom as f64 + gap),
+            crate::dock_window::LEFT => (reserved.band.right as f64 + gap, dock_pos.y as f64 + anchor_y * scale),
+            crate::dock_window::RIGHT => (reserved.band.left as f64 - gap, dock_pos.y as f64 + anchor_y * scale),
+            _ => (dock_pos.x as f64 + anchor_x * scale, reserved.band.top as f64 - gap),
+        };
+        let edge = crate::dock_window::position();
+        tauri::async_runtime::spawn_blocking(move || backend::open_tray(x.round() as i32, y.round() as i32, edge)).await.err_str()?
     }
     #[cfg(not(windows))]
     {
-        let _ = (app, anchor_x);
+        let _ = (app, anchor_x, anchor_y);
         Err("a bandeja só existe no Windows".into())
     }
 }
@@ -169,6 +205,15 @@ mod tests {
         println!("{:?}", super::backend::network());
         println!("{:?}", super::backend::volume());
         println!("{:?}", super::backend::bluetooth());
+    }
+
+    #[test]
+    fn sorts_connected_devices_first() {
+        let device = |name: &str, connected: bool| super::BluetoothDevice { id: name.into(), name: name.into(), kind: "other", battery: None, connected };
+        let mut devices = vec![device("mouse", false), device("Keyboard", true), device("AirPods", false), device("Watch", true)];
+        super::sort_devices(&mut devices);
+        let order: Vec<&str> = devices.iter().map(|d| d.name.as_str()).collect();
+        assert_eq!(order, ["Keyboard", "Watch", "AirPods", "mouse"]);
     }
 
     #[test]

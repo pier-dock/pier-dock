@@ -5,10 +5,11 @@ use std::sync::Mutex;
 
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
 
-use crate::dock_window::{reserved_top_and_scale, DOCK_LABEL};
+use crate::dock_window::{position, reserved_rect, DOCK_LABEL, LEFT, RIGHT, TOP};
 use crate::util::ErrStr;
 
 pub const SETTINGS_LABEL: &str = "settings";
+pub const WHATS_NEW_LABEL: &str = "whats-new";
 
 /// Margem transparente da janela em volta do painel e raio dos cantos, iguais a `--panel-inset` e
 /// a `--radius-window` no CSS.
@@ -36,22 +37,36 @@ pub fn close_open_panel(app: &AppHandle) -> Option<String> {
     Some(kind)
 }
 
-/// Abre o painel de um widget acima dele; clicar de novo no mesmo widget fecha.
+/// Abre o painel de um widget ao lado dele; clicar de novo no mesmo widget fecha. `anchor_x` e
+/// `anchor_y` são o centro do widget em pixels lógicos da janela da dock.
 #[tauri::command]
-pub async fn open_panel(app: AppHandle, kind: String, anchor_x: f64, width: f64, height: f64) -> Result<(), String> {
+pub async fn open_panel(app: AppHandle, kind: String, anchor_x: f64, anchor_y: f64, width: f64, height: f64) -> Result<(), String> {
     if close_open_panel(&app).as_deref() == Some(kind.as_str()) {
         return Ok(());
     }
     let dock = app.get_webview_window(DOCK_LABEL).ok_or("dock não encontrada")?;
-    let (reserved_top, scale, mon_x, mon_w) = reserved_top_and_scale(&dock).ok_or("monitor não encontrado")?;
-    let dock_x = dock.outer_position().err_str()?.x as f64;
+    let reserved = reserved_rect(&dock).ok_or("monitor não encontrado")?;
+    let dock_pos = dock.outer_position().err_str()?;
 
+    let scale = reserved.scale;
+    let monitor = reserved.monitor;
     let margin = 10.0 * scale;
     let (w, h) = (width * scale, height * scale);
-    let x = (dock_x + anchor_x * scale - w / 2.0).clamp(mon_x + margin, mon_x + mon_w - w - margin);
-    // A janela tem uma margem transparente em volta do painel (sombra), que já serve de espaço
-    // entre o painel e a dock.
-    let y = reserved_top - h;
+    // O painel abre para dentro da tela, encostado na faixa reservada e centrado no widget.
+    let anchor = (
+        dock_pos.x as f64 + anchor_x * scale,
+        dock_pos.y as f64 + anchor_y * scale,
+    );
+    let centered_x = clamp(anchor.0 - w / 2.0, monitor.left as f64 + margin, monitor.right as f64 - w - margin);
+    let centered_y = clamp(anchor.1 - h / 2.0, monitor.top as f64 + margin, monitor.bottom as f64 - h - margin);
+    let (x, y) = match position() {
+        TOP => (centered_x, reserved.band.bottom as f64),
+        LEFT => (reserved.band.right as f64, centered_y),
+        RIGHT => (reserved.band.left as f64 - w, centered_y),
+        // Acima da barra: a margem transparente em volta do painel (sombra) já serve de espaço
+        // entre ele e a dock.
+        _ => (centered_x, reserved.band.top as f64 - h),
+    };
 
     let label = format!("panel-{}", PANEL_COUNTER.fetch_add(1, Ordering::SeqCst));
     let builder = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
@@ -110,6 +125,12 @@ pub async fn open_panel(app: AppHandle, kind: String, anchor_x: f64, width: f64,
     Ok(())
 }
 
+/// Prende `value` entre `min` e `max`. Uma janela maior que o intervalo fica no começo dele, em
+/// vez de estourar o `clamp` do `f64`.
+fn clamp(value: f64, min: f64, max: f64) -> f64 {
+    value.clamp(min, max.max(min))
+}
+
 /// Fecha o painel aberto se o clique (em pixels físicos de tela) caiu fora dele. No Windows o
 /// painel quase nunca ganha foco: o clique na dock vai para o processo do WebView2, então o
 /// Windows recusa trazer a janela nova para a frente e o `Focused(false)` nunca chega.
@@ -138,17 +159,30 @@ pub fn close_panel(app: AppHandle) {
 }
 
 pub fn open_settings_window(app: &AppHandle) -> tauri::Result<WebviewWindow> {
-    if let Some(window) = app.get_webview_window(SETTINGS_LABEL) {
+    let title = crate::i18n::settings_title(crate::i18n::current(app));
+    app_window(app, SETTINGS_LABEL, "", title, (1040.0, 720.0), (880.0, 600.0))
+}
+
+/// Novidades das versões depois de `since` (vazio: só a atual), lidas do changelog pelo frontend.
+pub fn open_whats_new_window(app: &AppHandle, since: &str) -> tauri::Result<WebviewWindow> {
+    let title = crate::i18n::current(app).t("Novidades do Pier", "What's new in Pier");
+    app_window(app, WHATS_NEW_LABEL, since, title, (600.0, 680.0), (480.0, 480.0))
+}
+
+/// Janelas normais do app (configurações e novidades), com o material do sistema; o label também é
+/// a view que o frontend renderiza. Se já estiver aberta, só traz para a frente.
+fn app_window(app: &AppHandle, label: &str, kind: &str, title: &str, size: (f64, f64), min_size: (f64, f64)) -> tauri::Result<WebviewWindow> {
+    if let Some(window) = app.get_webview_window(label) {
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
         return Ok(window);
     }
-    let builder = WebviewWindowBuilder::new(app, SETTINGS_LABEL, WebviewUrl::App("index.html".into()))
-        .initialization_script(&view_script("settings", ""))
-        .title(crate::i18n::settings_title(crate::i18n::current(app)))
-        .inner_size(1040.0, 720.0)
-        .min_inner_size(880.0, 600.0)
+    let builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
+        .initialization_script(&view_script(label, kind))
+        .title(title)
+        .inner_size(size.0, size.1)
+        .min_inner_size(min_size.0, min_size.1)
         .theme(Some(tauri::Theme::Dark))
         .center()
         .focused(true);
@@ -172,10 +206,11 @@ fn settings_effects() -> tauri::utils::config::WindowEffectsConfig {
     EffectsBuilder::new().effect(effect).state(EffectState::Active).build()
 }
 
-/// Troca o material da janela de configurações aberta (a dock e os painéis são do `backdrop`).
+/// Troca o material das janelas de configurações e de novidades abertas (a dock e os painéis são
+/// do `backdrop`).
 pub fn apply_settings_material(app: &AppHandle) {
     #[cfg(not(target_os = "linux"))]
-    if let Some(window) = app.get_webview_window(SETTINGS_LABEL) {
+    for window in [SETTINGS_LABEL, WHATS_NEW_LABEL].into_iter().filter_map(|label| app.get_webview_window(label)) {
         let _ = window.set_effects(settings_effects());
     }
     #[cfg(target_os = "linux")]
@@ -185,4 +220,9 @@ pub fn apply_settings_material(app: &AppHandle) {
 #[tauri::command]
 pub async fn open_settings(app: AppHandle) -> Result<(), String> {
     open_settings_window(&app).map(|_| ()).err_str()
+}
+
+#[tauri::command]
+pub async fn open_whats_new(app: AppHandle) -> Result<(), String> {
+    open_whats_new_window(&app, "").map(|_| ()).err_str()
 }

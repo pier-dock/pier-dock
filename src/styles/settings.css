@@ -1,9 +1,9 @@
-html[data-view="settings"] body {
+html:is([data-view="settings"], [data-view="whats-new"]) body {
   user-select: auto;
 }
 
 /* Com vidro a janela é transparente e o sistema desenha o material atrás; sem ele, opaca. */
-html[data-view="settings"][data-material="solid"] {
+html:is([data-view="settings"], [data-view="whats-new"])[data-material="solid"] {
   background: var(--surface);
 }
 
@@ -736,6 +736,44 @@ input[type="range"] {
   padding: 0 4px;
 }
 
+/* A miniatura acompanha a borda escolhida: em cima, embaixo ou nas laterais. */
+.preview-stage[data-pos="top"] {
+  align-items: flex-start;
+  padding-bottom: 0;
+  padding-top: 28px;
+}
+
+.preview-stage[data-pos="left"],
+.preview-stage[data-pos="right"] {
+  align-items: center;
+  padding-bottom: 0;
+}
+
+.preview-stage[data-pos="left"] {
+  justify-content: flex-start;
+  padding-left: 28px;
+}
+
+.preview-stage[data-pos="right"] {
+  justify-content: flex-end;
+  padding-right: 28px;
+}
+
+/* Nas laterais a miniatura da barra fica em pé, como a dock de verdade. */
+.preview-stage.vertical .preview-bar {
+  flex-direction: column;
+}
+
+.preview-stage.vertical .preview-bar .divider {
+  width: 26px;
+  height: 1px;
+  margin: 6px 0;
+}
+
+.preview-stage.vertical .preview-clock {
+  align-items: center;
+}
+
 /* GitHub */
 .account-card,
 .version-card {
@@ -1240,4 +1278,95 @@ input[type="range"] {
 .report-dialog .widget-dialog-footer .field-hint {
   flex: 1;
   min-width: 0;
+}
+
+/* Novidades: janela própria, aberta uma vez depois de atualizar (ver `whats-new/WhatsNew.tsx`). */
+.whats-new-header {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 28px 24px 20px;
+  background: var(--fill-header);
+  border-bottom: 1px solid var(--divider);
+}
+
+.whats-new-logo {
+  width: 52px;
+  height: 52px;
+  margin-bottom: 6px;
+  border-radius: 13px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+}
+
+.whats-new-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.whats-new-sub {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.whats-new-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 28px 24px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.whats-new-body p,
+.whats-new-body ul {
+  margin: 0 0 10px;
+}
+
+.whats-new-body ul {
+  padding-left: 18px;
+}
+
+.whats-new-body li + li {
+  margin-top: 4px;
+}
+
+.whats-new-body strong {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.whats-new-body code {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--fill-control);
+}
+
+.whats-new-eyebrow {
+  margin: 20px 0 0;
+}
+
+.whats-new-heading {
+  margin: 20px 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.whats-new-note {
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: var(--warning-fill);
+  border: 1px solid var(--warning-border);
+}
+
+.whats-new-empty {
+  margin-top: 24px;
+  text-align: center;
 }

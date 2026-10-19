@@ -21,6 +21,7 @@ mod updater;
 mod usage;
 mod util;
 mod weather;
+mod whats_new;
 mod wifi;
 mod windows_list;
 
@@ -198,6 +199,8 @@ fn main() {
             system::open_tray,
             system::bluetooth_status,
             system::set_bluetooth,
+            system::bluetooth_connect,
+            system::bluetooth_disconnect,
             audio::audio_status,
             audio::set_output_device,
             audio::set_app_volume,
@@ -229,6 +232,7 @@ fn main() {
             panels::close_panel,
             panels::focus_panel,
             panels::open_settings,
+            panels::open_whats_new,
             platform::platform_info,
             i18n::system_language,
             platform::platform_setup,
@@ -243,12 +247,13 @@ fn main() {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             let handle = app.handle().clone();
-            let (hide_taskbar, auto_hide, material) = {
+            let (hide_taskbar, auto_hide, material, dock_position) = {
                 let config = app.state::<config::ConfigState>();
                 let config = config.0.lock().unwrap();
-                (config.hide_taskbar, config.auto_hide.clone(), config.material.clone())
+                (config.hide_taskbar, config.auto_hide.clone(), config.material.clone(), config.dock_position.clone())
             };
             dock_window::init_auto_hide(&auto_hide);
+            dock_window::init_position(&dock_position);
             backdrop::init_material(&material);
             if hide_taskbar {
                 taskbar::hide();
@@ -287,6 +292,7 @@ fn main() {
             if let Err(e) = build_tray(&handle) {
                 log::error!("falha ao criar o ícone da bandeja: {e}");
             }
+            whats_new::start(&handle);
             Ok(())
         })
         .build(tauri::generate_context!())

@@ -14,7 +14,7 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import {ExtensionState} from 'resource:///org/gnome/shell/misc/extensionUtils.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-const VERSION = 2;
+const VERSION = 3;
 const APP_NAME = 'dev.pier.App';
 const BUS_NAME = 'dev.pier.Shell';
 const OBJECT_PATH = '/dev/pier/Shell';
@@ -39,6 +39,7 @@ const IFACE = `
     <method name="ToggleDesktop"/>
     <method name="SetHideNative"><arg type="b" direction="in" name="hide"/></method>
     <method name="SetReservedHeight"><arg type="u" direction="in" name="height"/></method>
+    <method name="SetReserved"><arg type="s" direction="in" name="edge"/><arg type="u" direction="in" name="height"/></method>
     <method name="SetShortcutsEnabled"><arg type="b" direction="in" name="enabled"/></method>
     <signal name="WindowsChanged"/>
     <signal name="ShortcutActivated"><arg type="u" name="index"/></signal>
@@ -55,6 +56,7 @@ class PierService {
         this._changedSource = 0;
         this._reserve = null;
         this._reservedHeight = 0;
+        this._reservedEdge = 'bottom';
         this._hiddenNative = null;
         this._accelerators = new Map();
         this._acceleratorSignal = 0;
@@ -188,6 +190,10 @@ class PierService {
 
     SetReservedHeightAsync([height], invocation) {
         this._handle(invocation, () => this._setReservedHeight(height));
+    }
+
+    SetReservedAsync([edge, height], invocation) {
+        this._handle(invocation, () => this._setReserved(edge, height));
     }
 
     SetShortcutsEnabledAsync([enabled], invocation) {
@@ -325,7 +331,14 @@ class PierService {
         }
     }
 
-    // ---- Área reservada na base da tela ----
+    // ---- Área reservada na borda da tela ----
+
+    // A borda onde a dock vive ("bottom", "top", "left" ou "right") e a espessura reservada.
+    _setReserved(edge, height) {
+        if (['top', 'bottom', 'left', 'right'].includes(edge))
+            this._reservedEdge = edge;
+        this._setReservedHeight(height);
+    }
 
     _setReservedHeight(height) {
         this._reservedHeight = height;
@@ -346,9 +359,15 @@ class PierService {
         if (!this._reserve || !monitor)
             return;
         const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
-        const height = Math.round(this._reservedHeight * scale);
-        this._reserve.set_position(monitor.x, monitor.y + monitor.height - height);
-        this._reserve.set_size(monitor.width, height);
+        const thickness = Math.round(this._reservedHeight * scale);
+        const [x, y, width, height] = {
+            top: [monitor.x, monitor.y, monitor.width, thickness],
+            bottom: [monitor.x, monitor.y + monitor.height - thickness, monitor.width, thickness],
+            left: [monitor.x, monitor.y, thickness, monitor.height],
+            right: [monitor.x + monitor.width - thickness, monitor.y, thickness, monitor.height],
+        }[this._reservedEdge];
+        this._reserve.set_position(x, y);
+        this._reserve.set_size(width, height);
     }
 
     // ---- Atalhos Ctrl+Alt+1..9 ----
@@ -382,7 +401,7 @@ class PierService {
         // Sem o Pier por perto ninguém chamaria o toque de volta: as janelas voltam agora.
         this._restoreDesktop();
         this._setHideNative(false);
-        this._setReservedHeight(0);
+        this._setReserved('bottom', 0);
         this._setShortcuts(false);
     }
 }

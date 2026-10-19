@@ -5,13 +5,24 @@
 //! Sem `FullScreenAuxiliary` a janela não entra nos Spaces de apps em tela cheia: lá a dock some
 //! sozinha, como o Windows faz com a thread de tela cheia.
 
+use std::sync::atomic::{AtomicI32, Ordering};
 use std::time::{Duration, Instant};
 
-use objc2_app_kit::{NSWindow, NSWindowCollectionBehavior};
+use objc2::MainThreadMarker;
+use objc2_app_kit::{NSScreen, NSWindow, NSWindowCollectionBehavior};
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewWindow};
 
-use super::{hit_rect, layout, place_window, set_visible, want_visible, HOVER_GRACE_MS};
+use super::{at_dock_edge, clickable_area, hit_rect, layout, place_window, set_visible, want_visible, Band, HOVER_GRACE_MS};
 use crate::platform::macos::pointer;
+
+/// Altura da barra de menus, em pixels físicos, medida na tela principal. A dock no topo ficaria
+/// atrás dela (nem o macOS nem nós reservamos a faixa da barra de menus).
+static TOP_INSET: AtomicI32 = AtomicI32::new(0);
+
+/// Quanto a dock desce quando está na borda de cima.
+pub fn top_inset() -> i32 {
+    TOP_INSET.load(Ordering::SeqCst)
+}
 
 pub fn init(window: &WebviewWindow) {
     let w = window.clone();
@@ -23,6 +34,16 @@ pub fn init(window: &WebviewWindow) {
                 | NSWindowCollectionBehavior::Stationary
                 | NSWindowCollectionBehavior::IgnoresCycle,
         );
+        // `NSScreen` só pode ser lido na thread principal. Na tela principal (a das telas todas,
+        // que é a que o Tauri chama de monitor primário) a barra de menus é a sobra entre o topo da
+        // tela e o topo da área visível.
+        let Some(mtm) = MainThreadMarker::new() else { return };
+        let Some(screen) = NSScreen::screens(mtm).firstObject() else { return };
+        let frame = screen.frame();
+        let visible = screen.visibleFrame();
+        let points = frame.size.height - (visible.origin.y + visible.size.height);
+        let scale = w.scale_factor().unwrap_or(1.0);
+        TOP_INSET.store((points * scale).round() as i32, Ordering::SeqCst);
     });
     pointer::forward(window);
     apply_layout(window);
@@ -59,16 +80,20 @@ fn start_pointer_thread(window: WebviewWindow) {
             if hit.width <= 0.0 {
                 continue;
             }
-            let (win_left, win_top) = (pos.x as f64, pos.y as f64);
-            let (win_right, win_bottom) = (win_left + size.width as f64, win_top + size.height as f64);
+            let window_band = Band::new(pos.x, pos.y, pos.x + size.width as i32, pos.y + size.height as i32);
             let headroom = if ignoring { 0.0 } else { layout().hover_headroom };
-            let left = win_left + hit.x * scale;
-            let right = left + hit.width * scale;
-            let top = win_top + (hit.y - headroom).max(0.0) * scale;
+            let window_size = (window_band.width() as f64 / scale, window_band.height() as f64 / scale);
+            // A área clicável vai da barra até dentro da tela; a margem entre a barra e a borda
+            // do monitor também conta como "na dock".
+            let (x0, y0, x1, y1) = clickable_area(window_size, headroom);
+            let (win_left, win_top) = (pos.x as f64, pos.y as f64);
+            let (left, top) = (win_left + x0 * scale, win_top + y0 * scale);
+            let (right, bottom) = (win_left + x1 * scale, win_top + y1 * scale);
             let (cx, cy) = (cursor.x, cursor.y);
-            let over_dock = super::dock_visible() && cx >= left && cx <= right && cy >= top && cy <= win_bottom;
-            // O cursor para na última linha de pontos da tela, um ponto (`scale` pixels) acima da base.
-            let at_edge = cy >= win_bottom - 2.0 * scale && cx >= win_left && cx < win_right;
+            let over_dock = super::dock_visible() && cx >= left && cx <= right && cy >= top && cy <= bottom;
+            // O cursor para na última linha de pontos da tela, um ponto (`scale` pixels) antes da
+            // borda onde a dock encosta.
+            let at_edge = at_dock_edge(cx, cy, window_band, scale);
 
             let now = Instant::now();
             if over_dock || at_edge {
