@@ -89,6 +89,8 @@ pub struct Config {
     pub auto_hide: String,
     /// "fit" (barra do tamanho do conteúdo, centralizada) ou "full" (ponta a ponta, como um painel).
     pub dock_width: String,
+    /// Borda da tela onde a dock fica: "bottom", "top", "left" ou "right".
+    pub dock_position: String,
     /// Altura da barra em pixels; `None` acompanha o tamanho do ícone (`iconSize + 24`).
     pub dock_height: Option<u32>,
     pub github_poll_minutes: u32,
@@ -176,6 +178,7 @@ impl Default for Config {
             hide_taskbar: true,
             auto_hide: "smart".into(),
             dock_width: "fit".into(),
+            dock_position: "bottom".into(),
             dock_height: None,
             github_poll_minutes: 3,
             ai_poll_minutes: 1,
@@ -286,6 +289,7 @@ pub fn save_config(app: AppHandle, state: State<ConfigState>, config: Config) ->
         crate::i18n::apply(&app);
     }
     crate::dock_window::set_auto_hide(&app, &config.auto_hide);
+    crate::dock_window::set_position(&app, &config.dock_position);
     crate::backdrop::set_material(&app, &config.material);
     crate::pomodoro::config_changed(&app);
     if old_hide != config.hide_taskbar {
@@ -316,6 +320,7 @@ mod tests {
         assert_eq!(config.icon_size, 40);
         assert_eq!(config.accent, "coral");
         assert_eq!(config.dock_width, "fit");
+        assert_eq!(config.dock_position, "bottom");
         assert_eq!(config.ai_provider, "auto");
         assert!(!config.widgets.is_empty());
         assert!(config.dock_order.is_empty());

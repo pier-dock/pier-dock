@@ -103,11 +103,16 @@ pub fn disconnect() -> Result<(), String> {
     Ok(())
 }
 
-/// Na primeira vez o sistema mostra o pedido; depois de negado, só pelas Configurações.
+/// Na primeira vez o sistema mostra o pedido; depois de negado (ou com a Localização desligada no
+/// sistema todo, quando o pedido não aparece), só pelas Configurações.
 pub fn request_permission(app: &tauri::AppHandle) {
     let status = unsafe { CLLocationManager::new().authorizationStatus() };
-    if status != CLAuthorizationStatus::NotDetermined {
+    let services_on = unsafe { CLLocationManager::locationServicesEnabled_class() };
+    if !services_on || status == CLAuthorizationStatus::Denied || status == CLAuthorizationStatus::Restricted {
         let _ = spawn_detached("/usr/bin/open", &[PRIVACY_LOCATION]);
+        return;
+    }
+    if status != CLAuthorizationStatus::NotDetermined {
         return;
     }
     let _ = app.run_on_main_thread(|| {

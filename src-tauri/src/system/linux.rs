@@ -138,16 +138,21 @@ fn bluetooth_from_objects(objects: &[(String, Interfaces)]) -> Bluetooth {
         return Bluetooth::absent();
     }
     let powered = adapters.iter().any(|(_, i)| prop::<bool>(i, "org.bluez.Adapter1", "Powered").unwrap_or(false));
+    let flag = |i: &Interfaces, name: &str| prop::<bool>(i, "org.bluez.Device1", name).unwrap_or(false);
+    // O BlueZ também lista os dispositivos que só foram vistos numa busca; `Bonded` cobre os LE que
+    // guardaram a chave sem marcar `Paired`.
     let devices = objects
         .iter()
-        .filter(|(_, i)| prop::<bool>(i, "org.bluez.Device1", "Connected").unwrap_or(false))
-        .map(|(_, i)| BluetoothDevice {
+        .filter(|(_, i)| flag(i, "Paired") || flag(i, "Bonded") || flag(i, "Connected"))
+        .map(|(path, i)| BluetoothDevice {
+            id: path.clone(),
             name: prop::<String>(i, "org.bluez.Device1", "Alias").unwrap_or_default(),
             kind: kind_from_icon(&prop::<String>(i, "org.bluez.Device1", "Icon").unwrap_or_default()),
             battery: prop::<u8>(i, "org.bluez.Battery1", "Percentage").map(|p| p.min(100)),
+            connected: flag(i, "Connected"),
         })
         .collect();
-    Bluetooth { available: true, powered, can_toggle: true, devices }
+    Bluetooth { available: true, powered, can_toggle: true, can_connect: true, devices }
 }
 
 pub fn bluetooth() -> Bluetooth {
@@ -162,6 +167,20 @@ pub fn set_bluetooth(powered: bool) -> Result<(), String> {
         adapter.set_property("Powered", powered).map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+fn call_device(id: &str, method: &str) -> Result<(), String> {
+    let conn = dbus::system().ok_or("sem acesso ao D-Bus do sistema")?;
+    let device = dbus::proxy(conn, BLUEZ, id, "org.bluez.Device1").ok_or("dispositivo não encontrado")?;
+    device.call_method(method, &()).map(drop).map_err(|e| e.to_string())
+}
+
+pub fn connect_bluetooth(id: &str) -> Result<(), String> {
+    call_device(id, "Connect")
+}
+
+pub fn disconnect_bluetooth(id: &str) -> Result<(), String> {
+    call_device(id, "Disconnect")
 }
 
 /// Configurações de Bluetooth: as do GNOME, as do Blueman (Linux Mint e outras) ou as do Cinnamon.
@@ -237,18 +256,25 @@ mod tests {
             ("org.bluez.Battery1".to_string(), props(&[("Percentage", OwnedValue::from(80u8))])),
         ]
         .into();
-        let paired: Interfaces = [("org.bluez.Device1".to_string(), props(&[("Connected", OwnedValue::from(false))]))].into();
+        let paired: Interfaces =
+            [("org.bluez.Device1".to_string(), props(&[("Connected", OwnedValue::from(false)), ("Paired", OwnedValue::from(true))]))].into();
+        let seen: Interfaces = [("org.bluez.Device1".to_string(), props(&[("Connected", OwnedValue::from(false))]))].into();
         let objects = vec![
             ("/org/bluez/hci0".to_string(), adapter),
             ("/org/bluez/hci0/dev_1".to_string(), headset),
             ("/org/bluez/hci0/dev_2".to_string(), paired),
+            ("/org/bluez/hci0/dev_3".to_string(), seen),
         ];
         let bt = bluetooth_from_objects(&objects);
         assert!(bt.available && bt.powered);
-        assert_eq!(bt.devices.len(), 1);
+        assert_eq!(bt.devices.len(), 2);
+        assert_eq!(bt.devices[0].id, "/org/bluez/hci0/dev_1");
         assert_eq!(bt.devices[0].name, "WH-1000XM4");
         assert_eq!(bt.devices[0].kind, "audio");
         assert_eq!(bt.devices[0].battery, Some(80));
+        assert!(bt.devices[0].connected);
+        assert_eq!(bt.devices[1].id, "/org/bluez/hci0/dev_2");
+        assert!(!bt.devices[1].connected);
         assert!(!bluetooth_from_objects(&[]).available);
     }
 

@@ -119,33 +119,47 @@ fn kind_from_appearance(raw: u16) -> &'static str {
     }
 }
 
-fn connected_devices() -> windows::core::Result<Vec<BluetoothDevice>> {
+fn paired_devices() -> windows::core::Result<Vec<BluetoothDevice>> {
     let mut devices: Vec<BluetoothDevice> = Vec::new();
-    let classic = DeviceInformation::FindAllAsyncAqsFilter(&BtDevice::GetDeviceSelectorFromConnectionStatus(BluetoothConnectionStatus::Connected)?)?.get()?;
+    let classic = DeviceInformation::FindAllAsyncAqsFilter(&BtDevice::GetDeviceSelectorFromPairingState(true)?)?.get()?;
     for info in classic {
-        let device = BtDevice::FromIdAsync(&info.Id()?)?.get()?;
+        let id = info.Id()?;
+        let device = BtDevice::FromIdAsync(&id)?.get()?;
         let kind = kind_from_class(device.ClassOfDevice()?.RawValue()?);
-        devices.push(BluetoothDevice { name: device.Name()?.to_string(), kind, battery: None });
+        let connected = device.ConnectionStatus()? == BluetoothConnectionStatus::Connected;
+        devices.push(BluetoothDevice { id: id.to_string(), name: device.Name()?.to_string(), kind, battery: None, connected });
     }
-    let le = DeviceInformation::FindAllAsyncAqsFilter(&BluetoothLEDevice::GetDeviceSelectorFromConnectionStatus(BluetoothConnectionStatus::Connected)?)?.get()?;
+    let le = DeviceInformation::FindAllAsyncAqsFilter(&BluetoothLEDevice::GetDeviceSelectorFromPairingState(true)?)?.get()?;
     for info in le {
-        let device = BluetoothLEDevice::FromIdAsync(&info.Id()?)?.get()?;
+        let id = info.Id()?;
+        let device = BluetoothLEDevice::FromIdAsync(&id)?.get()?;
         let name = device.Name()?.to_string();
+        let connected = device.ConnectionStatus()? == BluetoothConnectionStatus::Connected;
         // Dispositivos dual-mode (fones, por exemplo) aparecem nas duas listas.
-        if devices.iter().any(|d| d.name == name) {
+        if let Some(existing) = devices.iter_mut().find(|d| d.name == name) {
+            existing.connected |= connected;
             continue;
         }
         let kind = kind_from_appearance(device.Appearance()?.RawValue()?);
-        devices.push(BluetoothDevice { name, kind, battery: None });
+        devices.push(BluetoothDevice { id: id.to_string(), name, kind, battery: None, connected });
     }
     Ok(devices)
 }
 
+/// O WinRT não conecta dispositivos clássicos (fones, teclados): o popover abre as configurações.
 pub fn bluetooth() -> Bluetooth {
     let Some(radio) = bluetooth_radio() else { return Bluetooth::absent() };
     let powered = radio.State().is_ok_and(|s| s == RadioState::On);
-    let devices = if powered { connected_devices().unwrap_or_default() } else { Vec::new() };
-    Bluetooth { available: true, powered, can_toggle: true, devices }
+    let devices = if powered { paired_devices().unwrap_or_default() } else { Vec::new() };
+    Bluetooth { available: true, powered, can_toggle: true, can_connect: false, devices }
+}
+
+pub fn connect_bluetooth(_id: &str) -> Result<(), String> {
+    Err("o Windows não permite conectar dispositivos Bluetooth por apps".into())
+}
+
+pub fn disconnect_bluetooth(_id: &str) -> Result<(), String> {
+    Err("o Windows não permite desconectar dispositivos Bluetooth por apps".into())
 }
 
 pub fn set_bluetooth(powered: bool) -> Result<(), String> {
@@ -282,19 +296,21 @@ fn with_taskbar<T>(f: impl FnOnce() -> T) -> T {
     result
 }
 
-/// Abre a gaveta de ícones ocultos centrada em `anchor_x`, com a base em `bottom` (pixels
-/// físicos de tela). Com ela aberta, fecha: clicar na dock nem sempre a fecha sozinho.
-pub fn open_tray(anchor_x: i32, bottom: i32) -> Result<(), String> {
+/// Abre a gaveta de ícones ocultos ancorada em `(anchor_x, anchor_y)` (pixels físicos de tela).
+/// A gaveta cresce para dentro da tela a partir da borda `edge`: com a base em cima/embaixo da
+/// dock, ou com a lateral nas laterais. Com ela aberta, fecha: clicar na dock nem sempre a fecha
+/// sozinho.
+pub fn open_tray(anchor_x: i32, anchor_y: i32, edge: u8) -> Result<(), String> {
     // Abrir leva até ~1,5 s; um clique nesse meio-tempo esconderia a taskbar no meio da busca.
     if TRAY_BUSY.swap(true, Ordering::SeqCst) {
         return Ok(());
     }
-    let result = toggle_tray(anchor_x, bottom);
+    let result = toggle_tray(anchor_x, anchor_y, edge);
     TRAY_BUSY.store(false, Ordering::SeqCst);
     result
 }
 
-fn toggle_tray(anchor_x: i32, bottom: i32) -> Result<(), String> {
+fn toggle_tray(anchor_x: i32, anchor_y: i32, edge: u8) -> Result<(), String> {
     // A gaveta fecha no mousedown fora dela, antes deste clique chegar: o clique que a fechou não
     // deve reabri-la.
     let just_closed = TRAY_CLOSED_AT.lock().unwrap().is_some_and(|t| t.elapsed() < Duration::from_millis(400));
@@ -315,7 +331,13 @@ fn toggle_tray(anchor_x: i32, bottom: i32) -> Result<(), String> {
         if GetWindowRect(overflow, &mut rect).is_ok() {
             let (width, height) = (rect.right - rect.left, rect.bottom - rect.top);
             let flags = SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE;
-            let _ = SetWindowPos(overflow, HWND::default(), anchor_x - width / 2, bottom - height, 0, 0, flags);
+            let (x, y) = match edge {
+                crate::dock_window::TOP => (anchor_x - width / 2, anchor_y),
+                crate::dock_window::LEFT => (anchor_x, anchor_y - height / 2),
+                crate::dock_window::RIGHT => (anchor_x - width, anchor_y - height / 2),
+                _ => (anchor_x - width / 2, anchor_y - height),
+            };
+            let _ = SetWindowPos(overflow, HWND::default(), x, y, 0, 0, flags);
         }
     }
     let handle = overflow.0 as isize;

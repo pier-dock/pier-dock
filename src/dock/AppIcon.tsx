@@ -3,7 +3,7 @@ import { motion, useAnimationControls, useMotionValueEvent } from "framer-motion
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Menu } from "@tauri-apps/api/menu";
-import { ipc } from "../lib/ipc";
+import { ipc, type DockPosition } from "../lib/ipc";
 import { keys } from "../lib/platform";
 import { useIcon } from "../hooks/useIcon";
 import { useConfig } from "../store/config";
@@ -15,6 +15,20 @@ import { useT } from "../i18n";
 /** Espera antes de abrir a faixa de prévias: passar o mouse para o lado não deve abrir nada. */
 const PREVIEW_DELAY = 320;
 
+/** O "pulo" ao abrir o app, para dentro da tela no eixo livre da barra. */
+function bounceOffset(position: DockPosition) {
+  switch (position) {
+    case "top":
+      return { y: [0, 14, 0, 6, 0] };
+    case "left":
+      return { x: [0, 14, 0, 6, 0] };
+    case "right":
+      return { x: [0, -14, 0, -6, 0] };
+    default:
+      return { y: [0, -14, 0, -6, 0] };
+  }
+}
+
 interface Props {
   app: DockApp;
   active: boolean;
@@ -22,12 +36,13 @@ interface Props {
   /** Posição para o atalho Ctrl+Alt+N (⌃⌥N no macOS, 1 a 9), se o app tiver um. */
   shortcut?: number;
   /** Abre a faixa de prévias das janelas depois de um instante de hover. */
-  onPreview?: (app: DockApp, centerX: number) => void;
+  onPreview?: (app: DockApp, anchor: { x: number; y: number }) => void;
 }
 
 export function AppIcon({ app, active, sortable, shortcut, onPreview }: Props) {
   const src = useIcon(app.iconKey);
   const bounce = useAnimationControls();
+  const { mouse, position } = useContext(MagnifyCtx)!;
   const [hover, setHover] = useState(false);
   const previewTimer = useRef<number | null>(null);
   const cancelPreview = () => {
@@ -35,9 +50,9 @@ export function AppIcon({ app, active, sortable, shortcut, onPreview }: Props) {
     previewTimer.current = null;
   };
   // Quando o Rust liga o click-through ou a dock se esconde, o WebView não recebe mouseleave; a
-  // dock sinaliza a saída do cursor zerando o mouseX.
-  useMotionValueEvent(useContext(MagnifyCtx)!.mouseX, "change", (x) => {
-    if (x !== Infinity) return;
+  // dock sinaliza a saída do cursor zerando o mouse.
+  useMotionValueEvent(mouse, "change", (value) => {
+    if (value !== Infinity) return;
     setHover(false);
     // Arrastar ou esconder a dock também cancela a espera da prévia.
     cancelPreview();
@@ -51,7 +66,7 @@ export function AppIcon({ app, active, sortable, shortcut, onPreview }: Props) {
   });
 
   const launch = () => {
-    bounce.start({ y: [0, -14, 0, -6, 0], transition: { duration: 0.7 } });
+    bounce.start({ ...bounceOffset(position), transition: { duration: 0.7 } });
     ipc.launchApp(app.launchTarget).catch(console.error);
   };
 
@@ -105,7 +120,7 @@ export function AppIcon({ app, active, sortable, shortcut, onPreview }: Props) {
     previewTimer.current = window.setTimeout(() => {
       previewTimer.current = null;
       const rect = el.getBoundingClientRect();
-      onPreview(app, rect.left + rect.width / 2);
+      onPreview(app, { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
     }, PREVIEW_DELAY);
   };
 

@@ -6,9 +6,13 @@
 
 .dock-bar {
   --glass-blur: var(--dock-blur);
+  /* O que mantém a barra centrada no eixo do comprimento, e de onde ela "vem" ao aparecer. */
+  --dock-center: translateX(-50%);
+  --dock-enter-x: 0px;
+  --dock-enter-y: 30px;
   position: absolute;
   left: 50%;
-  transform: translateX(-50%);
+  transform: var(--dock-center);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -23,9 +27,16 @@
     opacity 0.22s ease;
 }
 
-/* Ocultar automaticamente: desliza para baixo da borda da tela. */
+@keyframes dock-in {
+  from {
+    opacity: 0;
+    transform: var(--dock-center) translate(var(--dock-enter-x), var(--dock-enter-y));
+  }
+}
+
+/* Ocultar automaticamente: desliza para fora da borda da tela onde a dock vive. */
 .dock-bar.dock-hidden {
-  transform: translateX(-50%) translateY(calc(100% + 24px));
+  transform: var(--dock-center) translateY(calc(100% + 24px));
   opacity: 0;
   pointer-events: none;
   transition:
@@ -33,35 +44,72 @@
     opacity 0.26s ease-in;
 }
 
-/* Largura total: a barra vai de ponta a ponta com as quinas retas, como um painel. */
+.dock-root[data-pos="top"] .dock-bar.dock-hidden {
+  transform: var(--dock-center) translateY(calc(-100% - 24px));
+}
+
+.dock-root[data-pos="left"] .dock-bar.dock-hidden {
+  transform: var(--dock-center) translateX(calc(-100% - 24px));
+}
+
+.dock-root[data-pos="right"] .dock-bar.dock-hidden {
+  transform: var(--dock-center) translateX(calc(100% + 24px));
+}
+
+/* Largura total: a barra vai de ponta a ponta com as quinas retas e sem a borda do lado que
+   encosta na tela, como um painel. */
 .dock-bar.dock-full {
+  --dock-center: translateX(0);
   left: 0;
-  transform: none;
-  width: 100%;
   border-radius: 0;
+  justify-content: center;
+}
+
+.dock-root[data-pos="bottom"] .dock-bar.dock-full {
+  width: 100%;
   border-left: 0;
   border-right: 0;
   border-bottom: 0;
-  justify-content: center;
-  animation: dock-in-full 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2);
 }
 
-.dock-bar.dock-full.dock-hidden {
-  transform: translateY(calc(100% + 24px));
+.dock-root[data-pos="top"] .dock-bar.dock-full {
+  width: 100%;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
 }
 
-@keyframes dock-in-full {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
+/* Bordas laterais: a barra vira uma coluna, centrada na vertical e presa à lateral da tela. */
+.dock-root[data-pos="left"] .dock-bar,
+.dock-root[data-pos="right"] .dock-bar {
+  --dock-center: translateY(-50%);
+  --dock-enter-x: -30px;
+  --dock-enter-y: 0px;
+  left: auto;
+  top: 50%;
+  flex-direction: column;
 }
 
-@keyframes dock-in {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(30px);
-  }
+.dock-root[data-pos="right"] .dock-bar {
+  --dock-enter-x: 30px;
+}
+
+.dock-root[data-pos="left"] .dock-bar.dock-full {
+  --dock-center: translateY(0);
+  top: 0;
+  height: 100%;
+  border-top: 0;
+  border-bottom: 0;
+  border-left: 0;
+}
+
+.dock-root[data-pos="right"] .dock-bar.dock-full {
+  --dock-center: translateY(0);
+  top: 0;
+  height: 100%;
+  border-top: 0;
+  border-bottom: 0;
+  border-right: 0;
 }
 
 .dragging {
@@ -69,17 +117,86 @@
   opacity: 0.85;
 }
 
-/* Apps: presos à base da barra, crescem para cima com a magnificação. */
+/* Apps: presos à borda da tela, crescem para dentro dela com a magnificação. */
 .dock-item {
   position: relative;
   align-self: flex-end;
-  margin-bottom: var(--dock-item-bottom, 3px);
+  margin-bottom: var(--dock-item-offset, 3px);
   display: flex;
   touch-action: none;
 }
 
 .dock-item + .dock-item {
   margin-left: -2px;
+}
+
+.dock-root[data-pos="top"] .dock-item {
+  align-self: flex-start;
+  margin-bottom: 0;
+  margin-top: var(--dock-item-offset, 3px);
+}
+
+.dock-root[data-pos="left"] .dock-item {
+  align-self: flex-start;
+  margin-bottom: 0;
+  margin-left: var(--dock-item-offset, 3px);
+}
+
+.dock-root[data-pos="right"] .dock-item {
+  align-self: flex-end;
+  margin-bottom: 0;
+  margin-right: var(--dock-item-offset, 3px);
+}
+
+/* Na vertical os itens se encostam pelo topo, não pela esquerda. O recuo do lado de dentro da
+   barra (o `--dock-item-offset` do eixo da espessura) continua valendo em todos eles. */
+.dock-root[data-pos="top"] .dock-item + .dock-item,
+.dock-root[data-pos="left"] .dock-item + .dock-item,
+.dock-root[data-pos="right"] .dock-item + .dock-item {
+  margin-top: -2px;
+}
+
+.dock-root[data-pos="top"] .widget-slot + .widget-slot,
+.dock-root[data-pos="left"] .widget-slot + .widget-slot,
+.dock-root[data-pos="right"] .widget-slot + .widget-slot {
+  margin-left: 0;
+  margin-top: -2px;
+}
+
+/* Numa barra em pé o que é ícone ao lado de um texto não caberia na espessura dela: esses
+   widgets empilham (o texto debaixo do ícone). */
+.dock-root[data-pos="left"] .tile:has(> .tile-count, > .tile-badge, > .sys-text),
+.dock-root[data-pos="right"] .tile:has(> .tile-count, > .tile-badge, > .sys-text) {
+  flex-direction: column;
+  gap: 2px;
+  height: auto;
+  min-height: 40px;
+  padding: 4px 2px;
+}
+
+/* O relógio fica só com a hora: a data não cabe na espessura (a dica traz a data completa). */
+.dock-root[data-pos="left"] .clock-date,
+.dock-root[data-pos="right"] .clock-date {
+  display: none;
+}
+
+/* Numa barra em pé a hora vai num corpo que caiba na espessura, centralizada e sem passar da
+   barra (em locales de 12 horas "12:36 AM" é mais largo que a espessura padrão). */
+.dock-root[data-pos="left"] .clock-tile,
+.dock-root[data-pos="right"] .clock-tile {
+  align-items: center;
+  max-width: 100%;
+  padding: 0;
+}
+
+/* Numa barra em pé a hora encolhe junto com a espessura (a espessura é `--icon` + 24), senão
+   "12:36 AM" — que é o formato de 12 horas — passa da barra num ícone pequeno. */
+.dock-root[data-pos="left"] .clock-time,
+.dock-root[data-pos="right"] .clock-time {
+  font-size: min(12px, calc(var(--icon) * 0.32));
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .app-button {
@@ -91,6 +208,11 @@
   align-items: center;
   gap: 5px;
   transition: background 0.15s ease;
+}
+
+/* Na borda de cima o indicador de app aberto fica do lado da borda da tela. */
+.dock-root[data-pos="top"] .app-button {
+  flex-direction: column-reverse;
 }
 
 .app-button.hovered {
@@ -191,11 +313,26 @@
   background: var(--divider);
 }
 
+/* Numa barra vertical o separador é uma linha deitada. */
+.dock-root[data-pos="left"] .divider-item,
+.dock-root[data-pos="right"] .divider-item {
+  height: auto;
+  width: 28px;
+  padding: 6px 0;
+}
+
+.dock-root[data-pos="left"] .divider,
+.dock-root[data-pos="right"] .divider {
+  width: 28px;
+  height: 1px;
+}
+
 .tooltip {
+  --tooltip-center: translateX(-50%);
   position: absolute;
   bottom: calc(100% + 8px);
   left: 50%;
-  transform: translateX(-50%);
+  transform: var(--tooltip-center);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -214,6 +351,27 @@
   animation: fade-in 0.12s ease;
 }
 
+/* A dica sai da barra para dentro da tela, como a faixa de prévias. */
+.dock-root[data-pos="top"] .tooltip {
+  bottom: auto;
+  top: calc(100% + 8px);
+}
+
+.dock-root[data-pos="left"] .tooltip {
+  --tooltip-center: translateY(-50%);
+  bottom: auto;
+  left: calc(100% + 8px);
+  top: 50%;
+}
+
+.dock-root[data-pos="right"] .tooltip {
+  --tooltip-center: translateY(-50%);
+  bottom: auto;
+  left: auto;
+  right: calc(100% + 8px);
+  top: 50%;
+}
+
 .tooltip.with-keys {
   padding-right: 8px;
 }
@@ -226,11 +384,11 @@
 @keyframes fade-in {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(4px);
+    transform: var(--tooltip-center) translateY(4px);
   }
 }
 
-/* Faixa de prévias das janelas: filha da própria dock, acima da barra. A área clicável da janela
+/* Faixa de prévias das janelas: filha da própria dock, ao lado da barra. A área clicável da janela
    cresce junto (ver `dockMetrics`), então o cursor alcança a faixa sem abrir outra janela. */
 .preview-strip {
   position: absolute;
@@ -245,6 +403,14 @@
   border-radius: var(--radius-dock);
   box-shadow: var(--glass-highlight), var(--glass-shadow);
   animation: preview-in 0.14s ease;
+}
+
+/* Nas laterais as janelas empilham numa coluna, com a faixa rolando se não couber na tela. */
+.dock-root[data-pos="left"] .preview-strip,
+.dock-root[data-pos="right"] .preview-strip {
+  flex-direction: column;
+  max-height: calc(100% - 16px);
+  overflow-y: auto;
 }
 
 @keyframes preview-in {

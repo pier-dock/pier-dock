@@ -3,11 +3,13 @@ import { ipc } from "../lib/ipc";
 import { Tooltip } from "../ui/Tooltip";
 import { PANEL_INSET, PANEL_SIZES } from "../popovers/sizes";
 
-/** Abre (ou fecha, se já estiver aberto) o painel do widget, centrado acima de `el`. */
+/** Abre (ou fecha, se já estiver aberto) o painel do widget, centrado em `el` e encostado na dock. */
 export function togglePanel(kind: string, el: Element) {
   const rect = el.getBoundingClientRect();
   const [w, h] = PANEL_SIZES[kind] ?? [380, 420];
-  ipc.openPanel(kind, rect.left + rect.width / 2, w + 2 * PANEL_INSET, h + 2 * PANEL_INSET).catch(console.error);
+  ipc
+    .openPanel(kind, rect.left + rect.width / 2, rect.top + rect.height / 2, w + 2 * PANEL_INSET, h + 2 * PANEL_INSET)
+    .catch(console.error);
 }
 
 /** Mostra o tooltip enquanto o mouse está sobre o elemento. */

@@ -51,6 +51,9 @@ export interface PomodoroConfig {
   breakMinutes: number;
 }
 
+/** Borda da tela onde a dock fica. Nas laterais a barra é vertical. */
+export type DockPosition = "bottom" | "top" | "left" | "right";
+
 export interface Config {
   pinnedApps: AppEntry[];
   widgets: WidgetConfig[];
@@ -67,6 +70,8 @@ export interface Config {
   dockWidth: "fit" | "full";
   /** Altura da barra em pixels; `null` acompanha o tamanho do ícone (`iconSize + 24`). */
   dockHeight: number | null;
+  /** Borda da tela onde a dock fica. */
+  dockPosition: DockPosition;
   githubPollMinutes: number;
   aiPollMinutes: number;
   /** Qual IA o widget de uso lê: "auto" (a de leitura mais recente), "claude" ou "codex". */
@@ -156,16 +161,20 @@ export interface SystemStatus {
 }
 
 export interface BluetoothDevice {
+  id: string;
   name: string;
   kind: "audio" | "mouse" | "keyboard" | "gamepad" | "phone" | "other";
   battery: number | null;
+  connected: boolean;
 }
 
 export interface BluetoothState {
   available: boolean;
   powered: boolean;
   canToggle: boolean;
-  /** Só os conectados. */
+  /** Dá para conectar e desconectar pelo Pier; senão o clique abre as configurações. */
+  canConnect: boolean;
+  /** Os pareados, com os conectados primeiro. */
   devices: BluetoothDevice[];
 }
 
@@ -346,7 +355,7 @@ export const ipc = {
   saveConfig: (config: Config) => invoke<void>("save_config", { config }),
   quit: () => invoke<void>("quit_app"),
 
-  setDockLayout: (layout: { reservedHeight: number; windowHeight: number; hoverHeadroom: number }) =>
+  setDockLayout: (layout: { reserved: number; windowSize: number; hoverHeadroom: number }) =>
     invoke<void>("set_dock_layout", { layout }),
   setHitRect: (rect: { x: number; y: number; width: number; height: number; radius: number }) =>
     invoke<void>("set_hit_rect", { rect }),
@@ -373,9 +382,11 @@ export const ipc = {
   systemStatus: () => invoke<SystemStatus>("system_status"),
   bluetoothStatus: () => invoke<BluetoothState>("bluetooth_status"),
   setBluetooth: (powered: boolean) => invoke<void>("set_bluetooth", { powered }),
+  bluetoothConnect: (id: string) => invoke<void>("bluetooth_connect", { id }),
+  bluetoothDisconnect: (id: string) => invoke<void>("bluetooth_disconnect", { id }),
   getVolume: () => invoke<Volume>("get_volume"),
   setVolume: (args: { level?: number; muted?: boolean }) => invoke<void>("set_volume", args),
-  openTray: (anchorX: number) => invoke<void>("open_tray", { anchorX }),
+  openTray: (anchorX: number, anchorY: number) => invoke<void>("open_tray", { anchorX, anchorY }),
   openShell: (kind: "start" | "quick-settings" | "notifications" | "system-monitor" | "calendar" | "bluetooth" | "sound" | "network") =>
     invoke<void>("open_shell", { kind }),
   audioStatus: () => invoke<AudioState>("audio_status"),
@@ -413,11 +424,12 @@ export const ipc = {
   aiUsageCached: () => invoke<AiUsage | null>("ai_usage_cached"),
   aiProviders: () => invoke<AiProvider[]>("ai_providers"),
 
-  openPanel: (kind: string, anchorX: number, width: number, height: number) =>
-    invoke<void>("open_panel", { kind, anchorX, width, height }),
+  openPanel: (kind: string, anchorX: number, anchorY: number, width: number, height: number) =>
+    invoke<void>("open_panel", { kind, anchorX, anchorY, width, height }),
   closePanel: () => invoke<void>("close_panel"),
   focusPanel: () => invoke<void>("focus_panel"),
   openSettings: () => invoke<void>("open_settings"),
+  openWhatsNew: () => invoke<void>("open_whats_new"),
 
   platformInfo: () => invoke<PlatformInfo>("platform_info"),
   systemLanguage: () => invoke<Lang>("system_language"),

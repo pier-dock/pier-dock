@@ -4,6 +4,7 @@ import { shortDate } from "../../lib/format";
 import { useIcon } from "../../hooks/useIcon";
 import { useNow } from "../../hooks/useSystem";
 import { iconKeyForEntry } from "../../dock/apps";
+import { isVertical } from "../../dock/layout";
 import { ACCENTS } from "../../theme/accents";
 import { Card, Row, SectionLabel } from "../../ui/Card";
 import { Segmented } from "../../ui/Segmented";
@@ -57,9 +58,11 @@ function PreviewIcon({ entry, size, active }: { entry: AppEntry; size: number; a
 /** A dock em miniatura sobre um fundo colorido, com o material, a opacidade e o destaque atuais. */
 function LivePreview({ config }: { config: Config }) {
   const now = useNow(30_000);
-  const apps = config.pinnedApps.slice(0, 5);
+  // Numa barra em pé cabem menos ícones antes de a prévia passar do espaço da tela.
+  const vertical = isVertical(config.dockPosition);
+  const apps = config.pinnedApps.slice(0, vertical ? 3 : 5);
   return (
-    <div className="preview-stage" aria-hidden>
+    <div className={`preview-stage ${vertical ? "vertical" : ""}`} data-pos={config.dockPosition} aria-hidden>
       <span className="preview-window">
         <span />
         <span />
@@ -146,6 +149,21 @@ export function AppearanceTab({ config, update, platform }: TabProps) {
           <p className="field-hint">
             {config.autoHide === "never" ? labels().autoHideNever : t.autoHideHint}
           </p>
+        </div>
+        <div className="field">
+          <span className="field-label">{t.dockPosition}</span>
+          <Segmented
+            label={t.dockPosition}
+            value={config.dockPosition}
+            onChange={(dockPosition) => update({ dockPosition })}
+            options={[
+              { value: "bottom", label: t.dockPositionBottom },
+              { value: "top", label: t.dockPositionTop },
+              { value: "left", label: t.dockPositionLeft },
+              { value: "right", label: t.dockPositionRight },
+            ]}
+          />
+          <p className="field-hint">{t.dockPositionHint}</p>
         </div>
         <div className="field">
           <span className="field-label">{t.dockWidth}</span>

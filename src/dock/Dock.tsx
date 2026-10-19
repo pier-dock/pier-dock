@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMotionValue } from "framer-motion";
 import { LayoutGrid, Search } from "lucide-react";
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { arrayMove, horizontalListSortingStrategy, SortableContext } from "@dnd-kit/sortable";
+import { arrayMove, horizontalListSortingStrategy, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { Menu } from "@tauri-apps/api/menu";
@@ -15,7 +15,7 @@ import { useMedia } from "../hooks/useMedia";
 import { useGithub } from "../hooks/useGithub";
 import { useBluetooth, useSystemStatus } from "../hooks/useSystem";
 import { buildDockApps, type DockApp } from "./apps";
-import { PREVIEW_GAP, PREVIEW_HEIGHT, dockMetrics } from "./layout";
+import { PREVIEW_GAP, barRect, dockMetrics, isVertical, previewSpace } from "./layout";
 import { WindowPreview } from "./WindowPreview";
 import { MagnifyCtx } from "./Magnify";
 import { AppIcon } from "./AppIcon";
@@ -106,10 +106,14 @@ export function Dock({ config }: { config: Config }) {
   const calendar = useCalendar(enabled("calendar"));
   const [bluetooth] = useBluetooth(enabled("bluetooth"));
   const ai = useAiUsage(enabled("ai-usage") ? config.aiPollMinutes : undefined, config.aiProvider);
-  const mouseX = useMotionValue(Infinity);
+  const position = config.dockPosition;
+  const vertical = isVertical(position);
+  const full = config.dockWidth === "full";
+  // O cursor na direção da barra: x nas bordas de cima e de baixo, y nas laterais.
+  const mouse = useMotionValue(Infinity);
   const barRef = useRef<HTMLDivElement>(null);
   // Janela em prévia: guarda o app pelo `key`, porque a lista de apps é remontada a cada snapshot.
-  const [preview, setPreview] = useState<{ key: string; centerX: number } | null>(null);
+  const [preview, setPreview] = useState<{ key: string; x: number; y: number } | null>(null);
 
   const [installed, setInstalled] = useState<AppEntry[]>([]);
   useEffect(() => {
@@ -119,14 +123,15 @@ export function Dock({ config }: { config: Config }) {
     return () => clearInterval(id);
   }, []);
 
-  // Com a faixa aberta a janela cresce e a área clicável sobe junto, senão o cursor não alcança a
+  // Com a faixa aberta a janela cresce e a área clicável avança junto, senão o cursor não alcança a
   // faixa (app nenhum fica por cima da área reservada da dock).
   const metrics = dockMetrics(
     config.iconSize,
     config.magnification,
-    config.dockWidth === "full",
+    full,
     config.dockHeight,
-    preview ? PREVIEW_HEIGHT + PREVIEW_GAP : 0,
+    previewSpace(position, !!preview),
+    position,
   );
   const apps = useMemo(
     () => buildDockApps(config.pinnedApps, snapshot.windows, config.showRunningUnpinned, installed),
@@ -144,11 +149,11 @@ export function Dock({ config }: { config: Config }) {
   // Reserva de tela + tamanho da janela no Rust.
   useEffect(() => {
     ipc.setDockLayout({
-      reservedHeight: metrics.reservedHeight,
-      windowHeight: metrics.windowHeight,
+      reserved: metrics.reserved,
+      windowSize: metrics.windowSize,
       hoverHeadroom: metrics.hoverHeadroom,
     });
-  }, [metrics.reservedHeight, metrics.windowHeight, metrics.hoverHeadroom]);
+  }, [metrics.reserved, metrics.windowSize, metrics.hoverHeadroom]);
 
   // Área clicável: fora dela a janela vira click-through.
   useEffect(() => {
@@ -157,12 +162,13 @@ export function Dock({ config }: { config: Config }) {
     // Pelo layout, não pelo getBoundingClientRect: o transform da animação de ocultar não pode
     // deslocar a área clicável.
     const report = () => {
-      const width = bar.offsetWidth;
-      const height = bar.offsetHeight;
       const style = getComputedStyle(bar);
-      const bottom = parseFloat(style.bottom) || 0;
+      const rect = barRect(position, full, metrics.margin, { width: bar.offsetWidth, height: bar.offsetHeight }, {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
       const radius = parseFloat(style.borderTopLeftRadius) || 0;
-      ipc.setHitRect({ x: (window.innerWidth - width) / 2, y: window.innerHeight - bottom - height, width, height, radius });
+      ipc.setHitRect({ x: rect.x, y: rect.y, width: rect.width, height: rect.height, radius });
     };
     const observer = new ResizeObserver(report);
     observer.observe(bar);
@@ -172,7 +178,7 @@ export function Dock({ config }: { config: Config }) {
       observer.disconnect();
       window.removeEventListener("resize", report);
     };
-  }, []);
+  }, [position, full, metrics.margin]);
 
   // Ocultar automaticamente: o Rust decide quando a dock aparece; aqui só anima.
   const [visible, setVisible] = useState(true);
@@ -180,12 +186,12 @@ export function Dock({ config }: { config: Config }) {
     ipc.dockVisible().then(setVisible);
     const unlisten = listen<boolean>("dock-visibility", (e) => {
       setVisible(e.payload);
-      if (!e.payload) mouseX.set(Infinity);
+      if (!e.payload) mouse.set(Infinity);
     });
     return () => {
       unlisten.then((f) => f());
     };
-  }, [mouseX]);
+  }, [mouse]);
 
   // Linux: o click-through recorta a região de input da janela, e o Rust só sabe do hover por aqui.
   useEffect(() => {
@@ -194,7 +200,7 @@ export function Dock({ config }: { config: Config }) {
     const enter = () => ipc.setDockHover(true);
     const leave = () => {
       ipc.setDockHover(false);
-      mouseX.set(Infinity);
+      mouse.set(Infinity);
     };
     root.addEventListener("mouseenter", enter);
     root.addEventListener("mouseleave", leave);
@@ -202,7 +208,7 @@ export function Dock({ config }: { config: Config }) {
       root.removeEventListener("mouseenter", enter);
       root.removeEventListener("mouseleave", leave);
     };
-  }, [mouseX]);
+  }, [mouse]);
 
   // Sair da dock fecha a faixa de prévias. O evento fica no documento porque o cursor vai do ícone
   // para a faixa sem passar pela barra, e o mouseleave do ícone não pode fechar a faixa. A espera
@@ -234,7 +240,7 @@ export function Dock({ config }: { config: Config }) {
     const subs = [
       // Quando o Rust liga o click-through, o WebView não recebe mouseleave.
       listen("dock-pointer-left", () => {
-        mouseX.set(Infinity);
+        mouse.set(Infinity);
         setPreview(null);
       }),
       listen<number>("shortcut-app", (e) => {
@@ -252,7 +258,7 @@ export function Dock({ config }: { config: Config }) {
       }),
     ];
     return () => subs.forEach((s) => s.then((unlisten) => unlisten()));
-  }, [mouseX, update]);
+  }, [mouse, update]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const order = resolveOrder(config);
@@ -271,8 +277,8 @@ export function Dock({ config }: { config: Config }) {
   const remove = (key: string) => update((c) => removeItem(c, key));
 
   // Só abre a faixa com mais de uma janela: com uma só o clique no ícone já resolve.
-  const showPreview = (app: DockApp, centerX: number) =>
-    setPreview(app.windows.length > 1 ? { key: app.key, centerX } : null);
+  const showPreview = (app: DockApp, anchor: { x: number; y: number }) =>
+    setPreview(app.windows.length > 1 ? { key: app.key, ...anchor } : null);
 
   const onBackgroundMenu = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -303,15 +309,20 @@ export function Dock({ config }: { config: Config }) {
     calendar,
     ai,
   };
-  const renderWidget = (w: WidgetConfig) => <WidgetView kind={w.kind} size={w.size} data={widgetData} />;
+  // Numa barra em pé os widgets usam o formato compacto: os largos são horizontais. O mapa de
+  // contribuições não tem formato que caiba na espessura, então fica só com o total do ano.
+  const renderWidget = (w: WidgetConfig) => (
+    <WidgetView kind={w.kind} size={vertical ? (w.kind === "github-contrib" ? "count" : "small") : w.size} data={widgetData} />
+  );
 
   const pinnedApps = new Map(apps.filter((a) => a.pinned).map((a) => [a.key, a]));
   const unpinnedApps = apps.filter((a) => !a.pinned);
   const widgets = new Map(config.widgets.filter((w) => w.enabled && widgetSupported(w.kind)).map((w) => [widgetKey(w.kind), w]));
   const activeKey = apps.find((a) => a.windows.some((w) => w.id === snapshot.foreground))?.key;
   const previewApp = preview ? apps.find((a) => a.key === preview.key) : undefined;
-  // A faixa fica logo acima da barra; a folga extra da janela (`hoverHeadroom`) já reserva o espaço.
-  const previewBottom = (config.dockWidth === "full" ? 0 : metrics.margin) + metrics.barHeight + PREVIEW_GAP;
+  // A faixa fica logo depois da barra, para dentro da tela; a folga extra da janela
+  // (`hoverHeadroom`) já reserva o espaço.
+  const previewOffset = (full ? 0 : metrics.margin) + metrics.barThickness + PREVIEW_GAP;
   const shortcutFor = (app: DockApp) => {
     const n = apps.indexOf(app) + 1;
     return n >= 1 && n <= 9 ? n : undefined;
@@ -339,32 +350,43 @@ export function Dock({ config }: { config: Config }) {
     if (!(e.target as Element).closest("[data-widget]")) ipc.closePanel();
   };
 
+  // A barra encosta na borda da tela no eixo da espessura e fica centrada no eixo do comprimento
+  // (de ponta a ponta ela ocupa a borda inteira).
+  const barStyle: React.CSSProperties = {
+    ["--dock-item-offset" as string]: `${metrics.itemOffset}px`,
+  };
+  if (vertical) {
+    barStyle[position === "left" ? "left" : "right"] = full ? 0 : metrics.margin;
+    barStyle.width = metrics.barThickness;
+    barStyle.padding = `${metrics.padding}px 0`;
+  } else {
+    barStyle[position === "top" ? "top" : "bottom"] = full ? 0 : metrics.margin;
+    barStyle.height = metrics.barThickness;
+    barStyle.padding = `0 ${metrics.padding}px`;
+  }
+
   return (
     <div
       className="dock-root"
+      data-pos={position}
       style={{
         ["--icon" as string]: `${config.iconSize}px`,
-        ["--preview-bottom" as string]: `${previewBottom}px`,
+        ["--preview-offset" as string]: `${previewOffset}px`,
       }}
     >
       <div
         ref={barRef}
-        className={`dock-bar ${config.dockWidth === "full" ? "dock-full" : ""} ${visible ? "" : "dock-hidden"}`}
+        className={`dock-bar ${full ? "dock-full" : ""} ${visible ? "" : "dock-hidden"}`}
         data-glass
-        style={{
-          ["--dock-item-bottom" as string]: `${metrics.itemBottom}px`,
-          bottom: config.dockWidth === "full" ? 0 : metrics.margin,
-          height: metrics.barHeight,
-          padding: `0 ${metrics.padding}px`,
-        }}
-        onMouseMove={(e) => mouseX.set(e.clientX)}
-        onMouseLeave={() => mouseX.set(Infinity)}
+        style={barStyle}
+        onMouseMove={(e) => mouse.set(vertical ? e.clientY : e.clientX)}
+        onMouseLeave={() => mouse.set(Infinity)}
         onPointerDown={onPointerDown}
         onContextMenu={onBackgroundMenu}
       >
-        <MagnifyCtx.Provider value={{ mouseX, base: config.iconSize, scale: Math.max(1, config.magnification) }}>
-          <DndContext sensors={sensors} onDragStart={() => mouseX.set(Infinity)} onDragEnd={onDragEnd}>
-            <SortableContext items={order} strategy={horizontalListSortingStrategy}>
+        <MagnifyCtx.Provider value={{ mouse, base: config.iconSize, scale: Math.max(1, config.magnification), position }}>
+          <DndContext sensors={sensors} onDragStart={() => mouse.set(Infinity)} onDragEnd={onDragEnd}>
+            <SortableContext items={order} strategy={vertical ? verticalListSortingStrategy : horizontalListSortingStrategy}>
               {order.map(renderItem)}
             </SortableContext>
           </DndContext>
@@ -374,7 +396,7 @@ export function Dock({ config }: { config: Config }) {
         </MagnifyCtx.Provider>
       </div>
       {previewApp && preview && (
-        <WindowPreview app={previewApp} centerX={preview.centerX} onClose={() => setPreview(null)} />
+        <WindowPreview app={previewApp} anchor={preview} position={position} onClose={() => setPreview(null)} />
       )}
     </div>
   );

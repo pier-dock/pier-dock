@@ -2,6 +2,7 @@
 //! AppleScript (Standard Additions, sem pedir permissão de Automação), Bluetooth pelo IOBluetooth e
 //! os menus do sistema pelos itens da barra de menus do Central de Controle.
 
+use objc2::rc::Retained;
 use objc2_core_wlan::CWWiFiClient;
 use objc2_io_bluetooth::{BluetoothHCIPowerState, IOBluetoothDevice, IOBluetoothHostController};
 
@@ -84,19 +85,46 @@ pub fn set_volume(level: Option<f32>, muted: Option<bool>) -> Result<(), String>
 pub fn bluetooth() -> Bluetooth {
     let Some(controller) = (unsafe { IOBluetoothHostController::defaultController() }) else { return Bluetooth::absent() };
     let powered = unsafe { controller.powerState() } == BluetoothHCIPowerState::ON;
-    let paired = unsafe { IOBluetoothDevice::pairedDevices() };
-    let devices = paired
-        .iter()
-        .flat_map(|list| list.iter())
-        .filter_map(|object| object.downcast::<IOBluetoothDevice>().ok())
-        .filter(|device| unsafe { device.isConnected() })
+    let devices = paired_devices()
+        .into_iter()
         .map(|device| BluetoothDevice {
+            id: address(&device),
             name: unsafe { device.nameOrAddress() }.map(|n| n.to_string()).unwrap_or_default(),
             kind: kind_from_class(unsafe { device.classOfDevice() }),
             battery: None,
+            connected: unsafe { device.isConnected() },
         })
         .collect();
-    Bluetooth { available: true, powered, can_toggle: false, devices }
+    Bluetooth { available: true, powered, can_toggle: false, can_connect: true, devices }
+}
+
+fn paired_devices() -> Vec<Retained<IOBluetoothDevice>> {
+    let paired = unsafe { IOBluetoothDevice::pairedDevices() };
+    paired.iter().flat_map(|list| list.iter()).filter_map(|object| object.downcast::<IOBluetoothDevice>().ok()).collect()
+}
+
+fn address(device: &IOBluetoothDevice) -> String {
+    unsafe { device.addressString() }.map(|a| a.to_string()).unwrap_or_default()
+}
+
+fn paired_device(id: &str) -> Result<Retained<IOBluetoothDevice>, String> {
+    paired_devices().into_iter().find(|device| address(device) == id).ok_or_else(|| format!("dispositivo não pareado: {id}"))
+}
+
+/// Abre a conexão de baseband, como o `blueutil --connect`; o macOS sobe os perfis (áudio, HID)
+/// sozinho em seguida.
+pub fn connect_bluetooth(id: &str) -> Result<(), String> {
+    match unsafe { paired_device(id)?.openConnection() } {
+        0 => Ok(()),
+        code => Err(format!("falha ao conectar ({code:#x})")),
+    }
+}
+
+pub fn disconnect_bluetooth(id: &str) -> Result<(), String> {
+    match unsafe { paired_device(id)?.closeConnection() } {
+        0 => Ok(()),
+        code => Err(format!("falha ao desconectar ({code:#x})")),
+    }
 }
 
 pub fn set_bluetooth(_powered: bool) -> Result<(), String> {
