@@ -21,6 +21,7 @@ mod updater;
 mod usage;
 mod util;
 mod weather;
+mod whats_new;
 mod wifi;
 mod windows_list;
 
@@ -228,6 +229,7 @@ fn main() {
             panels::close_panel,
             panels::focus_panel,
             panels::open_settings,
+            panels::open_whats_new,
             platform::platform_info,
             i18n::system_language,
             platform::platform_setup,
@@ -286,6 +288,7 @@ fn main() {
             if let Err(e) = build_tray(&handle) {
                 log::error!("falha ao criar o ícone da bandeja: {e}");
             }
+            whats_new::start(&handle);
             Ok(())
         })
         .build(tauri::generate_context!())

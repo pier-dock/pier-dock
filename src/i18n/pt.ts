@@ -535,6 +535,14 @@ export const pt = {
     openWindows: "Janelas abertas",
     installRestart: "Instalar e reiniciar",
     checkUpdates: "Procurar atualizações",
+    whatsNew: "Ver novidades",
+  },
+  whatsNew: {
+    title: "Novidades do Pier",
+    version: (version: string) => `Versão ${version}`,
+    empty: "Esta versão não tem notas de novidades.",
+    close: "Fechar",
+    allReleases: "Todas as versões no GitHub",
   },
   report: {
     reportProblem: "Reportar um problema",

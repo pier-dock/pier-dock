@@ -418,6 +418,7 @@ export const ipc = {
   closePanel: () => invoke<void>("close_panel"),
   focusPanel: () => invoke<void>("focus_panel"),
   openSettings: () => invoke<void>("open_settings"),
+  openWhatsNew: () => invoke<void>("open_whats_new"),
 
   platformInfo: () => invoke<PlatformInfo>("platform_info"),
   systemLanguage: () => invoke<Lang>("system_language"),

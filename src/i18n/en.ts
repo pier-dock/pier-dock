@@ -535,6 +535,14 @@ export const en: Dict = {
     openWindows: "Open windows",
     installRestart: "Install and restart",
     checkUpdates: "Check for updates",
+    whatsNew: "What's new",
+  },
+  whatsNew: {
+    title: "What's new in Pier",
+    version: (version) => `Version ${version}`,
+    empty: "This version has no release notes.",
+    close: "Close",
+    allReleases: "All releases on GitHub",
   },
   report: {
     reportProblem: "Report a problem",

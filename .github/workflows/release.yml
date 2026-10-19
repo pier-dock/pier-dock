@@ -22,6 +22,17 @@ jobs:
             echo "::error::A tag $GITHUB_REF_NAME não bate com a versão $version do package.json"
             exit 1
           fi
+      # O app mostra estas notas depois de atualizar; sem a seção da versão, a janela não abre.
+      - name: Novidades da versão no changelog
+        if: github.ref_type == 'tag'
+        run: |
+          version=$(node -p "require('./package.json').version")
+          for file in CHANGELOG.md CHANGELOG.pt-BR.md; do
+            if ! grep -Eq "^## v?$version( |$)" "$file"; then
+              echo "::error::Falta a seção '## $version' em $file"
+              exit 1
+            fi
+          done
 
   build:
     needs: check

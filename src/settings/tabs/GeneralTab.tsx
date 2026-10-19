@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { listen } from "@tauri-apps/api/event";
 import { disable as disableAutostart, enable as enableAutostart, isEnabled as autostartEnabled } from "@tauri-apps/plugin-autostart";
-import { Bug, Lightbulb } from "lucide-react";
+import { Bug, Lightbulb, Sparkles } from "lucide-react";
 import { ipc, type ReportKind, type UpdateInfo } from "../../lib/ipc";
 import { labels, os } from "../../lib/platform";
 import { Card, Row, SectionLabel } from "../../ui/Card";
@@ -138,6 +138,10 @@ export function GeneralTab({ config, update, platform }: TabProps) {
         <button className="btn-text" onClick={() => setReport("feature")}>
           <Lightbulb size={14} />
           {reportT.suggestFeature}
+        </button>
+        <button className="btn-text" onClick={() => ipc.openWhatsNew().catch(console.error)}>
+          <Sparkles size={14} />
+          {t.whatsNew}
         </button>
       </div>
       {report && <ReportDialog kind={report} onClose={() => setReport(null)} />}

@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Permissões das janelas da dock",
-  "windows": ["dock", "panel-*", "settings"],
+  "windows": ["dock", "panel-*", "settings", "whats-new"],
   "permissions": [
     "core:default",
     "core:window:allow-close",

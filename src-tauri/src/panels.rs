@@ -9,6 +9,7 @@ use crate::dock_window::{reserved_top_and_scale, DOCK_LABEL};
 use crate::util::ErrStr;
 
 pub const SETTINGS_LABEL: &str = "settings";
+pub const WHATS_NEW_LABEL: &str = "whats-new";
 
 /// Margem transparente da janela em volta do painel e raio dos cantos, iguais a `--panel-inset` e
 /// a `--radius-window` no CSS.
@@ -138,17 +139,30 @@ pub fn close_panel(app: AppHandle) {
 }
 
 pub fn open_settings_window(app: &AppHandle) -> tauri::Result<WebviewWindow> {
-    if let Some(window) = app.get_webview_window(SETTINGS_LABEL) {
+    let title = crate::i18n::settings_title(crate::i18n::current(app));
+    app_window(app, SETTINGS_LABEL, "", title, (1040.0, 720.0), (880.0, 600.0))
+}
+
+/// Novidades das versões depois de `since` (vazio: só a atual), lidas do changelog pelo frontend.
+pub fn open_whats_new_window(app: &AppHandle, since: &str) -> tauri::Result<WebviewWindow> {
+    let title = crate::i18n::current(app).t("Novidades do Pier", "What's new in Pier");
+    app_window(app, WHATS_NEW_LABEL, since, title, (600.0, 680.0), (480.0, 480.0))
+}
+
+/// Janelas normais do app (configurações e novidades), com o material do sistema; o label também é
+/// a view que o frontend renderiza. Se já estiver aberta, só traz para a frente.
+fn app_window(app: &AppHandle, label: &str, kind: &str, title: &str, size: (f64, f64), min_size: (f64, f64)) -> tauri::Result<WebviewWindow> {
+    if let Some(window) = app.get_webview_window(label) {
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
         return Ok(window);
     }
-    let builder = WebviewWindowBuilder::new(app, SETTINGS_LABEL, WebviewUrl::App("index.html".into()))
-        .initialization_script(&view_script("settings", ""))
-        .title(crate::i18n::settings_title(crate::i18n::current(app)))
-        .inner_size(1040.0, 720.0)
-        .min_inner_size(880.0, 600.0)
+    let builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
+        .initialization_script(&view_script(label, kind))
+        .title(title)
+        .inner_size(size.0, size.1)
+        .min_inner_size(min_size.0, min_size.1)
         .theme(Some(tauri::Theme::Dark))
         .center()
         .focused(true);
@@ -172,10 +186,11 @@ fn settings_effects() -> tauri::utils::config::WindowEffectsConfig {
     EffectsBuilder::new().effect(effect).state(EffectState::Active).build()
 }
 
-/// Troca o material da janela de configurações aberta (a dock e os painéis são do `backdrop`).
+/// Troca o material das janelas de configurações e de novidades abertas (a dock e os painéis são
+/// do `backdrop`).
 pub fn apply_settings_material(app: &AppHandle) {
     #[cfg(not(target_os = "linux"))]
-    if let Some(window) = app.get_webview_window(SETTINGS_LABEL) {
+    for window in [SETTINGS_LABEL, WHATS_NEW_LABEL].into_iter().filter_map(|label| app.get_webview_window(label)) {
         let _ = window.set_effects(settings_effects());
     }
     #[cfg(target_os = "linux")]
@@ -185,4 +200,9 @@ pub fn apply_settings_material(app: &AppHandle) {
 #[tauri::command]
 pub async fn open_settings(app: AppHandle) -> Result<(), String> {
     open_settings_window(&app).map(|_| ()).err_str()
+}
+
+#[tauri::command]
+pub async fn open_whats_new(app: AppHandle) -> Result<(), String> {
+    open_whats_new_window(&app, "").map(|_| ()).err_str()
 }

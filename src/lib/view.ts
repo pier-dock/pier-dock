@@ -1,6 +1,6 @@
 /** Qual tela esta janela renderiza. Injetado pelo Rust (panels.rs); a janela da dock não recebe nada. */
 export interface ViewInfo {
-  view: "dock" | "panel" | "settings";
+  view: "dock" | "panel" | "settings" | "whats-new";
   kind: string;
 }
 
