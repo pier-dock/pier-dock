@@ -23,6 +23,7 @@ O Pier substitui a barra de tarefas ou a dock do sistema por uma barra única co
 ## Recursos
 
 - **Apps:** apps fixados e abertos, com ampliação, reordenação por arrastar, lista de janelas e separadores.
+- **Barra personalizável:** coloque a dock na borda de baixo, de cima, da esquerda ou da direita da tela (nas laterais ela fica em pé), deixe-a no tamanho dos ícones ou de ponta a ponta e escolha o tamanho dos ícones, a altura do painel, o material e a cor de destaque.
 - **Player de mídia:** mostra o que está tocando no Spotify, no YouTube Music e em outros players, com os controles de reprodução.
 - **Widgets do GitHub:** pull requests aguardando a sua revisão, os seus pull requests abertos, commits recentes e o gráfico de contribuições.
 - **Widgets do sistema:** rede (com as redes Wi-Fi por perto), volume (com a saída de áudio e o volume por app), Bluetooth (com os dispositivos pareados, que dá para conectar e desconectar no macOS e no Linux), bateria, relógio, mostrar a área de trabalho (minimiza todas as janelas com um clique), uso do sistema (CPU e memória com o histórico do último minuto) e, no Windows, a seta da bandeja que abre os ícones ocultos.

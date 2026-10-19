@@ -296,19 +296,21 @@ fn with_taskbar<T>(f: impl FnOnce() -> T) -> T {
     result
 }
 
-/// Abre a gaveta de ícones ocultos centrada em `anchor_x`, com a base em `bottom` (pixels
-/// físicos de tela). Com ela aberta, fecha: clicar na dock nem sempre a fecha sozinho.
-pub fn open_tray(anchor_x: i32, bottom: i32) -> Result<(), String> {
+/// Abre a gaveta de ícones ocultos ancorada em `(anchor_x, anchor_y)` (pixels físicos de tela).
+/// A gaveta cresce para dentro da tela a partir da borda `edge`: com a base em cima/embaixo da
+/// dock, ou com a lateral nas laterais. Com ela aberta, fecha: clicar na dock nem sempre a fecha
+/// sozinho.
+pub fn open_tray(anchor_x: i32, anchor_y: i32, edge: u8) -> Result<(), String> {
     // Abrir leva até ~1,5 s; um clique nesse meio-tempo esconderia a taskbar no meio da busca.
     if TRAY_BUSY.swap(true, Ordering::SeqCst) {
         return Ok(());
     }
-    let result = toggle_tray(anchor_x, bottom);
+    let result = toggle_tray(anchor_x, anchor_y, edge);
     TRAY_BUSY.store(false, Ordering::SeqCst);
     result
 }
 
-fn toggle_tray(anchor_x: i32, bottom: i32) -> Result<(), String> {
+fn toggle_tray(anchor_x: i32, anchor_y: i32, edge: u8) -> Result<(), String> {
     // A gaveta fecha no mousedown fora dela, antes deste clique chegar: o clique que a fechou não
     // deve reabri-la.
     let just_closed = TRAY_CLOSED_AT.lock().unwrap().is_some_and(|t| t.elapsed() < Duration::from_millis(400));
@@ -329,7 +331,13 @@ fn toggle_tray(anchor_x: i32, bottom: i32) -> Result<(), String> {
         if GetWindowRect(overflow, &mut rect).is_ok() {
             let (width, height) = (rect.right - rect.left, rect.bottom - rect.top);
             let flags = SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE;
-            let _ = SetWindowPos(overflow, HWND::default(), anchor_x - width / 2, bottom - height, 0, 0, flags);
+            let (x, y) = match edge {
+                crate::dock_window::TOP => (anchor_x - width / 2, anchor_y),
+                crate::dock_window::LEFT => (anchor_x, anchor_y - height / 2),
+                crate::dock_window::RIGHT => (anchor_x - width, anchor_y - height / 2),
+                _ => (anchor_x - width / 2, anchor_y - height),
+            };
+            let _ = SetWindowPos(overflow, HWND::default(), x, y, 0, 0, flags);
         }
     }
     let handle = overflow.0 as isize;

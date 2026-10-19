@@ -3222,6 +3222,7 @@ dependencies = [
  "plist",
  "reqwest 0.12.28",
  "rrule",
+ "semver",
  "serde",
  "serde_json",
  "signal-hook",

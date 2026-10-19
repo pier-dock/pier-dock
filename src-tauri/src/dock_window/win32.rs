@@ -9,14 +9,19 @@ use windows::Win32::Foundation::{HWND, LPARAM, POINT, RECT};
 use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST};
 use windows::Win32::UI::HiDpi::GetDpiForWindow;
 use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON, VK_MBUTTON, VK_RBUTTON};
-use windows::Win32::UI::Shell::{SHAppBarMessage, ABE_BOTTOM, ABM_NEW, ABM_QUERYPOS, ABM_REMOVE, ABM_SETPOS, APPBARDATA};
+use windows::Win32::UI::Shell::{
+    SHAppBarMessage, ABE_BOTTOM, ABE_LEFT, ABE_RIGHT, ABE_TOP, ABM_NEW, ABM_QUERYPOS, ABM_REMOVE, ABM_SETPOS, APPBARDATA,
+};
 use windows::Win32::UI::WindowsAndMessaging::{
     GetClassNameW, GetCursorPos, GetForegroundWindow, GetWindowLongPtrW, GetWindowRect, GetWindowThreadProcessId, IsZoomed,
     SetWindowLongPtrW, GWL_EXSTYLE, WM_USER, WS_EX_APPWINDOW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
     WS_EX_TRANSPARENT,
 };
 
-use super::{auto_hide, hit_rect, layout, place_window, set_visible, want_visible, AUTO_HIDE_NEVER, DOCK_LABEL, HOVER_GRACE_MS};
+use super::{
+    at_dock_edge, auto_hide, clickable_area, hit_rect, layout, place_window, position, set_visible, want_visible, Band, AUTO_HIDE_NEVER, BOTTOM,
+    DOCK_LABEL, HOVER_GRACE_MS, LEFT, RIGHT, TOP,
+};
 use crate::util::wide_to_string;
 
 static DOCK_HWND: AtomicIsize = AtomicIsize::new(0);
@@ -59,14 +64,24 @@ pub fn init(window: &WebviewWindow) {
     start_fullscreen_thread(window.app_handle().clone());
 }
 
-/// Posiciona a janela na base do monitor primário e reserva a área de trabalho via AppBar.
+/// Posiciona a janela na borda escolhida do monitor primário e reserva a área de trabalho via
+/// AppBar.
 pub fn apply_layout(window: &WebviewWindow) {
     let Some(p) = place_window(window) else { return };
     if auto_hide() == AUTO_HIDE_NEVER {
-        let rect = RECT { left: p.x, top: p.bottom - p.reserved, right: p.x + p.width as i32, bottom: p.bottom };
-        register_appbar(rect, p.reserved);
+        register_appbar(p.band);
     } else {
         remove_appbar();
+    }
+}
+
+/// Borda da AppBar correspondente à borda da dock.
+fn appbar_edge() -> u32 {
+    match position() {
+        TOP => ABE_TOP,
+        LEFT => ABE_LEFT,
+        RIGHT => ABE_RIGHT,
+        _ => ABE_BOTTOM,
     }
 }
 
@@ -75,23 +90,34 @@ fn appbar_data(rect: RECT) -> APPBARDATA {
         cbSize: std::mem::size_of::<APPBARDATA>() as u32,
         hWnd: dock_hwnd(),
         uCallbackMessage: WM_USER + 0x4D,
-        uEdge: ABE_BOTTOM,
+        uEdge: appbar_edge(),
         rc: rect,
         lParam: LPARAM(0),
     }
 }
 
-fn register_appbar(rect: RECT, height: i32) {
+/// Registra a faixa reservada como AppBar. O shell pode encolher a faixa ao responder
+/// `ABM_QUERYPOS`; a espessura escolhida volta no `ABM_SETPOS`, encostada na borda da dock.
+fn register_appbar(band: Band) {
     if dock_hwnd().is_invalid() {
         return;
     }
-    let mut abd = appbar_data(rect);
+    let thickness = match position() {
+        TOP | BOTTOM => band.height(),
+        _ => band.width(),
+    };
+    let mut abd = appbar_data(RECT { left: band.left, top: band.top, right: band.right, bottom: band.bottom });
     unsafe {
         if !APPBAR_REGISTERED.swap(true, Ordering::SeqCst) {
             SHAppBarMessage(ABM_NEW, &mut abd);
         }
         SHAppBarMessage(ABM_QUERYPOS, &mut abd);
-        abd.rc.top = abd.rc.bottom - height;
+        match position() {
+            TOP => abd.rc.bottom = abd.rc.top + thickness,
+            LEFT => abd.rc.right = abd.rc.left + thickness,
+            RIGHT => abd.rc.left = abd.rc.right - thickness,
+            _ => abd.rc.top = abd.rc.bottom - thickness,
+        }
         SHAppBarMessage(ABM_SETPOS, &mut abd);
     }
 }
@@ -157,12 +183,14 @@ fn start_pointer_thread(window: WebviewWindow) {
             if hit.width <= 0.0 {
                 continue;
             }
+            let window_band = Band::new(win.left, win.top, win.right, win.bottom);
+            let size = (window_band.width() as f64 / scale, window_band.height() as f64 / scale);
             let headroom = if ignoring { 0.0 } else { layout().hover_headroom };
-            let left = win.left as f64 + hit.x * scale;
-            let right = left + hit.width * scale;
-            // Até a base da tela: a margem abaixo da barra também conta como "na dock".
-            let bottom = win.bottom as f64;
-            let top = win.top as f64 + (hit.y - headroom).max(0.0) * scale;
+            // A área clicável vai da barra até dentro da tela; a margem entre a barra e a borda
+            // do monitor também conta como "na dock".
+            let (x0, y0, x1, y1) = clickable_area(size, headroom);
+            let (left, top) = (win.left as f64 + x0 * scale, win.top as f64 + y0 * scale);
+            let (right, bottom) = (win.left as f64 + x1 * scale, win.top as f64 + y1 * scale);
             let (cx, cy) = (cursor.x as f64, cursor.y as f64);
             let over_dock = super::dock_visible() && cx >= left && cx <= right && cy >= top && cy <= bottom;
             let pressed = mouse_pressed();
@@ -171,8 +199,8 @@ fn start_pointer_thread(window: WebviewWindow) {
                 crate::panels::close_if_outside(window.app_handle(), cursor.x, cursor.y);
             }
             was_pressed = pressed;
-            // Encostar o mouse na borda de baixo revela a dock escondida.
-            let at_edge = cy >= win.bottom as f64 - 2.0 && cx >= win.left as f64 && cx < win.right as f64;
+            // Encostar o mouse na borda da tela onde a dock vive revela a dock escondida.
+            let at_edge = at_dock_edge(cx, cy, window_band, scale);
 
             let now = Instant::now();
             if over_dock || at_edge {
@@ -248,6 +276,11 @@ fn start_fullscreen_thread(app: AppHandle) {
 }
 
 pub fn hit_rect_changed(_app: &AppHandle) {}
+
+/// Nada fica fora do alcance das janelas na borda de cima no Windows.
+pub fn top_inset() -> i32 {
+    0
+}
 
 /// O hover vem da thread que acompanha o cursor.
 pub fn set_hover(_hovering: bool) {}

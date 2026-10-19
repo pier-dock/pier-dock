@@ -6,6 +6,7 @@ import { useConfig } from "./store/config";
 import { Dock } from "./dock/Dock";
 import { Popover } from "./popovers/Popover";
 import { Settings } from "./settings/Settings";
+import { WhatsNew } from "./whats-new/WhatsNew";
 
 export function App() {
   const config = useConfig((s) => s.config);
@@ -38,5 +39,6 @@ export function App() {
   if (!config) return null;
   if (currentView.view === "panel") return <Popover kind={currentView.kind} />;
   if (currentView.view === "settings") return <Settings />;
+  if (currentView.view === "whats-new") return <WhatsNew since={currentView.kind || null} />;
   return <Dock config={config} />;
 }

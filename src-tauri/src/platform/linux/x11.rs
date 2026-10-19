@@ -41,8 +41,18 @@ x11rb::atom_manager! {
 pub struct X11 {
     conn: RustConnection,
     root: Window,
+    root_width: u16,
     root_height: u16,
     atoms: Atoms,
+}
+
+/// Borda da tela onde a dock reserva espaço, no vocabulário do EWMH.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Edge {
+    Top,
+    Bottom,
+    Left,
+    Right,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -58,9 +68,9 @@ pub struct X11Window {
 fn connect() -> Option<X11> {
     let (conn, screen) = x11rb::connect(None).ok()?;
     let screen = &conn.setup().roots[screen];
-    let (root, root_height) = (screen.root, screen.height_in_pixels);
+    let (root, root_width, root_height) = (screen.root, screen.width_in_pixels, screen.height_in_pixels);
     let atoms = Atoms::new(&conn).ok()?.reply().ok()?;
-    Some(X11 { conn, root, root_height, atoms })
+    Some(X11 { conn, root, root_width, root_height, atoms })
 }
 
 /// Conexão compartilhada para consultas e comandos (o watcher de eventos abre a dele).
@@ -178,20 +188,26 @@ impl X11 {
         let _ = self.conn.flush();
     }
 
-    /// Reserva `height` pixels acima de `bottom` (coordenadas da tela), entre `x` e `x + width`.
-    /// `height == 0` remove a reserva.
-    pub fn set_strut(&self, window: Window, x: i32, width: u32, bottom: i32, height: u32) {
-        if height == 0 {
-            let _ = self.conn.delete_property(window, self.atoms._NET_WM_STRUT_PARTIAL);
-            let _ = self.conn.delete_property(window, self.atoms._NET_WM_STRUT);
-        } else {
-            // Struts são medidos a partir da borda da tela inteira (todas as telas juntas).
-            let from_bottom = (self.root_height as i32 - bottom).max(0) as u32 + height;
-            let (start, end) = (x.max(0) as u32, (x + width as i32 - 1).max(0) as u32);
-            let partial = [0, 0, 0, from_bottom, 0, 0, 0, 0, 0, 0, start, end];
-            let _ = self.conn.change_property32(PropMode::REPLACE, window, self.atoms._NET_WM_STRUT_PARTIAL, AtomEnum::CARDINAL, &partial);
-            let _ = self.conn.change_property32(PropMode::REPLACE, window, self.atoms._NET_WM_STRUT, AtomEnum::CARDINAL, &partial[..4]);
+    /// Reserva a faixa `[left, top, right, bottom]` (coordenadas da tela, pixels) encostada na
+    /// borda `edge`: janelas maximizadas não ocupam essa faixa e o gerenciador encolhe a área de
+    /// trabalho naquele lado. Faixas parciais são anunciadas em `_NET_WM_STRUT_PARTIAL`; uma faixa
+    /// vazia remove a reserva.
+    pub fn set_strut(&self, window: Window, edge: Edge, band: [i32; 4]) {
+        let [left, top, right, bottom] = band;
+        if right <= left || bottom <= top {
+            self.clear_strut(window);
+            return;
         }
+        let partial = strut_values(edge, band, (self.root_width as i32, self.root_height as i32));
+        let _ = self.conn.change_property32(PropMode::REPLACE, window, self.atoms._NET_WM_STRUT_PARTIAL, AtomEnum::CARDINAL, &partial);
+        let _ = self.conn.change_property32(PropMode::REPLACE, window, self.atoms._NET_WM_STRUT, AtomEnum::CARDINAL, &partial[..4]);
+        let _ = self.conn.flush();
+    }
+
+    /// Tira a reserva de área de trabalho da janela.
+    pub fn clear_strut(&self, window: Window) {
+        let _ = self.conn.delete_property(window, self.atoms._NET_WM_STRUT_PARTIAL);
+        let _ = self.conn.delete_property(window, self.atoms._NET_WM_STRUT);
         let _ = self.conn.flush();
     }
 
@@ -315,6 +331,36 @@ impl X11 {
     }
 }
 
+/// Os 12 valores de `_NET_WM_STRUT_PARTIAL` para uma faixa encostada em `edge`. Os quatro
+/// primeiros são a reserva de cada borda (o `_NET_WM_STRUT` clássico); os outros pares dizem até
+/// onde, ao longo da borda, a reserva vale.
+fn strut_values(edge: Edge, band: [i32; 4], screen: (i32, i32)) -> [u32; 12] {
+    let [left, top, right, bottom] = band;
+    let (screen_width, screen_height) = screen;
+    let (start_x, end_x) = (left.max(0) as u32, (right - 1).max(0) as u32);
+    let (start_y, end_y) = (top.max(0) as u32, (bottom - 1).max(0) as u32);
+    let mut partial = [0u32; 12];
+    match edge {
+        Edge::Top => {
+            partial[2] = bottom.max(0) as u32;
+            partial[8..10].copy_from_slice(&[start_x, end_x]);
+        }
+        Edge::Bottom => {
+            partial[3] = (screen_height - top).max(0) as u32;
+            partial[10..12].copy_from_slice(&[start_x, end_x]);
+        }
+        Edge::Left => {
+            partial[0] = right.max(0) as u32;
+            partial[4..6].copy_from_slice(&[start_y, end_y]);
+        }
+        Edge::Right => {
+            partial[1] = (screen_width - left).max(0) as u32;
+            partial[6..8].copy_from_slice(&[start_y, end_y]);
+        }
+    }
+    partial
+}
+
 /// Valor do pixel na ordem de bytes do servidor (LSBFirst guarda o canal azul primeiro).
 fn pixel_value(bytes: &[u8], lsb: bool) -> u32 {
     let mut value = 0u32;
@@ -384,5 +430,22 @@ mod tests {
         let mapping = [0x61, 0x41, XK_SUPER_L, 0, 0xff1b, 0];
         assert_eq!(keycode_for(XK_SUPER_L, 8, 2, &mapping), Some(9));
         assert_eq!(keycode_for(0x62, 8, 2, &mapping), None);
+    }
+
+    #[test]
+    fn struts_follow_the_edge_of_the_dock() {
+        let screen = (1920, 1080);
+        assert_eq!(strut_values(Edge::Bottom, [0, 1008, 1920, 1080], screen), [0, 0, 0, 72, 0, 0, 0, 0, 0, 0, 0, 1919]);
+        assert_eq!(strut_values(Edge::Top, [0, 0, 1920, 72], screen), [0, 0, 72, 0, 0, 0, 0, 0, 0, 1919, 0, 0]);
+        assert_eq!(strut_values(Edge::Left, [0, 0, 72, 1080], screen), [72, 0, 0, 0, 0, 1079, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(strut_values(Edge::Right, [1848, 0, 1920, 1080], screen), [0, 72, 0, 0, 0, 0, 0, 1079, 0, 0, 0, 0]);
+    }
+
+    #[test]
+    fn strut_keeps_the_extent_along_the_edge() {
+        // Uma barra flutuante no meio da base reserva só a parte da tela que ela ocupa.
+        let partial = strut_values(Edge::Bottom, [400, 1008, 1200, 1080], (1920, 1080));
+        assert_eq!(partial[3], 72);
+        assert_eq!((partial[10], partial[11]), (400, 1199));
     }
 }

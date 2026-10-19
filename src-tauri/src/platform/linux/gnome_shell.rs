@@ -21,6 +21,10 @@ const EXTENSION_JS: &str = include_str!("../../../../gnome-extension/pier@pier.d
 /// Versão da extensão em que o `ToggleDesktop` (mostrar a área de trabalho) apareceu.
 pub const SHOW_DESKTOP_VERSION: u32 = 2;
 
+/// Versão da extensão em que o `SetReserved` reserva a área em qualquer borda; antes dele só na
+/// base (`SetReservedHeight`), que é o que a versão 2 ainda tem.
+const RESERVED_ANY_EDGE_VERSION: u32 = 3;
+
 #[zbus::proxy(
     interface = "dev.pier.Shell",
     default_service = "dev.pier.Shell",
@@ -39,6 +43,8 @@ pub trait Shell {
     fn toggle_desktop(&self) -> zbus::Result<()>;
     fn set_hide_native(&self, hide: bool) -> zbus::Result<()>;
     fn set_reserved_height(&self, height: u32) -> zbus::Result<()>;
+    /// Extensões novas (versão 2 em diante): reserva a faixa na borda escolhida.
+    fn set_reserved(&self, edge: &str, height: u32) -> zbus::Result<()>;
     fn set_shortcuts_enabled(&self, enabled: bool) -> zbus::Result<()>;
 
     #[zbus(signal)]
@@ -81,11 +87,13 @@ pub struct ShellSnapshot {
 #[derive(Clone, Copy)]
 struct Desired {
     hide_native: bool,
+    /// Borda onde a área é reservada: "bottom", "top", "left" ou "right".
+    reserved_edge: &'static str,
     reserved_height: u32,
     shortcuts: bool,
 }
 
-static DESIRED: Mutex<Desired> = Mutex::new(Desired { hide_native: false, reserved_height: 0, shortcuts: false });
+static DESIRED: Mutex<Desired> = Mutex::new(Desired { hide_native: false, reserved_edge: "bottom", reserved_height: 0, shortcuts: false });
 
 /// Proxy da extensão, se ela estiver carregada e respondendo.
 pub fn shell() -> Option<ShellProxy<'static>> {
@@ -105,7 +113,12 @@ pub fn list_windows() -> Option<ShellSnapshot> {
 fn apply(desired: Desired) {
     if let Some(shell) = shell() {
         let _ = shell.set_hide_native(desired.hide_native);
-        let _ = shell.set_reserved_height(desired.reserved_height);
+        // Numa extensão antiga a reserva só existe na base: pedir outra borda não adianta.
+        if shell.version().unwrap_or(1) >= RESERVED_ANY_EDGE_VERSION {
+            let _ = shell.set_reserved(desired.reserved_edge, desired.reserved_height);
+        } else {
+            let _ = shell.set_reserved_height(desired.reserved_height);
+        }
         let _ = shell.set_shortcuts_enabled(desired.shortcuts);
     }
 }
@@ -123,9 +136,18 @@ pub fn set_hide_native(hide: bool) {
     update(|d| d.hide_native = hide);
 }
 
-/// Altura (pixels lógicos) que janelas maximizadas não devem ocupar na base do monitor primário.
-pub fn set_reserved_height(height: u32) {
-    update(|d| d.reserved_height = height);
+/// Espessura (pixels lógicos) que janelas maximizadas não devem ocupar na borda onde a dock está.
+pub fn set_reserved(edge: &str, height: u32) {
+    let edge = match edge {
+        "top" => "top",
+        "left" => "left",
+        "right" => "right",
+        _ => "bottom",
+    };
+    update(move |d| {
+        d.reserved_edge = edge;
+        d.reserved_height = height;
+    });
 }
 
 pub fn set_shortcuts_enabled(enabled: bool) {

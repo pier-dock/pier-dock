@@ -4,8 +4,8 @@
 //!
 //! Click-through: no XWayland o cursor global não é confiável fora das janelas X11, então em vez
 //! de acompanhá-lo a dock recorta a região de input da própria janela — a barra (mais a folga para
-//! a magnificação enquanto o mouse está nela) ou, escondida, uma faixa de 2px na base. O hover vem
-//! do próprio WebView (`set_dock_hover`).
+//! a magnificação enquanto o mouse está nela) ou, escondida, uma faixa de 2px na borda da tela. O
+//! hover vem do próprio WebView (`set_dock_hover`).
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
@@ -13,7 +13,10 @@ use std::time::{Duration, Instant};
 use gtk::prelude::*;
 use tauri::{AppHandle, Manager, WebviewWindow};
 
-use super::{auto_hide, hit_rect, layout, place_window, set_visible, want_visible, AUTO_HIDE_NEVER, DOCK_LABEL, HOVER_GRACE_MS};
+use super::{
+    auto_hide, clickable_area, edge_name, layout, place_window, position, reveal_strip, set_visible, want_visible, AUTO_HIDE_NEVER, DOCK_LABEL,
+    HOVER_GRACE_MS, LEFT, RIGHT, TOP,
+};
 use crate::platform::linux::{gnome_shell, x11};
 
 static HOVER: AtomicBool = AtomicBool::new(false);
@@ -45,13 +48,14 @@ pub fn init(window: &WebviewWindow) {
     start_visibility_thread(window.clone());
 }
 
-/// Posiciona a janela na base do monitor primário e reserva a área de trabalho.
+/// Posiciona a janela na borda escolhida do monitor primário e reserva a área de trabalho.
 pub fn apply_layout(window: &WebviewWindow) {
     let Some(p) = place_window(window) else { return };
     let reserve = auto_hide() == AUTO_HIDE_NEVER;
-    gnome_shell::set_reserved_height(if reserve { layout().reserved_height.round() as u32 } else { 0 });
+    gnome_shell::set_reserved(edge_name(), if reserve { layout().reserved.round() as u32 } else { 0 });
     // Com a extensão, quem reserva é o Shell; struts num cliente XWayland nem sempre valem.
-    let strut = if reserve && !gnome_shell::available() { p.reserved as u32 } else { 0 };
+    let strut = if reserve && !gnome_shell::available() { Some(x11_edge()) } else { None };
+    let band = [p.band.left, p.band.top, p.band.right, p.band.bottom];
     let w = window.clone();
     let _ = window.run_on_main_thread(move || {
         let Ok(gtk_window) = w.gtk_window() else { return };
@@ -70,11 +74,24 @@ pub fn apply_layout(window: &WebviewWindow) {
         // garante a posição mesmo quando o GTK ainda guarda a altura antiga.
         let xid = gtk_window.window().and_then(|g| g.downcast::<gdkx11::X11Window>().ok()).map(|x| x.xid() as u32);
         if let (Some(x11), Some(xid)) = (x11::get(), xid) {
-            x11.set_strut(xid, p.x, p.width, p.bottom, strut);
+            match strut {
+                Some(edge) => x11.set_strut(xid, edge, band),
+                None => x11.clear_strut(xid),
+            }
             x11.move_resize(xid, p.x, p.y, p.width, p.height);
         }
     });
     update_input_region(window);
+}
+
+/// Borda da tela na linguagem dos struts X11.
+fn x11_edge() -> x11::Edge {
+    match position() {
+        TOP => x11::Edge::Top,
+        LEFT => x11::Edge::Left,
+        RIGHT => x11::Edge::Right,
+        _ => x11::Edge::Bottom,
+    }
 }
 
 /// Recorta a região que recebe o mouse (em pixels lógicos da janela).
@@ -82,19 +99,14 @@ fn update_input_region(window: &WebviewWindow) {
     let w = window.clone();
     let _ = window.run_on_main_thread(move || {
         let Some(gdk_window) = w.gtk_window().ok().and_then(|g| g.window()) else { return };
-        let (layout, hit) = (layout(), hit_rect());
-        let full_width = gdk_window.width();
-        let window_height = gdk_window.height();
-        let (x, y, width) = if !super::dock_visible() {
-            (0, window_height - 2, full_width)
-        } else if hit.width <= 0.0 {
-            // O frontend ainda não mediu a barra: a faixa reservada inteira.
-            (0, window_height - layout.reserved_height.round() as i32, full_width)
+        let size = (gdk_window.width() as f64, gdk_window.height() as f64);
+        let (x0, y0, x1, y1) = if super::dock_visible() {
+            let headroom = if HOVER.load(Ordering::SeqCst) { layout().hover_headroom } else { 0.0 };
+            clickable_area(size, headroom)
         } else {
-            let headroom = if HOVER.load(Ordering::SeqCst) { layout.hover_headroom } else { 0.0 };
-            (hit.x.round() as i32, (hit.y - headroom).max(0.0).round() as i32, hit.width.round() as i32)
+            reveal_strip(2.0, size)
         };
-        let rect = gtk::cairo::RectangleInt::new(x, y, width.max(1), (window_height - y).max(1));
+        let rect = gtk::cairo::RectangleInt::new(x0 as i32, y0 as i32, ((x1 - x0) as i32).max(1), ((y1 - y0) as i32).max(1));
         gdk_window.input_shape_combine_region(&gtk::cairo::Region::create_rectangle(&rect), 0, 0);
     });
 }
@@ -130,4 +142,9 @@ pub fn hit_rect_changed(app: &AppHandle) {
     if let Some(window) = app.get_webview_window(DOCK_LABEL) {
         update_input_region(&window);
     }
+}
+
+/// Nada fica fora do alcance das janelas na borda de cima no Linux.
+pub fn top_inset() -> i32 {
+    0
 }

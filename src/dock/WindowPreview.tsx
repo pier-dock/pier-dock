@@ -1,19 +1,23 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
-import { ipc, type WindowInfo } from "../lib/ipc";
+import { ipc, type DockPosition, type WindowInfo } from "../lib/ipc";
 import { useIcon } from "../hooks/useIcon";
 import { useT } from "../i18n";
-import { PREVIEW_HEIGHT, previewLeft } from "./layout";
+import { PREVIEW_HEIGHT, isVertical, previewAlong } from "./layout";
 import type { DockApp } from "./apps";
 
 /** Acima disso a fileira fica longa demais para caber na tela. */
 const MAX_WINDOWS = 8;
 /** Largura estimada de um card + folga, só para o primeiro paint (antes de medir a faixa). */
 const CARD_ESTIMATE = 200;
+/** O mesmo palpite na vertical, agora na altura: um card com o título. */
+const ROW_ESTIMATE = 126;
 
 interface Props {
   app: DockApp;
-  centerX: number;
+  /** Centro do ícone na janela da dock (px lógicos), de onde a faixa sai. */
+  anchor: { x: number; y: number };
+  position: DockPosition;
   onClose: () => void;
 }
 
@@ -58,20 +62,25 @@ function PreviewCard({ info, thumbnail, icon, onActivate, onClose }: CardProps) 
   );
 }
 
-/** Fileira de prévias das janelas de um app, acima da barra da dock. */
-export function WindowPreview({ app, centerX, onClose }: Props) {
+/**
+ * Faixa de prévias das janelas de um app, ao lado da barra da dock: acima ou abaixo dela nas bordas
+ * de cima e de baixo, e à direita ou à esquerda nas laterais.
+ */
+export function WindowPreview({ app, anchor, position, onClose }: Props) {
   const t = useT().preview;
   const icon = useIcon(app.iconKey);
   const stripRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
-  const [viewport, setViewport] = useState(() => window.innerWidth);
+  const vertical = isVertical(position);
+  const [box, setBox] = useState({ width: 0, height: 0 });
+  const [viewport, setViewport] = useState(() => (vertical ? window.innerHeight : window.innerWidth));
   const [thumbs, setThumbs] = useState<Record<number, string | null>>({});
   const windows = app.windows.slice(0, MAX_WINDOWS);
   // A lista de janelas é remontada a cada snapshot: o efeito de captura só pode depender dos ids,
   // senão as capturas recomeçariam a cada render.
   const ids = windows.map((w) => w.id).join(",");
   // Antes de medir a faixa, o palpite evita ela "pular" para o lugar no primeiro paint.
-  const estimate = windows.length * CARD_ESTIMATE + 16;
+  const estimate = windows.length * (vertical ? ROW_ESTIMATE : CARD_ESTIMATE) + 16;
+  const along = (vertical ? box.height : box.width) || estimate;
 
   // Uma captura custa dezenas de ms: em série, para não travar a composição do sistema. Nada
   // bloqueia a renderização; o ícone do app aparece na hora e a imagem entra quando chega.
@@ -100,29 +109,36 @@ export function WindowPreview({ app, centerX, onClose }: Props) {
   }, [onClose]);
 
   useEffect(() => {
-    const onResize = () => setViewport(window.innerWidth);
+    const onResize = () => setViewport(vertical ? window.innerHeight : window.innerWidth);
+    onResize();
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, []);
+  }, [vertical]);
 
   useLayoutEffect(() => {
     const strip = stripRef.current;
     if (!strip) return;
-    const measure = () => setWidth(strip.offsetWidth);
+    const measure = () => setBox({ width: strip.offsetWidth, height: strip.offsetHeight });
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(strip);
     return () => observer.disconnect();
   }, []);
 
+  // A faixa sai da barra para dentro da tela (`--preview-offset`) e fica centrada no ícone, presa
+  // às bordas da tela.
+  const style: React.CSSProperties = {};
+  if (vertical) {
+    style[position === "left" ? "left" : "right"] = "var(--preview-offset)";
+    style.top = previewAlong(anchor.y, viewport, along);
+  } else {
+    style[position === "top" ? "top" : "bottom"] = "var(--preview-offset)";
+    style.left = previewAlong(anchor.x, viewport, along);
+    style.height = PREVIEW_HEIGHT;
+  }
+
   return (
-    <div
-      ref={stripRef}
-      className="preview-strip"
-      role="dialog"
-      aria-label={t.label(app.name)}
-      style={{ bottom: "var(--preview-bottom)", height: PREVIEW_HEIGHT, left: previewLeft(centerX, viewport, width || estimate) }}
-    >
+    <div ref={stripRef} className="preview-strip" role="dialog" aria-label={t.label(app.name)} style={style}>
       {windows.map((w) => (
         <PreviewCard
           key={w.id}

@@ -27,7 +27,7 @@ export function TrayWidget() {
   const t = useT().system;
   const open = (el: HTMLElement) => {
     const rect = el.getBoundingClientRect();
-    ipc.openTray(rect.left + rect.width / 2).catch(console.error);
+    ipc.openTray(rect.left + rect.width / 2, rect.top + rect.height / 2).catch(console.error);
   };
   return (
     <Tile kind="tray" label={t.trayShow} className="sys-tile" onClick={open}>
