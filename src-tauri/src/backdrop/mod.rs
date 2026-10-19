@@ -3,7 +3,7 @@
 //! não o que está atrás da janela, então o desfoque tem de vir do sistema:
 //!
 //! - macOS: `NSGlassEffectView` (macOS 26) ou `NSVisualEffectView` atrás do WebView;
-//! - Windows 11: uma janela de fundo com Acrylic logo abaixo da janela do WebView;
+//! - Windows 11: uma janela de fundo com o `HostBackdropBrush` logo abaixo da janela do WebView;
 //! - Linux: a região de blur do KWin (`_KDE_NET_WM_BLUR_BEHIND_REGION`).
 //!
 //! Sem suporte (Windows 10, GNOME) o frontend usa o material sólido. A tinta, a borda e as

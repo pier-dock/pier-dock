@@ -1,13 +1,13 @@
-//! Windows 11: o Acrylic do DWM vale para a janela inteira, e a janela da dock é uma faixa
+//! Windows 11: o material do sistema vale para a janela inteira, e a janela da dock é uma faixa
 //! transparente da largura da tela (folga para a magnificação e os tooltips). Por isso o vidro é
-//! uma janela à parte, sem conteúdo, com o Acrylic recortado no formato da barra e mantida logo
-//! abaixo da janela do WebView na ordem Z.
+//! uma janela à parte, mantida logo abaixo da janela do WebView na ordem Z.
 //!
-//! O Acrylic vem do `SetWindowCompositionAttribute` (não documentado, mas estável desde o Windows
-//! 10 1803): ao contrário do `DWMWA_SYSTEMBACKDROP_TYPE`, ele respeita a região da janela, que dá
-//! os cantos arredondados. A região do GDI não tem antialias, então os cantos ficam serrilhados
-//! por baixo da borda do CSS.
+//! O desfoque é o `HostBackdropBrush` do Windows.UI.Composition, num visual recortado por uma
+//! geometria arredondada (com antialias). O Acrylic do `SetWindowCompositionAttribute`, usado
+//! antes, sai branco opaco no Windows 11 25H2 e ignora a região da janela, que desenhava um
+//! retângulo em volta dos cantos.
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -15,23 +15,29 @@ use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
 use tauri::WebviewWindow;
-use windows::core::{s, w};
+use windows::core::{s, w, Interface};
+use windows::Foundation::Numerics::Vector2;
+use windows::System::DispatcherQueueController;
+use windows::UI::Composition::Desktop::DesktopWindowTarget;
+use windows::UI::Composition::{CompositionRoundedRectangleGeometry, Compositor, SpriteVisual};
 use windows::Win32::Foundation::{BOOL, HINSTANCE, HWND, LPARAM, LRESULT, RECT, WPARAM};
 use windows::Win32::Graphics::Dwm::{
-    DwmSetWindowAttribute, DWMNCRP_DISABLED, DWMWA_NCRENDERING_POLICY, DWMWA_USE_IMMERSIVE_DARK_MODE, DWMWA_WINDOW_CORNER_PREFERENCE,
-    DWMWCP_DONOTROUND,
+    DwmSetWindowAttribute, DWMNCRP_DISABLED, DWMWA_NCRENDERING_POLICY, DWMWA_USE_HOSTBACKDROPBRUSH, DWMWA_USE_IMMERSIVE_DARK_MODE,
+    DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
 };
-use windows::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn};
 use windows::Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress};
+use windows::Win32::System::WinRT::Composition::ICompositorDesktopInterop;
+use windows::Win32::System::WinRT::{CreateDispatcherQueueController, DispatcherQueueOptions, DQTAT_COM_NONE, DQTYPE_THREAD_CURRENT};
 use windows::Win32::UI::HiDpi::GetDpiForWindow;
 use windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowRect, RegisterClassW, SetWindowPos, ShowWindow, SWP_NOACTIVATE,
-    SWP_SHOWWINDOW, SW_HIDE, WM_NCHITTEST, WNDCLASSW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
+    SWP_SHOWWINDOW, SW_HIDE, WM_NCHITTEST, WNDCLASSW, WS_EX_NOACTIVATE, WS_EX_NOREDIRECTIONBITMAP, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
+    WS_POPUP,
 };
 
 use super::Rect;
 
-/// Primeira versão do Windows 11. No 10 o Acrylic por composição engasga ao mover janelas.
+/// Primeira versão do Windows 11, a primeira com `DWMWA_USE_HOSTBACKDROPBRUSH`.
 const WINDOWS_11_BUILD: u32 = 22000;
 /// Duração da animação de mostrar da barra (`.dock-bar` no CSS): o vidro só aparece no fim dela.
 const REVEAL_DELAY: Duration = Duration::from_millis(300);
@@ -81,37 +87,73 @@ pub fn supported() -> bool {
     windows_build() >= WINDOWS_11_BUILD
 }
 
-#[repr(C)]
-struct AccentPolicy {
-    state: u32,
-    flags: u32,
-    gradient_color: u32,
-    animation_id: u32,
+/// O visual com o desfoque de cada janela de vidro.
+struct Layer {
+    _target: DesktopWindowTarget,
+    _visual: SpriteVisual,
+    shape: CompositionRoundedRectangleGeometry,
 }
 
-#[repr(C)]
-struct CompositionAttributeData {
-    attribute: u32,
-    data: *mut c_void,
-    size: usize,
+/// Objetos do Windows.UI.Composition: presos à thread principal, onde as janelas de vidro vivem.
+struct Composition {
+    _queue: Option<DispatcherQueueController>,
+    compositor: Compositor,
+    layers: HashMap<isize, Layer>,
 }
 
-const WCA_ACCENT_POLICY: u32 = 19;
-const ACCENT_ENABLE_ACRYLICBLURBEHIND: u32 = 4;
+thread_local! {
+    static COMPOSITION: RefCell<Option<Composition>> = const { RefCell::new(None) };
+}
 
-unsafe fn enable_acrylic(hwnd: HWND) {
-    let Ok(user32) = GetModuleHandleW(w!("user32.dll")) else { return };
-    let Some(proc) = GetProcAddress(user32, s!("SetWindowCompositionAttribute")) else { return };
-    let set: unsafe extern "system" fn(HWND, *mut CompositionAttributeData) -> i32 = std::mem::transmute(proc);
-    // A cor é ABGR: `--glass-tint` (28 28 34) com alfa ~0,4. Sem tinta o Acrylic do Windows 11 fica
-    // quase branco, e a tinta do CSS por cima não basta para escurecê-lo.
-    let mut policy = AccentPolicy { state: ACCENT_ENABLE_ACRYLICBLURBEHIND, flags: 0, gradient_color: 0x6622_1C1C, animation_id: 0 };
-    let mut data = CompositionAttributeData {
-        attribute: WCA_ACCENT_POLICY,
-        data: &mut policy as *mut _ as *mut c_void,
-        size: std::mem::size_of::<AccentPolicy>(),
-    };
-    set(hwnd, &mut data);
+fn with_composition<T>(f: impl FnOnce(&mut Composition) -> windows::core::Result<T>) -> Option<T> {
+    COMPOSITION.with_borrow_mut(|composition| {
+        if composition.is_none() {
+            *composition = Composition::new().ok();
+        }
+        f(composition.as_mut()?).ok()
+    })
+}
+
+impl Composition {
+    fn new() -> windows::core::Result<Self> {
+        // O `Compositor` exige um DispatcherQueue na thread. Se a thread já tiver um, a criação
+        // falha e o existente serve.
+        let options = DispatcherQueueOptions {
+            dwSize: std::mem::size_of::<DispatcherQueueOptions>() as u32,
+            threadType: DQTYPE_THREAD_CURRENT,
+            apartmentType: DQTAT_COM_NONE,
+        };
+        let queue = unsafe { CreateDispatcherQueueController(options) }.ok();
+        Ok(Self { _queue: queue, compositor: Compositor::new()?, layers: HashMap::new() })
+    }
+
+    fn attach(&mut self, hwnd: HWND) -> windows::core::Result<()> {
+        let interop: ICompositorDesktopInterop = self.compositor.cast()?;
+        let target = unsafe { interop.CreateDesktopWindowTarget(hwnd, false)? };
+        let shape = self.compositor.CreateRoundedRectangleGeometry()?;
+        let visual = self.compositor.CreateSpriteVisual()?;
+        visual.SetRelativeSizeAdjustment(Vector2 { X: 1.0, Y: 1.0 })?;
+        visual.SetBrush(&self.compositor.CreateHostBackdropBrush()?)?;
+        visual.SetClip(&self.compositor.CreateGeometricClipWithGeometry(&shape)?)?;
+        target.SetRoot(&visual)?;
+        self.layers.insert(hwnd.0 as isize, Layer { _target: target, _visual: visual, shape });
+        Ok(())
+    }
+
+    /// Tamanho e raio em pixels de dispositivo: é a unidade do visual de uma janela Win32.
+    fn reshape(&self, hwnd: HWND, width: f32, height: f32, radius: f32) -> windows::core::Result<()> {
+        let Some(layer) = self.layers.get(&(hwnd.0 as isize)) else { return Ok(()) };
+        layer.shape.SetSize(Vector2 { X: width, Y: height })?;
+        layer.shape.SetCornerRadius(Vector2 { X: radius, Y: radius })?;
+        Ok(())
+    }
+}
+
+fn destroy_window(hwnd: isize) {
+    with_composition(|c| Ok(c.layers.remove(&hwnd)));
+    unsafe {
+        let _ = DestroyWindow(HWND(hwnd as *mut c_void));
+    }
 }
 
 /// O vidro nunca recebe o mouse: os cliques vão para a janela de cima ou de baixo.
@@ -133,7 +175,8 @@ fn create_window() -> Option<isize> {
             RegisterClassW(&class);
         });
         let hwnd = CreateWindowExW(
-            WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TOPMOST,
+            // Sem a superfície do GDI: o conteúdo da janela é só o visual da composição.
+            WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TOPMOST | WS_EX_NOREDIRECTIONBITMAP,
             w!("PierBackdrop"),
             w!(""),
             WS_POPUP,
@@ -155,7 +198,12 @@ fn create_window() -> Option<isize> {
         // um retângulo em volta da barra e dos painéis.
         let policy = DWMNCRP_DISABLED;
         let _ = DwmSetWindowAttribute(hwnd, DWMWA_NCRENDERING_POLICY, &policy as *const _ as *const c_void, std::mem::size_of_val(&policy) as u32);
-        enable_acrylic(hwnd);
+        let backdrop = BOOL::from(true);
+        let _ = DwmSetWindowAttribute(hwnd, DWMWA_USE_HOSTBACKDROPBRUSH, &backdrop as *const _ as *const c_void, std::mem::size_of_val(&backdrop) as u32);
+        if with_composition(|c| c.attach(hwnd)).is_none() {
+            let _ = DestroyWindow(hwnd);
+            return None;
+        }
         Some(hwnd.0 as isize)
     }
 }
@@ -173,10 +221,9 @@ fn apply(owner: HWND, b: &Backdrop) {
         let x = win.left + (b.rect.x * scale).round() as i32;
         let y = win.top + (b.rect.y * scale).round() as i32;
         let (w, h) = ((b.rect.width * scale).round() as i32, (b.rect.height * scale).round() as i32);
-        let d = (b.radius * 2.0 * scale).round() as i32;
+        with_composition(|c| c.reshape(hwnd, w as f32, h as f32, (b.radius * scale) as f32));
         // "Depois" da janela dona na ordem Z é logo abaixo dela.
         let _ = SetWindowPos(hwnd, owner, x, y, w, h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
-        SetWindowRgn(hwnd, CreateRoundRectRgn(0, 0, w + 1, h + 1, d, d), true);
     }
 }
 
@@ -233,9 +280,7 @@ pub fn remove_named(window: &WebviewWindow, name: &str) {
     let key = key(window.label(), Some(name));
     let _ = window.run_on_main_thread(move || {
         if let Some(b) = with_backdrops(|backdrops| backdrops.remove(&key)) {
-            unsafe {
-                let _ = DestroyWindow(HWND(b.hwnd as *mut c_void));
-            }
+            destroy_window(b.hwnd);
         }
     });
 }
@@ -268,8 +313,6 @@ pub fn forget(label: &str) {
         keys.iter().filter_map(|k| backdrops.remove(k)).collect()
     });
     for b in removed {
-        unsafe {
-            let _ = DestroyWindow(HWND(b.hwnd as *mut c_void));
-        }
+        destroy_window(b.hwnd);
     }
 }
