@@ -6,7 +6,13 @@ function normalize(text: string): string {
     .trim()
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+    .replace(/[̀-ͯ]/g, "");
+}
+
+/** O nome do app contém a busca? Busca vazia casa com todos. */
+export function matchesQuery(app: AppEntry, query: string): boolean {
+  const q = normalize(query);
+  return !q || normalize(app.name).includes(q);
 }
 
 /**
@@ -15,6 +21,5 @@ function normalize(text: string): string {
  */
 export function filterApps(apps: AppEntry[], query: string): AppEntry[] {
   const sorted = [...apps].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
-  const q = normalize(query);
-  return q ? sorted.filter((a) => normalize(a.name).includes(q)) : sorted;
+  return sorted.filter((a) => matchesQuery(a, query));
 }

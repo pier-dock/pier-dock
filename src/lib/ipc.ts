@@ -81,6 +81,8 @@ export interface Config {
   showStartButton: boolean;
   /** Botão do lançador de apps do próprio Pier (a lista de todos os instalados). */
   showLauncher: boolean;
+  /** Apps fixados no topo do lançador, em galeria. Independe dos fixados na dock. */
+  launcherPinned: AppEntry[];
   weatherLocation: WeatherLocation | null;
   pomodoro: PomodoroConfig;
   language: LanguageSetting;

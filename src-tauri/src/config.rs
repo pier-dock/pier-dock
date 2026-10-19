@@ -104,6 +104,8 @@ pub struct Config {
     pub show_start_button: bool,
     /// Botão do lançador de apps do próprio Pier (a lista de todos os instalados).
     pub show_launcher: bool,
+    /// Apps fixados no topo do lançador, em galeria. Independe dos fixados na dock.
+    pub launcher_pinned: Vec<AppEntry>,
     pub weather_location: Option<WeatherLocation>,
     pub pomodoro: PomodoroConfig,
     /// Idioma da interface: "system", "pt" ou "en".
@@ -186,6 +188,7 @@ impl Default for Config {
             dock_order: Vec::new(),
             show_start_button: true,
             show_launcher: false,
+            launcher_pinned: Vec::new(),
             weather_location: None,
             pomodoro: PomodoroConfig::default(),
             language: "system".into(),
@@ -325,6 +328,7 @@ mod tests {
         assert!(!config.widgets.is_empty());
         assert!(config.dock_order.is_empty());
         assert!(config.show_start_button);
+        assert!(config.launcher_pinned.is_empty());
     }
 
     fn migrated(json: &str) -> Config {

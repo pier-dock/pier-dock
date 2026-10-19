@@ -356,9 +356,16 @@ export const en: Dict = {
   },
   launcher: {
     label: "App launcher",
-    search: "Search apps",
+    search: "Search apps…",
     loading: "Loading apps…",
     empty: "No app found.",
+    pinned: "Pinned",
+    installed: "Installed apps",
+    application: "Application",
+    open: "Open",
+    actions: "Actions",
+    pin: "Pin to launcher",
+    unpin: "Unpin from launcher",
   },
   appearance: {
     material: "Material",

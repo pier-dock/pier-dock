@@ -79,6 +79,7 @@ const config: Config = {
   dockOrder: [],
   showStartButton: true,
   showLauncher: false,
+  launcherPinned: [...apps.slice(1, 3), installed[2]].map(({ id, name, target }) => ({ id, name, target })),
   weatherLocation: { name: "Campinas", admin: "São Paulo, Brasil", latitude: -22.9, longitude: -47.06 },
   pomodoro: { preset: "25-5", focusMinutes: 25, breakMinutes: 5 },
   language: "system",

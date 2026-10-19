@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { filterApps } from "./launcherSearch.ts";
+import { filterApps, matchesQuery } from "./launcherSearch.ts";
 
 const app = (name: string) => ({ id: name.toLowerCase(), name, target: `/usr/share/applications/${name}.desktop` });
 
@@ -28,4 +28,10 @@ test("filtra por nome sem depender de maiúsculas nem de acentos", () => {
   );
   assert.deepEqual(filterApps(apps, "  ").length, 3);
   assert.deepEqual(filterApps(apps, "zzz"), []);
+});
+
+test("matchesQuery casa sem acentos e aceita busca vazia", () => {
+  assert.equal(matchesQuery(app("Configurações"), "configuracoes"), true);
+  assert.equal(matchesQuery(app("Navegador"), ""), true);
+  assert.equal(matchesQuery(app("Navegador"), "calc"), false);
 });

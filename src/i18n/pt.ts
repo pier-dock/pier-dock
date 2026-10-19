@@ -356,9 +356,16 @@ export const pt = {
   },
   launcher: {
     label: "Lançador de apps",
-    search: "Buscar apps",
+    search: "Buscar apps…",
     loading: "Carregando apps…",
     empty: "Nenhum app encontrado.",
+    pinned: "Fixados",
+    installed: "Apps instalados",
+    application: "Aplicativo",
+    open: "Abrir",
+    actions: "Ações",
+    pin: "Fixar no lançador",
+    unpin: "Desafixar do lançador",
   },
   appearance: {
     material: "Material",
