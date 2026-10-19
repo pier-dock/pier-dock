@@ -33,10 +33,12 @@ let bluetooth: BluetoothState = {
   available: true,
   powered: true,
   canToggle: true,
+  canConnect: true,
   devices: [
-    { name: "AirPods Pro", kind: "audio", battery: 82 },
-    { name: "MX Master 3", kind: "mouse", battery: 54 },
-    { name: "Keychron K2", kind: "keyboard", battery: null },
+    { id: "a1", name: "AirPods Pro", kind: "audio", battery: 82, connected: true },
+    { id: "a2", name: "MX Master 3", kind: "mouse", battery: 54, connected: true },
+    { id: "a3", name: "Keychron K2", kind: "keyboard", battery: null, connected: false },
+    { id: "a4", name: "iPhone", kind: "phone", battery: null, connected: false },
   ],
 };
 
@@ -314,6 +316,14 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   bluetooth_status: () => bluetooth,
   set_bluetooth: (args) => {
     bluetooth = { ...bluetooth, powered: Boolean(args.powered) };
+    return null;
+  },
+  bluetooth_connect: (args) => {
+    bluetooth = { ...bluetooth, devices: bluetooth.devices.map((d) => (d.id === args.id ? { ...d, connected: true } : d)) };
+    return null;
+  },
+  bluetooth_disconnect: (args) => {
+    bluetooth = { ...bluetooth, devices: bluetooth.devices.map((d) => (d.id === args.id ? { ...d, connected: false } : d)) };
     return null;
   },
   github_cached: () => github,

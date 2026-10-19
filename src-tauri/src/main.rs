@@ -197,6 +197,8 @@ fn main() {
             system::open_tray,
             system::bluetooth_status,
             system::set_bluetooth,
+            system::bluetooth_connect,
+            system::bluetooth_disconnect,
             audio::audio_status,
             audio::set_output_device,
             audio::set_app_volume,

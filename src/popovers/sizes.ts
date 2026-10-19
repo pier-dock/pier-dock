@@ -13,7 +13,7 @@ export const PANEL_SIZES: Record<string, [number, number]> = {
   "system-usage": [360, 460],
   calendar: [360, 372],
   "ai-usage": [340, 296],
-  bluetooth: [340, 264],
+  bluetooth: [340, 340],
   launcher: [420, 460],
   volume: [340, 420],
   network: [340, 400],

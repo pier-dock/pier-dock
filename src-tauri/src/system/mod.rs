@@ -46,10 +46,13 @@ pub struct Volume {
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct BluetoothDevice {
+    /// Endereço no macOS, caminho do objeto no BlueZ e id do `DeviceInformation` no Windows.
+    pub id: String,
     pub name: String,
     /// "audio", "mouse", "keyboard", "gamepad", "phone" ou "other".
     pub kind: &'static str,
     pub battery: Option<u8>,
+    pub connected: bool,
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -60,14 +63,20 @@ pub struct Bluetooth {
     pub powered: bool,
     /// Dá para ligar e desligar pelo Pier (no macOS não há API pública para isso).
     pub can_toggle: bool,
-    /// Só os conectados.
+    /// Dá para conectar e desconectar pelo Pier; senão o clique abre as configurações.
+    pub can_connect: bool,
+    /// Os pareados, com os conectados primeiro.
     pub devices: Vec<BluetoothDevice>,
 }
 
 impl Bluetooth {
     fn absent() -> Self {
-        Bluetooth { available: false, powered: false, can_toggle: false, devices: Vec::new() }
+        Bluetooth { available: false, powered: false, can_toggle: false, can_connect: false, devices: Vec::new() }
     }
+}
+
+fn sort_devices(devices: &mut [BluetoothDevice]) {
+    devices.sort_by(|a, b| b.connected.cmp(&a.connected).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())));
 }
 
 /// Tipo do dispositivo pelo Class of Device do Bluetooth clássico (Assigned Numbers, "Baseband").
@@ -125,12 +134,29 @@ pub async fn set_volume(level: Option<f32>, muted: Option<bool>) -> Result<(), S
 /// roda com o widget ligado.
 #[tauri::command]
 pub async fn bluetooth_status() -> Result<Bluetooth, String> {
-    tauri::async_runtime::spawn_blocking(backend::bluetooth).await.err_str()
+    tauri::async_runtime::spawn_blocking(|| {
+        let mut bluetooth = backend::bluetooth();
+        sort_devices(&mut bluetooth.devices);
+        bluetooth
+    })
+    .await
+    .err_str()
 }
 
 #[tauri::command]
 pub async fn set_bluetooth(powered: bool) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || backend::set_bluetooth(powered)).await.err_str()?
+}
+
+/// Espera a conexão terminar: assim o popover sabe se ela falhou.
+#[tauri::command]
+pub async fn bluetooth_connect(id: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || backend::connect_bluetooth(&id)).await.err_str()?
+}
+
+#[tauri::command]
+pub async fn bluetooth_disconnect(id: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || backend::disconnect_bluetooth(&id)).await.err_str()?
 }
 
 /// Abre a gaveta de ícones ocultos da bandeja do Windows acima de `anchor_x` (px da dock). Nos
@@ -169,6 +195,15 @@ mod tests {
         println!("{:?}", super::backend::network());
         println!("{:?}", super::backend::volume());
         println!("{:?}", super::backend::bluetooth());
+    }
+
+    #[test]
+    fn sorts_connected_devices_first() {
+        let device = |name: &str, connected: bool| super::BluetoothDevice { id: name.into(), name: name.into(), kind: "other", battery: None, connected };
+        let mut devices = vec![device("mouse", false), device("Keyboard", true), device("AirPods", false), device("Watch", true)];
+        super::sort_devices(&mut devices);
+        let order: Vec<&str> = devices.iter().map(|d| d.name.as_str()).collect();
+        assert_eq!(order, ["Keyboard", "Watch", "AirPods", "mouse"]);
     }
 
     #[test]

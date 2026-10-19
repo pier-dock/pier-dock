@@ -78,7 +78,7 @@ export function BluetoothWidget({ bluetooth }: { bluetooth: BluetoothState | nul
   const t = useT().bluetooth;
   if (bluetooth && !bluetooth.available) return null;
   const on = !!bluetooth?.powered;
-  const names = bluetooth?.devices.map((d) => d.name) ?? [];
+  const names = bluetooth?.devices.filter((d) => d.connected).map((d) => d.name) ?? [];
   const Icon = !on ? BluetoothOff : names.length ? BluetoothConnected : Bluetooth;
   const label = !on ? t.off : names.length ? `Bluetooth · ${names.join(", ")}` : t.tileOn;
   return (

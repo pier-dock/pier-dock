@@ -43,7 +43,7 @@ const WIDGETS: Record<WidgetKind, { group: Group; tint: [string, string] }> = {
 const isWidget = (key: string) => key.startsWith("widget:");
 
 /** Com o widget desligado o Bluetooth não é consultado (no macOS isso pede permissão). */
-const SAMPLE_BLUETOOTH: BluetoothState = { available: true, powered: true, canToggle: false, devices: [] };
+const SAMPLE_BLUETOOTH: BluetoothState = { available: true, powered: true, canToggle: false, canConnect: false, devices: [] };
 
 const tintStyle = (kind: WidgetKind) => {
   const [a, b] = WIDGETS[kind].tint;

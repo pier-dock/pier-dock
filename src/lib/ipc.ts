@@ -156,16 +156,20 @@ export interface SystemStatus {
 }
 
 export interface BluetoothDevice {
+  id: string;
   name: string;
   kind: "audio" | "mouse" | "keyboard" | "gamepad" | "phone" | "other";
   battery: number | null;
+  connected: boolean;
 }
 
 export interface BluetoothState {
   available: boolean;
   powered: boolean;
   canToggle: boolean;
-  /** Só os conectados. */
+  /** Dá para conectar e desconectar pelo Pier; senão o clique abre as configurações. */
+  canConnect: boolean;
+  /** Os pareados, com os conectados primeiro. */
   devices: BluetoothDevice[];
 }
 
@@ -373,6 +377,8 @@ export const ipc = {
   systemStatus: () => invoke<SystemStatus>("system_status"),
   bluetoothStatus: () => invoke<BluetoothState>("bluetooth_status"),
   setBluetooth: (powered: boolean) => invoke<void>("set_bluetooth", { powered }),
+  bluetoothConnect: (id: string) => invoke<void>("bluetooth_connect", { id }),
+  bluetoothDisconnect: (id: string) => invoke<void>("bluetooth_disconnect", { id }),
   getVolume: () => invoke<Volume>("get_volume"),
   setVolume: (args: { level?: number; muted?: boolean }) => invoke<void>("set_volume", args),
   openTray: (anchorX: number) => invoke<void>("open_tray", { anchorX }),

@@ -119,33 +119,47 @@ fn kind_from_appearance(raw: u16) -> &'static str {
     }
 }
 
-fn connected_devices() -> windows::core::Result<Vec<BluetoothDevice>> {
+fn paired_devices() -> windows::core::Result<Vec<BluetoothDevice>> {
     let mut devices: Vec<BluetoothDevice> = Vec::new();
-    let classic = DeviceInformation::FindAllAsyncAqsFilter(&BtDevice::GetDeviceSelectorFromConnectionStatus(BluetoothConnectionStatus::Connected)?)?.get()?;
+    let classic = DeviceInformation::FindAllAsyncAqsFilter(&BtDevice::GetDeviceSelectorFromPairingState(true)?)?.get()?;
     for info in classic {
-        let device = BtDevice::FromIdAsync(&info.Id()?)?.get()?;
+        let id = info.Id()?;
+        let device = BtDevice::FromIdAsync(&id)?.get()?;
         let kind = kind_from_class(device.ClassOfDevice()?.RawValue()?);
-        devices.push(BluetoothDevice { name: device.Name()?.to_string(), kind, battery: None });
+        let connected = device.ConnectionStatus()? == BluetoothConnectionStatus::Connected;
+        devices.push(BluetoothDevice { id: id.to_string(), name: device.Name()?.to_string(), kind, battery: None, connected });
     }
-    let le = DeviceInformation::FindAllAsyncAqsFilter(&BluetoothLEDevice::GetDeviceSelectorFromConnectionStatus(BluetoothConnectionStatus::Connected)?)?.get()?;
+    let le = DeviceInformation::FindAllAsyncAqsFilter(&BluetoothLEDevice::GetDeviceSelectorFromPairingState(true)?)?.get()?;
     for info in le {
-        let device = BluetoothLEDevice::FromIdAsync(&info.Id()?)?.get()?;
+        let id = info.Id()?;
+        let device = BluetoothLEDevice::FromIdAsync(&id)?.get()?;
         let name = device.Name()?.to_string();
+        let connected = device.ConnectionStatus()? == BluetoothConnectionStatus::Connected;
         // Dispositivos dual-mode (fones, por exemplo) aparecem nas duas listas.
-        if devices.iter().any(|d| d.name == name) {
+        if let Some(existing) = devices.iter_mut().find(|d| d.name == name) {
+            existing.connected |= connected;
             continue;
         }
         let kind = kind_from_appearance(device.Appearance()?.RawValue()?);
-        devices.push(BluetoothDevice { name, kind, battery: None });
+        devices.push(BluetoothDevice { id: id.to_string(), name, kind, battery: None, connected });
     }
     Ok(devices)
 }
 
+/// O WinRT não conecta dispositivos clássicos (fones, teclados): o popover abre as configurações.
 pub fn bluetooth() -> Bluetooth {
     let Some(radio) = bluetooth_radio() else { return Bluetooth::absent() };
     let powered = radio.State().is_ok_and(|s| s == RadioState::On);
-    let devices = if powered { connected_devices().unwrap_or_default() } else { Vec::new() };
-    Bluetooth { available: true, powered, can_toggle: true, devices }
+    let devices = if powered { paired_devices().unwrap_or_default() } else { Vec::new() };
+    Bluetooth { available: true, powered, can_toggle: true, can_connect: false, devices }
+}
+
+pub fn connect_bluetooth(_id: &str) -> Result<(), String> {
+    Err("o Windows não permite conectar dispositivos Bluetooth por apps".into())
+}
+
+pub fn disconnect_bluetooth(_id: &str) -> Result<(), String> {
+    Err("o Windows não permite desconectar dispositivos Bluetooth por apps".into())
 }
 
 pub fn set_bluetooth(powered: bool) -> Result<(), String> {

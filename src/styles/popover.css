@@ -1001,13 +1001,29 @@
   padding: 0 8px 8px;
 }
 
-.bt-device {
-  height: 44px;
+.bt-item {
   display: flex;
   align-items: center;
+}
+
+.bt-device {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
   gap: 12px;
   padding: 0 8px;
-  border-radius: var(--radius-control);
+}
+
+.bt-device:disabled {
+  cursor: default;
+  background: none;
+}
+
+.bt-disconnect {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  margin-right: 4px;
 }
 
 .bt-device-icon {
@@ -1031,6 +1047,10 @@
 .bt-device-kind {
   font-size: 11px;
   color: var(--text-secondary);
+}
+
+.bt-device-kind.error {
+  color: var(--text-danger, var(--warning));
 }
 
 .bt-battery {
