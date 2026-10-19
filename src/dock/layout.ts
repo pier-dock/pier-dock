@@ -23,10 +23,12 @@ export function dockMetrics(
   // entre a janela e a dock.
   const reservedHeight = fullWidth ? barHeight : barHeight + margin * 2;
   const tooltipSpace = 48;
-  const base = Math.max(0, iconSize * (magnification - 1)) + tooltipSpace;
+  const magnified = Math.max(0, Math.round(iconSize * (magnification - 1)));
   // A faixa de prévias fica acima da barra: sem folga extra na janela ela seria cortada, e o Rust
-  // recortaria a área clicável antes de o cursor alcançá-la.
-  const hoverHeadroom = Math.max(base, previewSpace);
+  // recortaria a área clicável antes de o cursor alcançá-la. As dicas só precisam caber na janela:
+  // não são clicáveis, então não seguram a dock aberta depois que o mouse sai dos ícones.
+  const windowHeadroom = Math.max(magnified + tooltipSpace, previewSpace);
+  const hoverHeadroom = Math.max(magnified, previewSpace);
   return {
     padding,
     margin,
@@ -36,7 +38,7 @@ export function dockMetrics(
     itemBottom: 3 + (barHeight - autoHeight) / 2,
     reservedHeight,
     hoverHeadroom,
-    windowHeight: reservedHeight + hoverHeadroom,
+    windowHeight: reservedHeight + windowHeadroom,
   };
 }
 

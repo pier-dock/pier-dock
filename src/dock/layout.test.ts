@@ -12,14 +12,21 @@ test("na largura total a área reservada é a própria barra", () => {
   const metrics = dockMetrics(40, 1.6, true);
   assert.equal(metrics.reservedHeight, metrics.barHeight);
   // A janela da dock ainda cobre a folga da magnificação e das dicas acima da barra.
-  assert.equal(metrics.windowHeight, metrics.barHeight + metrics.hoverHeadroom);
+  assert.equal(metrics.windowHeight, metrics.barHeight + 72);
+});
+
+test("as dicas cabem na janela mas não seguram o hover", () => {
+  const metrics = dockMetrics(40, 1.6);
+  assert.equal(metrics.hoverHeadroom, 24);
+  assert.equal(metrics.windowHeight, metrics.reservedHeight + 72);
+  assert.equal(dockMetrics(40, 1).hoverHeadroom, 0);
 });
 
 test("a faixa de prévias aumenta a folga e a altura da janela", () => {
   const base = dockMetrics(40, 1.6);
   const previewSpace = PREVIEW_HEIGHT + PREVIEW_GAP;
   const withPreview = dockMetrics(40, 1.6, false, null, previewSpace);
-  assert.equal(base.hoverHeadroom, 72);
+  assert.equal(base.hoverHeadroom, 24);
   assert.equal(withPreview.hoverHeadroom, previewSpace);
   assert.equal(withPreview.windowHeight, withPreview.reservedHeight + previewSpace);
   // Uma folga menor que a da magnificação não pode encolher a janela.

@@ -32,7 +32,7 @@ static AUTO_HIDE: AtomicU8 = AtomicU8::new(AUTO_HIDE_SMART);
 
 /// Quanto tempo a dock continua à mostra depois que o mouse sai dela.
 #[allow(dead_code)]
-const HOVER_GRACE_MS: u64 = 700;
+const HOVER_GRACE_MS: u64 = 500;
 
 /// Medidas em pixels lógicos (CSS), informadas pelo frontend.
 #[derive(Clone, Copy, Default, Deserialize)]
