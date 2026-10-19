@@ -32,9 +32,6 @@ Pier replaces your system's taskbar or dock with a single bar that holds your pi
 - **Automatic updates:** Pier checks for new versions and installs them in one click.
 - **English and Portuguese:** The interface follows your system language. To change it, go to **Settings** > **General** > **Language**.
 
-> [!NOTE]
-> Pier's interface is currently available in Portuguese only. This README shows each label as it appears on screen, followed by its English translation.
-
 ## Installation
 
 Download the installer for your platform from the [latest release](https://github.com/pier-dock/pier-dock/releases/latest).
