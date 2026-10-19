@@ -356,7 +356,12 @@ fn place_window(window: &WebviewWindow) -> Option<Placement> {
 mod tests {
     use super::*;
 
+    /// `POSITION` é global e os testes rodam em paralelo: sem a trava, um teste troca a borda
+    /// no meio de outro.
+    static POSITION_LOCK: Mutex<()> = Mutex::new(());
+
     fn with_position<T>(position: &str, f: impl FnOnce() -> T) -> T {
+        let _guard = POSITION_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         let previous = POSITION.swap(parse_position(position), Ordering::SeqCst);
         let result = f();
         POSITION.store(previous, Ordering::SeqCst);
