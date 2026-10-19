@@ -2,6 +2,18 @@
 
 O que mudou em cada versão do Pier. O app mostra estas notas uma vez depois de se atualizar, então escreva para quem usa. Antes de criar a tag de uma release, adicione uma seção `## <versão>` aqui e no `CHANGELOG.md`.
 
+## 0.9.0
+
+### Um lançador de apps novo
+O lançador tem um campo de busca maior e agora separa seus apps em duas partes.
+- **Fixados** mostra, em galeria, os apps que você fixa no lançador, na ordem em que foram fixados. Eles são separados dos fixados da dock.
+- **Apps instalados** lista todo o resto por nome. A busca filtra os dois.
+- **Ctrl+P** (**⌘P** no macOS) fixa ou desafixa o app selecionado. **Ctrl+K** (**⌘K**) ou o botão direito mostra mais ações, como **Fixar na dock**.
+- As setas andam pela galeria e pela lista, e o **Enter** abre o app selecionado.
+
+### Correções
+- **Windows 11:** com o material vidro líquido, a dock não fica mais branca quando você passa o mouse por ela, e os cantos arredondados não mostram mais uma borda quadrada. O mesmo vale para os popovers e as prévias das janelas.
+
 ## 0.8.1
 
 ### Correções

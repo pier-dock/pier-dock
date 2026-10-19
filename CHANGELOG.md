@@ -2,6 +2,18 @@
 
 What changed in each version of Pier. The app shows these notes once after it updates, so write them for users. Add a `## <version>` section before tagging a release, in this file and in `CHANGELOG.pt-BR.md`.
 
+## 0.9.0
+
+### A new app launcher
+The launcher has a bigger search field and now splits your apps in two.
+- **Pinned** shows the apps you pin to the launcher as a gallery, in the order you pinned them. These pins are separate from the dock's.
+- **Installed apps** lists everything else by name. The search filters both.
+- **Ctrl+P** (**⌘P** on macOS) pins or unpins the selected app. **Ctrl+K** (**⌘K**) or a right click shows more actions, like **Pin to dock**.
+- The arrow keys move through the gallery and the list, and **Enter** opens the selected app.
+
+### Fixes
+- **Windows 11:** with the liquid glass material, the dock no longer turns white when you move the pointer over it, and its rounded corners no longer show a square edge. The same goes for the popovers and the window previews.
+
 ## 0.8.1
 
 ### Fixes

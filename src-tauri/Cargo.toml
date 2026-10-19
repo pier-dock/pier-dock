@@ -1,6 +1,6 @@
 [package]
 name = "pier"
-version = "0.8.1"
+version = "0.9.0"
 description = "Dock customizável para Windows, Linux (GNOME e KDE Plasma) e macOS"
 license = "GPL-3.0-or-later"
 edition = "2021"
