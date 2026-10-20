@@ -2,6 +2,23 @@
 
 O que mudou em cada versão do Pier. O app mostra estas notas uma vez depois de se atualizar, então escreva para quem usa. Antes de criar a tag de uma release, adicione uma seção `## <versão>` aqui e no `CHANGELOG.md`.
 
+## 0.11.0
+
+### Claude Code na dock
+O novo widget **Claude Agents** mostra suas sessões do Claude Code: rodando, pedindo permissão, com erro ou concluídas.
+- Clique nele para ir à janela do terminal ou da IDE que abriu a sessão. Com mais de uma sessão, ele abre uma lista para escolher.
+- Ele precisa dos hooks do Claude Code: em **Configurações** > **Widgets**, abra as opções do widget e selecione **Ativar** ao lado de **Hooks do Claude Code**. O Pier os adiciona em `~/.claude/settings.json`, e **Desativar** remove.
+
+### Conheça o Clawd
+O Clawd, mascote do Claude, anda pela dock enquanto uma sessão roda. Ele pula quando uma sessão pede permissão e descansa quando está tudo parado.
+- **Mostrar na dock**, nas opções do widget, escolhe **Ícone**, **Ícone e Clawd** ou **Só o Clawd**.
+- Clique no Clawd para abrir suas sessões, como no widget. Ele para de andar enquanto o cursor está sobre ele ou a lista de sessões está aberta.
+- Ele se esconde junto com a dock quando **Ocultar automaticamente** está ligado.
+
+### Correções
+- Depois que a dock se escondia e voltava, o tooltip do último app ou widget usado podia continuar na tela, às vezes ao lado de outro.
+- **Windows:** quando o sistema não consegue aplicar o material Mica, as Configurações e a janela de novidades agora usam o material sólido em vez de aparecerem transparentes.
+
 ## 0.10.0
 
 ### A dock em outro monitor
