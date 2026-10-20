@@ -2,6 +2,37 @@
 
 What changed in each version of Pier. The app shows these notes once after it updates, so write them for users. Add a `## <version>` section before tagging a release, in this file and in `CHANGELOG.pt-BR.md`.
 
+## 0.10.0
+
+### The dock on another monitor
+With more than one monitor, **Settings** > **General** > **Show the dock on** picks where the dock lives:
+- **Main display**, as before.
+- A specific monitor, by name. If it's disconnected, the dock moves to the main display and comes back when it's plugged in again.
+- **Follow the cursor**: the dock moves to the monitor the pointer is on.
+
+Popovers open on the dock's monitor, and on Windows maximized windows on that monitor make room for it. On macOS, with monitors of different scales (a Retina display and an external monitor), the dock sits in the right place and follows the pointer on either one.
+
+> **GNOME:** to reserve space off the main display, and to follow the cursor on Wayland, the extension needs an update. In **Show the dock on**, select **Update the extension**, and then log out and log back in.
+
+### The dock makes an entrance
+When Pier starts and when the dock changes monitor, it slides onto the screen instead of popping in. When it changes monitor, it slides off the old screen first, and stays visible for a moment even with **Hide automatically** on. With **Reduce motion** on in the system, it just fades.
+
+### Automatic updates
+When there's a new version, Pier updates itself on launch, restarts, and shows what changed. To go back to installing updates by hand, turn off **Settings** > **General** > **Update automatically**. On Linux this applies to the AppImage; with the `.deb`, updates still come from the tray menu.
+
+### Each app's volume on macOS
+The sound popover now lists the apps playing audio on macOS 14.2 or later, each with its own volume slider and mute button, as on Windows and Linux.
+- The first time you move a slider, macOS asks for the **System Audio Recording** permission: Pier routes that app's audio through itself to change its volume. Without the permission, the popover says so and shows a button that opens System Settings.
+- Pier remembers each app's volume and applies it again when the app plays, even after Pier restarts.
+
+### Settings
+- **Import** and **Export**, in **General**, move your pinned apps, widgets and appearance to another computer in one file. The GitHub account and the calendar aren't included.
+- **Reset everything** brings every setting back to the default, after asking. The GitHub account and the calendar stay connected.
+- **Permissions**, under **System**, sums up what Pier has from the system. **Review** lists each permission, what it's for, and a button to grant it or open System Settings. On macOS: Accessibility, Screen Recording, Automation, Location and Bluetooth. On Windows: Location.
+
+### Fixes
+- The What's new window, which opens after an update, now shows up in front of other windows instead of behind them.
+
 ## 0.9.0
 
 ### A new app launcher

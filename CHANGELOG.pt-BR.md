@@ -2,6 +2,37 @@
 
 O que mudou em cada versão do Pier. O app mostra estas notas uma vez depois de se atualizar, então escreva para quem usa. Antes de criar a tag de uma release, adicione uma seção `## <versão>` aqui e no `CHANGELOG.md`.
 
+## 0.10.0
+
+### A dock em outro monitor
+Com mais de um monitor, **Configurações** > **Geral** > **Mostrar a dock em** escolhe onde a dock fica:
+- **Monitor principal**, como antes.
+- Um monitor específico, pelo nome. Se ele for desconectado, a dock vai para o principal e volta quando ele for plugado de novo.
+- **Seguir o cursor**: a dock vai para o monitor onde está o mouse.
+
+Os popovers abrem no monitor da dock, e no Windows as janelas maximizadas desse monitor abrem espaço para ela. No macOS, com monitores de escalas diferentes (um Retina e um monitor externo), a dock fica no lugar certo e responde ao mouse em qualquer um deles.
+
+> **GNOME:** para reservar espaço fora do monitor principal, e para seguir o cursor no Wayland, a extensão precisa ser atualizada. Em **Mostrar a dock em**, clique em **Atualizar a extensão** e depois saia e entre de novo na sessão.
+
+### A dock entra em cena
+Ao abrir o Pier e ao mudar de monitor, a dock desliza para dentro da tela em vez de aparecer de uma vez. Na troca de monitor, ela sai da tela antiga antes de entrar na nova, e fica à mostra por um instante mesmo com **Ocultar automaticamente** ligado. Com **Reduzir movimento** ligado no sistema, ela só esmaece.
+
+### Atualizações automáticas
+Quando há uma versão nova, o Pier se atualiza sozinho ao abrir, reinicia e mostra o que mudou. Para voltar a instalar à mão, desligue **Configurações** > **Geral** > **Atualizar automaticamente**. No Linux isso vale para o AppImage; no `.deb`, a atualização continua pelo menu da bandeja.
+
+### Volume de cada app no macOS
+O popover de som agora lista os apps que estão tocando áudio no macOS 14.2 ou mais novo, cada um com o próprio controle de volume e o botão de silenciar, como no Windows e no Linux.
+- Na primeira vez que você mexe num controle, o macOS pede a permissão de **Gravação de Áudio do Sistema**: o Pier passa o áudio do app por ele para mudar o volume. Sem a permissão, o popover avisa e mostra um botão que abre os Ajustes.
+- O Pier lembra o volume de cada app e o aplica de novo quando o app volta a tocar, inclusive depois de reabrir o Pier.
+
+### Configurações
+- **Importar** e **Exportar**, em **Geral**, levam os apps fixados, os widgets e a aparência para outra máquina num arquivo. A conta do GitHub e a agenda não vão junto.
+- **Redefinir tudo** volta todas as configurações ao padrão, depois de pedir confirmação. A conta do GitHub e a agenda continuam conectadas.
+- **Permissões**, em **Sistema**, resume o que o Pier tem do sistema. **Revisar** lista cada permissão, para que ela serve e um botão para concedê-la ou abrir os Ajustes. No macOS: Acessibilidade, Gravação de Tela, Automação, Localização e Bluetooth. No Windows: Localização.
+
+### Correções
+- A janela de novidades, que abre depois de uma atualização, agora aparece na frente das outras janelas em vez de ficar atrás delas.
+
 ## 0.9.0
 
 ### Um lançador de apps novo
