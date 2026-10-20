@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { ipc, type ClaudeAgent, type DockPosition } from "../lib/ipc";
 import { useClaudeAgents } from "../hooks/useClaudeAgents";
 import { useT } from "../i18n";
@@ -52,6 +53,17 @@ export function ClawdPet({ position, full, margin, visible, barRef }: Props) {
   const dirRef = useRef<1 | -1>(1);
   const [facing, setFacing] = useState<Facing>(vertical ? "down" : "right");
   const [barSize, setBarSize] = useState({ width: 0, height: 0 });
+  // Fica parado sob o cursor, senão o clique erra o alvo andando.
+  const [hovered, setHovered] = useState(false);
+  const walking = mood === "walking" && !(hovered && clickable);
+
+  // Ao sair da área dele o Rust liga o click-through e o WebView não recebe o mouseleave.
+  useEffect(() => {
+    const unlisten = listen("dock-pointer-left", () => setHovered(false));
+    return () => {
+      unlisten.then((f) => f());
+    };
+  }, []);
 
   useEffect(() => {
     const bar = barRef.current;
@@ -111,7 +123,7 @@ export function ClawdPet({ position, full, margin, visible, barRef }: Props) {
   }, [clickable]);
 
   useEffect(() => {
-    if (mood !== "walking") return;
+    if (!walking) return;
     let raf = 0;
     let last = performance.now();
     const tick = (now: number) => {
@@ -142,7 +154,7 @@ export function ClawdPet({ position, full, margin, visible, barRef }: Props) {
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mood, position, full, margin, barSize, vertical]);
+  }, [walking, position, full, margin, barSize, vertical]);
 
   return (
     <div
@@ -152,9 +164,11 @@ export function ClawdPet({ position, full, margin, visible, barRef }: Props) {
       aria-label={clickable ? t.tile(agents.length, t.status[lead ?? "running"]) : undefined}
       aria-hidden={!clickable}
       onClick={(e) => clickable && openClaudeAgents(agents, e.currentTarget)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
       <div className={`claude-pet-facing facing-${facing}`}>
-        <span className={`claude-sprite claude-pet-sprite ${mood === "walking" ? "walking" : `claude-pet-${mood}`} ${lead ? `claude-${lead}` : ""}`}>
+        <span className={`claude-sprite claude-pet-sprite ${walking ? "walking" : `claude-pet-${mood === "walking" ? "idle" : mood}`} ${lead ? `claude-${lead}` : ""}`}>
           <ClaudeMascotIcon size={18} />
         </span>
       </div>
