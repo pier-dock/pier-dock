@@ -62,6 +62,7 @@ export function GeneralTab({ config, update, platform }: TabProps) {
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [reviewing, setReviewing] = useState(false);
   const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
+  const [extensionUpdated, setExtensionUpdated] = useState(false);
   const { general: t, report: reportT, permissions: permissionsT } = useT();
   const platformLabels = labels();
 
@@ -108,7 +109,24 @@ export function GeneralTab({ config, update, platform }: TabProps) {
     ...(platform?.followCursor || config.dockMonitor === "cursor" ? [{ value: "cursor", label: t.followCursor }] : []),
     ...(chosenMissing ? [{ value: config.dockMonitor, label: t.disconnected(config.dockMonitor) }] : []),
   ];
-  const monitorHint = chosenMissing ? t.monitorFallback : os === "linux" && config.dockMonitor !== "primary" ? t.gnomeReserve : undefined;
+  const updateExtension = () =>
+    ipc
+      .platformSetup("install-extension")
+      .then(() => setExtensionUpdated(true))
+      .catch(console.error);
+  const oldExtension = platform && !platform.reserveAnyMonitor && config.dockMonitor !== "primary";
+  const monitorHint = chosenMissing ? (
+    t.monitorFallback
+  ) : extensionUpdated ? (
+    t.extensionUpdated
+  ) : oldExtension ? (
+    <>
+      {t.gnomeReserve}{" "}
+      <button className="btn-text" onClick={updateExtension}>
+        {t.updateExtension}
+      </button>
+    </>
+  ) : undefined;
 
   const transferConfig = (run: () => Promise<boolean>, done: string) => {
     setTransfer(null);

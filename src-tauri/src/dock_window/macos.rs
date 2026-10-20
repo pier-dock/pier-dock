@@ -141,5 +141,9 @@ fn start_pointer_thread(window: WebviewWindow) {
 
 pub fn hit_rect_changed(_app: &AppHandle) {}
 
+pub fn cursor(app: &AppHandle) -> Option<(f64, f64)> {
+    app.cursor_position().ok().map(|c| (c.x, c.y))
+}
+
 /// O hover vem da thread que acompanha o cursor.
 pub fn set_hover(_hovering: bool) {}

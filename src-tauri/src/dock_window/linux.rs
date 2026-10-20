@@ -52,7 +52,8 @@ pub fn init(window: &WebviewWindow) {
 pub fn apply_layout(window: &WebviewWindow) {
     let Some(p) = place_window(window) else { return };
     let reserve = auto_hide() == AUTO_HIDE_NEVER;
-    gnome_shell::set_reserved(edge_name(), if reserve { layout().reserved.round() as u32 } else { 0 });
+    let center = ((p.monitor.left + p.monitor.right) / 2, (p.monitor.top + p.monitor.bottom) / 2);
+    gnome_shell::set_reserved(edge_name(), if reserve { layout().reserved.round() as u32 } else { 0 }, center);
     // Com a extensão, quem reserva é o Shell; struts num cliente XWayland nem sempre valem.
     let strut = if reserve && !gnome_shell::available() { Some(x11_edge()) } else { None };
     let band = [p.band.left, p.band.top, p.band.right, p.band.bottom];
@@ -142,6 +143,15 @@ pub fn hit_rect_changed(app: &AppHandle) {
     if let Some(window) = app.get_webview_window(DOCK_LABEL) {
         update_input_region(&window);
     }
+}
+
+/// O cursor global, pela extensão do GNOME quando ela sabe (no XWayland o do X11 só se move sobre
+/// janelas X11).
+pub fn cursor(app: &AppHandle) -> Option<(f64, f64)> {
+    if let Some((x, y)) = gnome_shell::pointer() {
+        return Some((x as f64, y as f64));
+    }
+    app.cursor_position().ok().map(|c| (c.x, c.y))
 }
 
 /// Nada fica fora do alcance das janelas na borda de cima no Linux.

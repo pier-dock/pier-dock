@@ -23,6 +23,9 @@ pub struct PlatformInfo {
     pub glass: bool,
     /// Dá para ler o cursor em qualquer monitor (a dock pode seguir o cursor)?
     pub follow_cursor: bool,
+    /// A área reservada acompanha a dock fora do monitor principal? Falso só com a extensão do
+    /// GNOME anterior à versão 4.
+    pub reserve_any_monitor: bool,
 }
 
 #[tauri::command]
@@ -32,7 +35,7 @@ pub async fn platform_info() -> Result<PlatformInfo, String> {
 
 #[cfg(windows)]
 fn info() -> PlatformInfo {
-    PlatformInfo { os: "windows", window_list: "ok", hide_native: true, shortcuts: true, glass: crate::backdrop::supported(), follow_cursor: true }
+    PlatformInfo { os: "windows", window_list: "ok", hide_native: true, shortcuts: true, glass: crate::backdrop::supported(), follow_cursor: true, reserve_any_monitor: true }
 }
 
 #[cfg(target_os = "linux")]

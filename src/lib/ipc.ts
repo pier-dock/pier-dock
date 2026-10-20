@@ -309,6 +309,8 @@ export interface PlatformInfo {
   glass: boolean;
   /** Dá para ler o cursor em qualquer monitor (a dock pode seguir o cursor). */
   followCursor: boolean;
+  /** A área reservada acompanha a dock fora do monitor principal (falso com a extensão do GNOME antiga). */
+  reserveAnyMonitor: boolean;
 }
 
 export interface UpdateInfo {

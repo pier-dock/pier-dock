@@ -188,8 +188,8 @@ fn contains(monitor: &Monitor, x: f64, y: f64) -> bool {
 /// Seguindo o cursor: o cursor ficou `FOLLOW_DWELL` em outro monitor, sem painel aberto (ele
 /// fecharia no meio do uso)? Esse monitor vira o da dock. `pending` guarda o candidato e desde quando.
 fn follow_cursor(app: &AppHandle, window: &WebviewWindow, pending: &mut Option<(String, Instant)>) {
-    let (Ok(cursor), Ok(monitors)) = (app.cursor_position(), window.available_monitors()) else { return };
-    let Some(index) = monitors.iter().position(|m| contains(m, cursor.x, cursor.y)) else { return };
+    let (Some((x, y)), Ok(monitors)) = (backend::cursor(app), window.available_monitors()) else { return };
+    let Some(index) = monitors.iter().position(|m| contains(m, x, y)) else { return };
     let current = target_monitor(window).map(|m| *m.position());
     if current == Some(*monitors[index].position()) || crate::panels::panel_open() {
         *pending = None;
@@ -481,7 +481,7 @@ struct Placement {
     /// Faixa que janelas maximizadas não devem ocupar.
     band: Band,
     /// Limites do monitor onde a janela ficou.
-    #[cfg_attr(not(windows), allow(dead_code))]
+    #[cfg_attr(target_os = "macos", allow(dead_code))]
     monitor: Band,
 }
 

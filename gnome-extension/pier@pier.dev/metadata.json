@@ -3,5 +3,5 @@
   "name": "Pier",
   "description": "Ponte entre o GNOME Shell e o Pier: lista e foca janelas, mostra a área de trabalho, reserva espaço na tela, esconde o Dash e registra os atalhos Ctrl+Alt+1..9.",
   "shell-version": ["45", "46", "47", "48", "49"],
-  "version": 3
+  "version": 4
 }

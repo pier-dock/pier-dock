@@ -25,6 +25,10 @@ pub const SHOW_DESKTOP_VERSION: u32 = 2;
 /// base (`SetReservedHeight`), que é o que a versão 2 ainda tem.
 const RESERVED_ANY_EDGE_VERSION: u32 = 3;
 
+/// Versão da extensão em que a área é reservada no monitor da dock (`SetReservedAt`), não só no
+/// principal, e em que o Pier lê o cursor pelo Shell (`Pointer`).
+const ANY_MONITOR_VERSION: u32 = 4;
+
 #[zbus::proxy(
     interface = "dev.pier.Shell",
     default_service = "dev.pier.Shell",
@@ -45,6 +49,10 @@ pub trait Shell {
     fn set_reserved_height(&self, height: u32) -> zbus::Result<()>;
     /// Extensões novas (versão 2 em diante): reserva a faixa na borda escolhida.
     fn set_reserved(&self, edge: &str, height: u32) -> zbus::Result<()>;
+    /// Extensões da versão 4 em diante: reserva no monitor que contém (`x`, `y`).
+    fn set_reserved_at(&self, edge: &str, height: u32, x: i32, y: i32) -> zbus::Result<()>;
+    /// Extensões da versão 4 em diante: o cursor em coordenadas do Shell.
+    fn pointer(&self) -> zbus::Result<(i32, i32)>;
     fn set_shortcuts_enabled(&self, enabled: bool) -> zbus::Result<()>;
 
     #[zbus(signal)]
@@ -90,10 +98,13 @@ struct Desired {
     /// Borda onde a área é reservada: "bottom", "top", "left" ou "right".
     reserved_edge: &'static str,
     reserved_height: u32,
+    /// Um ponto dentro do monitor da dock.
+    reserved_at: Option<(i32, i32)>,
     shortcuts: bool,
 }
 
-static DESIRED: Mutex<Desired> = Mutex::new(Desired { hide_native: false, reserved_edge: "bottom", reserved_height: 0, shortcuts: false });
+static DESIRED: Mutex<Desired> =
+    Mutex::new(Desired { hide_native: false, reserved_edge: "bottom", reserved_height: 0, reserved_at: None, shortcuts: false });
 
 /// Proxy da extensão, se ela estiver carregada e respondendo.
 pub fn shell() -> Option<ShellProxy<'static>> {
@@ -113,8 +124,12 @@ pub fn list_windows() -> Option<ShellSnapshot> {
 fn apply(desired: Desired) {
     if let Some(shell) = shell() {
         let _ = shell.set_hide_native(desired.hide_native);
-        // Numa extensão antiga a reserva só existe na base: pedir outra borda não adianta.
-        if shell.version().unwrap_or(1) >= RESERVED_ANY_EDGE_VERSION {
+        // Numa extensão antiga a reserva só existe no monitor principal, e antes da versão 3 só na
+        // base: pedir outra borda não adianta.
+        let version = shell.version().unwrap_or(1);
+        if let (true, Some((x, y))) = (version >= ANY_MONITOR_VERSION, desired.reserved_at) {
+            let _ = shell.set_reserved_at(desired.reserved_edge, desired.reserved_height, x, y);
+        } else if version >= RESERVED_ANY_EDGE_VERSION {
             let _ = shell.set_reserved(desired.reserved_edge, desired.reserved_height);
         } else {
             let _ = shell.set_reserved_height(desired.reserved_height);
@@ -136,8 +151,9 @@ pub fn set_hide_native(hide: bool) {
     update(|d| d.hide_native = hide);
 }
 
-/// Espessura (pixels lógicos) que janelas maximizadas não devem ocupar na borda onde a dock está.
-pub fn set_reserved(edge: &str, height: u32) {
+/// Espessura (pixels lógicos) que janelas maximizadas não devem ocupar na borda onde a dock está,
+/// no monitor que contém `at`.
+pub fn set_reserved(edge: &str, height: u32, at: (i32, i32)) {
     let edge = match edge {
         "top" => "top",
         "left" => "left",
@@ -147,7 +163,23 @@ pub fn set_reserved(edge: &str, height: u32) {
     update(move |d| {
         d.reserved_edge = edge;
         d.reserved_height = height;
+        d.reserved_at = Some(at);
     });
+}
+
+/// A extensão reserva a área em qualquer monitor? Sem ela, os struts do X11 já reservam.
+pub fn reserves_any_monitor() -> bool {
+    shell().is_none_or(|s| s.version().unwrap_or(0) >= ANY_MONITOR_VERSION)
+}
+
+/// O cursor pelo Shell, que o enxerga em qualquer janela (no XWayland o cursor global só se move
+/// sobre janelas X11).
+pub fn pointer() -> Option<(i32, i32)> {
+    let shell = shell()?;
+    if shell.version().ok()? < ANY_MONITOR_VERSION {
+        return None;
+    }
+    shell.pointer().ok()
 }
 
 pub fn set_shortcuts_enabled(enabled: bool) {

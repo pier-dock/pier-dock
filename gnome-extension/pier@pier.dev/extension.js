@@ -14,7 +14,7 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import {ExtensionState} from 'resource:///org/gnome/shell/misc/extensionUtils.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-const VERSION = 3;
+const VERSION = 4;
 const APP_NAME = 'dev.pier.App';
 const BUS_NAME = 'dev.pier.Shell';
 const OBJECT_PATH = '/dev/pier/Shell';
@@ -40,6 +40,8 @@ const IFACE = `
     <method name="SetHideNative"><arg type="b" direction="in" name="hide"/></method>
     <method name="SetReservedHeight"><arg type="u" direction="in" name="height"/></method>
     <method name="SetReserved"><arg type="s" direction="in" name="edge"/><arg type="u" direction="in" name="height"/></method>
+    <method name="SetReservedAt"><arg type="s" direction="in" name="edge"/><arg type="u" direction="in" name="height"/><arg type="i" direction="in" name="x"/><arg type="i" direction="in" name="y"/></method>
+    <method name="Pointer"><arg type="i" direction="out" name="x"/><arg type="i" direction="out" name="y"/></method>
     <method name="SetShortcutsEnabled"><arg type="b" direction="in" name="enabled"/></method>
     <signal name="WindowsChanged"/>
     <signal name="ShortcutActivated"><arg type="u" name="index"/></signal>
@@ -57,6 +59,7 @@ class PierService {
         this._reserve = null;
         this._reservedHeight = 0;
         this._reservedEdge = 'bottom';
+        this._reservedAt = null;
         this._hiddenNative = null;
         this._accelerators = new Map();
         this._acceleratorSignal = 0;
@@ -193,7 +196,24 @@ class PierService {
     }
 
     SetReservedAsync([edge, height], invocation) {
-        this._handle(invocation, () => this._setReserved(edge, height));
+        this._handle(invocation, () => {
+            this._reservedAt = null;
+            this._setReserved(edge, height);
+        });
+    }
+
+    SetReservedAtAsync([edge, height, x, y], invocation) {
+        this._handle(invocation, () => {
+            this._reservedAt = [x, y];
+            this._setReserved(edge, height);
+        });
+    }
+
+    PointerAsync(_params, invocation) {
+        this._handle(invocation, () => {
+            const [x, y] = global.get_pointer();
+            return new GLib.Variant('(ii)', [x, y]);
+        });
     }
 
     SetShortcutsEnabledAsync([enabled], invocation) {
@@ -354,8 +374,16 @@ class PierService {
         this._placeReserve();
     }
 
+    // O monitor da dock: o que contém o ponto mandado pelo Pier, ou o principal.
+    _reserveMonitor() {
+        const at = this._reservedAt;
+        const monitor = at && Main.layoutManager.monitors.find(m =>
+            at[0] >= m.x && at[0] < m.x + m.width && at[1] >= m.y && at[1] < m.y + m.height);
+        return monitor ?? Main.layoutManager.primaryMonitor;
+    }
+
     _placeReserve() {
-        const monitor = Main.layoutManager.primaryMonitor;
+        const monitor = this._reserveMonitor();
         if (!this._reserve || !monitor)
             return;
         const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;

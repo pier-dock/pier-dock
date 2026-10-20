@@ -337,6 +337,10 @@ fn start_fullscreen_thread(app: AppHandle) {
 
 pub fn hit_rect_changed(_app: &AppHandle) {}
 
+pub fn cursor(app: &AppHandle) -> Option<(f64, f64)> {
+    app.cursor_position().ok().map(|c| (c.x, c.y))
+}
+
 /// Nada fica fora do alcance das janelas na borda de cima no Windows.
 pub fn top_inset(_monitor: Band) -> i32 {
     0
