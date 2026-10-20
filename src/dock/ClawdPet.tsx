@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import type { ClaudeAgent, DockPosition } from "../lib/ipc";
+import { ipc, type ClaudeAgent, type DockPosition } from "../lib/ipc";
 import { useClaudeAgents } from "../hooks/useClaudeAgents";
-import { leadStatus } from "../widgets/ClaudeAgentsWidget";
+import { useT } from "../i18n";
+import { leadStatus, openClaudeAgents } from "../widgets/ClaudeAgentsWidget";
 import { barRect, isVertical } from "./layout";
 import { ClaudeMascotIcon } from "./ClaudeMascotIcon";
 
@@ -14,6 +15,9 @@ const PET = 26;
 const EDGE_PAD = 10;
 const OVERLAP = 6;
 const SPEED = 46;
+/** A área clicável que o Rust recebe só é atualizada quando o Clawd anda isso, e sobra isso em
+ * volta dele: andando, ele nunca sai da área informada. */
+const HIT_STEP = 4;
 
 function moodOf(agents: ClaudeAgent[]): Mood {
   if (agents.some((a) => a.status === "permission")) return "waiting";
@@ -29,14 +33,19 @@ interface Props {
   barRef: React.RefObject<HTMLDivElement>;
 }
 
-/** Mascote decorativo que anda sobre a borda da dock, reagindo às sessões do Claude Code (ver
- * `useClaudeAgents`). Puramente visual: `pointer-events: none`, não participa da área clicável
- * (`set_hit_rect`) nem precisa de nenhuma mudança no Rust. */
+/** Mascote que anda sobre a borda da dock, reagindo às sessões do Claude Code (ver
+ * `useClaudeAgents`). Com alguma sessão, clicar nele faz o mesmo que o widget; como ele fica fora
+ * da barra, informa a própria área ao Rust (`set_pet_rect`), senão o clique atravessa a janela. */
 export function ClawdPet({ position, full, margin, visible, barRef }: Props) {
   const agents = useClaudeAgents();
   const vertical = isVertical(position);
   const mood = moodOf(agents);
   const lead = leadStatus(agents);
+  const t = useT().claudeAgents;
+  const clickable = visible && agents.length > 0;
+  const clickableRef = useRef(clickable);
+  clickableRef.current = clickable;
+  const reportedRef = useRef<{ x: number; y: number } | null>(null);
 
   const outerRef = useRef<HTMLDivElement>(null);
   const posRef = useRef(0);
@@ -54,6 +63,14 @@ export function ClawdPet({ position, full, margin, visible, barRef }: Props) {
     return () => observer.disconnect();
   }, [barRef]);
 
+  const report = (x: number, y: number) => {
+    const last = reportedRef.current;
+    if (last && Math.abs(last.x - x) < HIT_STEP && Math.abs(last.y - y) < HIT_STEP) return;
+    reportedRef.current = { x, y };
+    const size = PET + HIT_STEP * 2;
+    ipc.setPetRect({ x: x - HIT_STEP, y: y - HIT_STEP, width: size, height: size, radius: 0 }).catch(console.error);
+  };
+
   const apply = () => {
     const el = outerRef.current;
     if (!el || !barSize.width || !barSize.height) return;
@@ -62,13 +79,17 @@ export function ClawdPet({ position, full, margin, visible, barRef }: Props) {
     const bounds = Math.max(0, axis - EDGE_PAD * 2 - PET);
     if (posRef.current > bounds) posRef.current = bounds;
     el.style.setProperty("--pet-hide", `${(vertical ? barSize.width : barSize.height) + PET + 24}px`);
+    let x: number, y: number;
     if (!vertical) {
-      el.style.top = `${position === "bottom" ? rect.y - PET + OVERLAP : rect.y + rect.height - OVERLAP}px`;
-      el.style.left = `${rect.x + EDGE_PAD + posRef.current}px`;
+      y = position === "bottom" ? rect.y - PET + OVERLAP : rect.y + rect.height - OVERLAP;
+      x = rect.x + EDGE_PAD + posRef.current;
     } else {
-      el.style.left = `${position === "right" ? rect.x - PET + OVERLAP : rect.x + rect.width - OVERLAP}px`;
-      el.style.top = `${rect.y + EDGE_PAD + posRef.current}px`;
+      x = position === "right" ? rect.x - PET + OVERLAP : rect.x + rect.width - OVERLAP;
+      y = rect.y + EDGE_PAD + posRef.current;
     }
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+    if (clickableRef.current) report(x, y);
   };
 
   useEffect(() => {
@@ -78,6 +99,16 @@ export function ClawdPet({ position, full, margin, visible, barRef }: Props) {
     return () => window.removeEventListener("resize", onResize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [position, full, margin, barSize, vertical]);
+
+  useEffect(() => {
+    if (!clickable) return;
+    apply();
+    return () => {
+      reportedRef.current = null;
+      ipc.setPetRect(null).catch(console.error);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clickable]);
 
   useEffect(() => {
     if (mood !== "walking") return;
@@ -114,7 +145,14 @@ export function ClawdPet({ position, full, margin, visible, barRef }: Props) {
   }, [mood, position, full, margin, barSize, vertical]);
 
   return (
-    <div ref={outerRef} className={`claude-pet ${visible ? "" : "claude-pet-hidden"}`} aria-hidden>
+    <div
+      ref={outerRef}
+      className={`claude-pet ${visible ? "" : "claude-pet-hidden"} ${clickable ? "clickable" : ""}`}
+      role={clickable ? "button" : undefined}
+      aria-label={clickable ? t.tile(agents.length, t.status[lead ?? "running"]) : undefined}
+      aria-hidden={!clickable}
+      onClick={(e) => clickable && openClaudeAgents(agents, e.currentTarget)}
+    >
       <div className={`claude-pet-facing facing-${facing}`}>
         <span className={`claude-sprite claude-pet-sprite ${mood === "walking" ? "walking" : `claude-pet-${mood}`} ${lead ? `claude-${lead}` : ""}`}>
           <ClaudeMascotIcon size={18} />

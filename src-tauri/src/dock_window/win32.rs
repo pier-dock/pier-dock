@@ -237,7 +237,8 @@ fn start_pointer_thread(window: WebviewWindow) {
             let (left, top) = (win.left as f64 + x0 * scale, win.top as f64 + y0 * scale);
             let (right, bottom) = (win.left as f64 + x1 * scale, win.top as f64 + y1 * scale);
             let (cx, cy) = (cursor.x as f64, cursor.y as f64);
-            let over_dock = super::dock_visible() && cx >= left && cx <= right && cy >= top && cy <= bottom;
+            let over_pet = super::over_pet((cx - win.left as f64) / scale, (cy - win.top as f64) / scale);
+            let over_dock = super::dock_visible() && ((cx >= left && cx <= right && cy >= top && cy <= bottom) || over_pet);
             let pressed = mouse_pressed();
             // Na dock quem decide é o próprio clique (o widget alterna o painel dele).
             if pressed && !was_pressed && !over_dock {

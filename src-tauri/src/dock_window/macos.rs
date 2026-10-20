@@ -119,7 +119,8 @@ fn start_pointer_thread(window: WebviewWindow) {
             let (right, bottom) = (win_left + x1 * scale, win_top + y1 * scale);
             // O cursor em pixels da tela da dock, como a posição da janela.
             let (cx, cy) = (cursor.0 * scale, cursor.1 * scale);
-            let over_dock = super::dock_visible() && cx >= left && cx <= right && cy >= top && cy <= bottom;
+            let over_pet = super::over_pet((cx - win_left) / scale, (cy - win_top) / scale);
+            let over_dock = super::dock_visible() && ((cx >= left && cx <= right && cy >= top && cy <= bottom) || over_pet);
             // O cursor para na última linha de pontos da tela, um ponto (`scale` pixels) antes da
             // borda onde a dock encosta.
             let at_edge = at_dock_edge(cx, cy, window_band, scale);

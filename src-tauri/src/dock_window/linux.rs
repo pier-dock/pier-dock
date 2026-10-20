@@ -14,7 +14,7 @@ use gtk::prelude::*;
 use tauri::{AppHandle, Manager, WebviewWindow};
 
 use super::{
-    auto_hide, clickable_area, edge_name, layout, place_window, position, reveal_strip, set_visible, want_visible, AUTO_HIDE_NEVER, DOCK_LABEL,
+    auto_hide, clickable_area, edge_name, layout, pet_rect, place_window, position, reveal_strip, set_visible, want_visible, AUTO_HIDE_NEVER, DOCK_LABEL,
     HOVER_GRACE_MS, LEFT, RIGHT, TOP,
 };
 use crate::platform::linux::{gnome_shell, x11};
@@ -108,7 +108,12 @@ fn update_input_region(window: &WebviewWindow) {
             reveal_strip(2.0, size)
         };
         let rect = gtk::cairo::RectangleInt::new(x0 as i32, y0 as i32, ((x1 - x0) as i32).max(1), ((y1 - y0) as i32).max(1));
-        gdk_window.input_shape_combine_region(&gtk::cairo::Region::create_rectangle(&rect), 0, 0);
+        let region = gtk::cairo::Region::create_rectangle(&rect);
+        if let Some(pet) = pet_rect().filter(|_| super::dock_visible()) {
+            let pet = gtk::cairo::RectangleInt::new(pet.x as i32, pet.y as i32, pet.width as i32, pet.height as i32);
+            let _ = region.union_rectangle(&pet);
+        }
+        gdk_window.input_shape_combine_region(&region, 0, 0);
     });
 }
 
