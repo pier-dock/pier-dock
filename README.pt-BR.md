@@ -141,64 +141,9 @@ O Pier restaura a barra de tarefas nativa (ou o Dock do macOS) ao sair. Se o pro
 
 No GNOME, o Dash volta sozinho.
 
-## Compilando a partir do código
+## Contribuindo
 
-### Pré-requisitos
-
-- [Node.js](https://nodejs.org) 22 ou mais recente
-- [Rust](https://rustup.rs) (stable)
-- Ferramentas de cada plataforma:
-  - **Windows:** Visual Studio Build Tools com a carga de trabalho de C++ e o Windows SDK. Use o toolchain `stable-x86_64-pc-windows-msvc` do Rust.
-  - **macOS:** Xcode Command Line Tools (`xcode-select --install`).
-  - **Linux:** `libwebkit2gtk-4.1-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev` e `patchelf`.
-
-### Rodar e compilar
-
-```sh
-npm install
-npm run tauri dev     # roda em modo de desenvolvimento
-npm run tauri build   # gera os instaladores em src-tauri/target/release/bundle/
-```
-
-Quando você roda `npm run tauri dev` no macOS, o sistema concede as permissões ao terminal que rodou o comando, e não ao Pier.
-
-### Pré-visualização no navegador
-
-Fora do Tauri, o `npm run dev` responde as chamadas de IPC com dados de exemplo, para você conferir a interface no navegador. Abra `http://localhost:1420` com um destes parâmetros:
-
-- `?view=dock`
-- `?view=panel&kind=media` (ou `github-mine`, `github-review`, `github-contrib`, `volume`, `network`)
-- `?view=settings`
-
-### Testes
-
-```sh
-npm test                               # testes do frontend
-cd src-tauri
-cargo test                             # testes unitários do Rust
-cargo test -- --ignored --nocapture    # smoke tests contra o sistema real
-```
-
-Os smoke tests usam janelas, apps, sessões de mídia e a API do GitHub de verdade, na máquina em que rodam.
-
-### Ícones
-
-Os ícones de todas as plataformas saem de `app-icon.svg` e `src-tauri/icons/source/`. Para gerá-los de novo, rode `./scripts/icons.sh` no macOS (o script precisa do `iconutil`).
-
-## Publicando uma versão
-
-Para publicar uma versão nova:
-
-1. Rode `./scripts/release.sh x.y.z`. O script atualiza a versão no `package.json` e no `Cargo.toml`, faz o commit e cria a tag `vx.y.z`.
-2. Rode `git push --follow-tags`.
-3. Espere o workflow **Release** terminar. Ele compila o Pier no macOS, no Windows e no Linux e cria um release rascunho com os instaladores e o `latest.json` do atualizador.
-4. Confira o rascunho e publique. As cópias instaladas do Pier só enxergam a versão nova depois da publicação.
-
-Para testar o build sem criar um release, rode o workflow à mão em **Actions** > **Release** > **Run workflow**. Os instaladores ficam anexados à execução como artefatos.
-
-O workflow assina os pacotes de atualização com a chave do atualizador guardada nos secrets `TAURI_SIGNING_PRIVATE_KEY` e `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` do repositório. A chave pública correspondente está em `src-tauri/tauri.conf.json`. Guarde uma cópia da chave privada: se ela for perdida, as cópias instaladas do Pier recusam as próximas atualizações.
-
-Para assinar e notarizar o app do macOS no futuro, adicione os secrets `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD` e `APPLE_TEAM_ID`, passe-os no `env` do passo `tauri-action` e remova o `"signingIdentity": "-"` de `src-tauri/tauri.macos.conf.json`.
+Encontrou um bug ou tem uma ideia? [Abra uma issue](https://github.com/pier-dock/pier-dock/issues/new/choose). Para compilar o Pier a partir do código, rodar os testes ou enviar um pull request, veja o [CONTRIBUTING.pt-BR.md](CONTRIBUTING.pt-BR.md).
 
 ## Licença
 
