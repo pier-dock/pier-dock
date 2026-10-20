@@ -19,6 +19,7 @@ import { PREVIEW_GAP, barRect, dockMetrics, isVertical, previewSpace } from "./l
 import { WindowPreview } from "./WindowPreview";
 import { ClawdPet } from "./ClawdPet";
 import { MagnifyCtx } from "./Magnify";
+import { resetDockHover } from "./hoverReset";
 import { AppIcon } from "./AppIcon";
 import { SortableItem } from "./SortableItem";
 import { addDivider, applyOrder, isDivider, LAUNCHER_KEY, removeItem, resolveOrder, START_KEY, widgetKey } from "./order";
@@ -188,7 +189,10 @@ export function Dock({ config }: { config: Config }) {
     ipc.dockVisible().then(setVisible);
     const unlisten = listen<boolean>("dock-visibility", (e) => {
       setVisible(e.payload);
-      if (!e.payload) mouse.set(Infinity);
+      if (!e.payload) {
+        mouse.set(Infinity);
+        resetDockHover();
+      }
     });
     return () => {
       unlisten.then((f) => f());
@@ -203,6 +207,7 @@ export function Dock({ config }: { config: Config }) {
     const leave = () => {
       ipc.setDockHover(false);
       mouse.set(Infinity);
+      resetDockHover();
     };
     root.addEventListener("mouseenter", enter);
     root.addEventListener("mouseleave", leave);
@@ -243,6 +248,7 @@ export function Dock({ config }: { config: Config }) {
       // Quando o Rust liga o click-through, o WebView não recebe mouseleave.
       listen("dock-pointer-left", () => {
         mouse.set(Infinity);
+        resetDockHover();
         setPreview(null);
       }),
       listen<number>("shortcut-app", (e) => {

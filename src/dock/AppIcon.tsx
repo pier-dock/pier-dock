@@ -8,6 +8,7 @@ import { keys } from "../lib/platform";
 import { useIcon } from "../hooks/useIcon";
 import { useConfig } from "../store/config";
 import { Tooltip } from "../ui/Tooltip";
+import { useDockHoverReset } from "./hoverReset";
 import { Magnify, MagnifyCtx } from "./Magnify";
 import { toPinned, type DockApp } from "./apps";
 import { useT } from "../i18n";
@@ -57,6 +58,12 @@ export function AppIcon({ app, active, sortable, shortcut, onPreview, onHoverCha
     if (value !== Infinity) return;
     setHover(false);
     // Arrastar ou esconder a dock também cancela a espera da prévia.
+    cancelPreview();
+  });
+  // O mouse zerado não basta: se o hover começou sem mousemove (a dock deslizou sob o cursor
+  // parado), ele já era Infinity e não muda. A dock também avisa a saída de forma explícita.
+  const claimHover = useDockHoverReset(() => {
+    setHover(false);
     cancelPreview();
   });
   useEffect(() => cancelPreview, []);
@@ -117,6 +124,7 @@ export function AppIcon({ app, active, sortable, shortcut, onPreview, onHoverCha
 
   const onMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
     setHover(true);
+    claimHover();
     onHoverChange?.(app, true);
     if (!onPreview || app.windows.length < 2 || isDragging) return;
     const el = e.currentTarget;

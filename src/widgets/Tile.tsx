@@ -2,6 +2,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { ipc } from "../lib/ipc";
 import { Tooltip } from "../ui/Tooltip";
 import { PANEL_INSET, PANEL_SIZES } from "../popovers/sizes";
+import { useDockHoverReset } from "../dock/hoverReset";
 
 /** Abre (ou fecha, se já estiver aberto) o painel do widget, centrado em `el` e encostado na dock. */
 export function togglePanel(kind: string, el: Element) {
@@ -15,7 +16,13 @@ export function togglePanel(kind: string, el: Element) {
 /** Mostra o tooltip enquanto o mouse está sobre o elemento. */
 export function useHover() {
   const [hover, setHover] = useState(false);
-  return { hover, bind: { onMouseEnter: () => setHover(true), onMouseLeave: () => setHover(false) } };
+  // Com a dock escondida ou com click-through, o mouseleave não chega; a dock avisa a saída.
+  const claimHover = useDockHoverReset(() => setHover(false));
+  const onMouseEnter = () => {
+    setHover(true);
+    claimHover();
+  };
+  return { hover, bind: { onMouseEnter, onMouseLeave: () => setHover(false) } };
 }
 
 interface TileProps {
