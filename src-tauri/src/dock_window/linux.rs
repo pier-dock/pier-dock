@@ -48,7 +48,7 @@ pub fn init(window: &WebviewWindow) {
     start_visibility_thread(window.clone());
 }
 
-/// Posiciona a janela na borda escolhida do monitor primário e reserva a área de trabalho.
+/// Posiciona a janela na borda escolhida do monitor da dock e reserva a área de trabalho.
 pub fn apply_layout(window: &WebviewWindow) {
     let Some(p) = place_window(window) else { return };
     let reserve = auto_hide() == AUTO_HIDE_NEVER;
@@ -145,6 +145,6 @@ pub fn hit_rect_changed(app: &AppHandle) {
 }
 
 /// Nada fica fora do alcance das janelas na borda de cima no Linux.
-pub fn top_inset() -> i32 {
+pub fn top_inset(_monitor: super::Band) -> i32 {
     0
 }

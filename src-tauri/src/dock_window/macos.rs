@@ -5,7 +5,7 @@
 //! Sem `FullScreenAuxiliary` a janela não entra nos Spaces de apps em tela cheia: lá a dock some
 //! sozinha, como o Windows faz com a thread de tela cheia.
 
-use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::{mpsc, Mutex};
 use std::time::{Duration, Instant};
 
 use objc2::MainThreadMarker;
@@ -15,13 +15,49 @@ use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, Webview
 use super::{at_dock_edge, clickable_area, hit_rect, layout, place_window, set_visible, want_visible, Band, HOVER_GRACE_MS};
 use crate::platform::macos::pointer;
 
-/// Altura da barra de menus, em pixels físicos, medida na tela principal. A dock no topo ficaria
-/// atrás dela (nem o macOS nem nós reservamos a faixa da barra de menus).
-static TOP_INSET: AtomicI32 = AtomicI32::new(0);
+/// Altura da barra de menus de cada tela, em pixels físicos, pelo canto de cima à esquerda da
+/// tela. A dock no topo ficaria atrás dela (nem o macOS nem nós reservamos essa faixa).
+static TOP_INSETS: Mutex<Vec<((i32, i32), i32)>> = Mutex::new(Vec::new());
 
-/// Quanto a dock desce quando está na borda de cima.
-pub fn top_inset() -> i32 {
-    TOP_INSET.load(Ordering::SeqCst)
+/// Quanto a dock desce quando está na borda de cima do monitor.
+pub fn top_inset(monitor: Band) -> i32 {
+    // Os pontos do `NSScreen` viram pixels com arredondamento: tolera um pixel de diferença.
+    let near = |(x, y): (i32, i32)| (x - monitor.left).abs() <= 1 && (y - monitor.top).abs() <= 1;
+    TOP_INSETS.lock().unwrap().iter().find(|(origin, _)| near(*origin)).map_or(0, |(_, inset)| *inset)
+}
+
+/// Relê a barra de menus de cada tela. O `NSScreen` só pode ser lido na thread principal; de outra
+/// thread, espera a leitura de lá.
+fn refresh_insets(window: &WebviewWindow) {
+    fn read(mtm: MainThreadMarker) -> Vec<((i32, i32), i32)> {
+        let screens = NSScreen::screens(mtm);
+        // O `frame` usa pontos com a origem embaixo, à esquerda da tela principal; o Tauri usa o
+        // canto de cima, em pixels de cada tela.
+        let Some(main_height) = screens.firstObject().map(|s| s.frame().size.height) else { return Vec::new() };
+        screens
+            .iter()
+            .map(|screen| {
+                let (frame, visible, scale) = (screen.frame(), screen.visibleFrame(), screen.backingScaleFactor());
+                let top = main_height - (frame.origin.y + frame.size.height);
+                let menu_bar = (frame.origin.y + frame.size.height) - (visible.origin.y + visible.size.height);
+                (((frame.origin.x * scale).round() as i32, (top * scale).round() as i32), (menu_bar * scale).round() as i32)
+            })
+            .collect()
+    }
+    let insets = match MainThreadMarker::new() {
+        Some(mtm) => read(mtm),
+        None => {
+            let (tx, rx) = mpsc::channel();
+            let _ = window.run_on_main_thread(move || {
+                if let Some(mtm) = MainThreadMarker::new() {
+                    let _ = tx.send(read(mtm));
+                }
+            });
+            let Ok(insets) = rx.recv_timeout(Duration::from_secs(1)) else { return };
+            insets
+        }
+    };
+    *TOP_INSETS.lock().unwrap() = insets;
 }
 
 pub fn init(window: &WebviewWindow) {
@@ -34,16 +70,6 @@ pub fn init(window: &WebviewWindow) {
                 | NSWindowCollectionBehavior::Stationary
                 | NSWindowCollectionBehavior::IgnoresCycle,
         );
-        // `NSScreen` só pode ser lido na thread principal. Na tela principal (a das telas todas,
-        // que é a que o Tauri chama de monitor primário) a barra de menus é a sobra entre o topo da
-        // tela e o topo da área visível.
-        let Some(mtm) = MainThreadMarker::new() else { return };
-        let Some(screen) = NSScreen::screens(mtm).firstObject() else { return };
-        let frame = screen.frame();
-        let visible = screen.visibleFrame();
-        let points = frame.size.height - (visible.origin.y + visible.size.height);
-        let scale = w.scale_factor().unwrap_or(1.0);
-        TOP_INSET.store((points * scale).round() as i32, Ordering::SeqCst);
     });
     pointer::forward(window);
     apply_layout(window);
@@ -53,6 +79,7 @@ pub fn init(window: &WebviewWindow) {
 }
 
 pub fn apply_layout(window: &WebviewWindow) {
+    refresh_insets(window);
     place_window(window);
 }
 

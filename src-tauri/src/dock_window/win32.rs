@@ -2,6 +2,7 @@
 //! acompanha o cursor), ocultação automática e ocultação quando um app está em tela cheia.
 
 use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
@@ -26,6 +27,8 @@ use crate::util::wide_to_string;
 
 static DOCK_HWND: AtomicIsize = AtomicIsize::new(0);
 static APPBAR_REGISTERED: AtomicBool = AtomicBool::new(false);
+/// Monitor em que a AppBar foi registrada.
+static APPBAR_MONITOR: Mutex<Option<Band>> = Mutex::new(None);
 static HIDDEN_FOR_FULLSCREEN: AtomicBool = AtomicBool::new(false);
 
 fn dock_hwnd() -> HWND {
@@ -101,10 +104,14 @@ pub fn init(window: &WebviewWindow) {
     start_fullscreen_thread(window.app_handle().clone());
 }
 
-/// Posiciona a janela na borda escolhida do monitor primário e reserva a área de trabalho via
+/// Posiciona a janela na borda escolhida do monitor da dock e reserva a área de trabalho via
 /// AppBar.
 pub fn apply_layout(window: &WebviewWindow) {
     let Some(p) = place_window(window) else { return };
+    // A AppBar de um monitor não se muda para outro com `ABM_SETPOS`: registra de novo.
+    if std::mem::replace(&mut *APPBAR_MONITOR.lock().unwrap(), Some(p.monitor)) != Some(p.monitor) {
+        remove_appbar();
+    }
     if auto_hide() == AUTO_HIDE_NEVER {
         register_appbar(p.band);
     } else {
@@ -286,7 +293,7 @@ fn is_shell_window(hwnd: HWND) -> bool {
     matches!(class.as_str(), "Progman" | "WorkerW" | "Shell_TrayWnd" | "Shell_SecondaryTrayWnd")
 }
 
-/// Esconde a dock enquanto um app ocupa a tela inteira do monitor primário (vídeos, jogos).
+/// Esconde a dock enquanto um app ocupa a tela inteira do monitor dela (vídeos, jogos).
 fn start_fullscreen_thread(app: AppHandle) {
     std::thread::spawn(move || {
         let own_pid = std::process::id();
@@ -307,10 +314,9 @@ fn start_fullscreen_thread(app: AppHandle) {
                     // Sem área reservada (ocultar automaticamente), uma janela maximizada também cobre
                     // o monitor inteiro, mas não é tela cheia: a dock tem que poder aparecer por cima.
                     let maximized = IsZoomed(fg).as_bool();
-                    // dwFlags & 1 = MONITORINFOF_PRIMARY: a dock só vive no monitor primário.
                     Some(
                         ok && !maximized
-                            && info.dwFlags & 1 != 0
+                            && monitor == MonitorFromWindow(dock_hwnd(), MONITOR_DEFAULTTONEAREST)
                             && rect.left <= info.rcMonitor.left
                             && rect.top <= info.rcMonitor.top
                             && rect.right >= info.rcMonitor.right
@@ -332,7 +338,7 @@ fn start_fullscreen_thread(app: AppHandle) {
 pub fn hit_rect_changed(_app: &AppHandle) {}
 
 /// Nada fica fora do alcance das janelas na borda de cima no Windows.
-pub fn top_inset() -> i32 {
+pub fn top_inset(_monitor: Band) -> i32 {
     0
 }
 

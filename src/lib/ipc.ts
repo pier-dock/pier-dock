@@ -72,6 +72,8 @@ export interface Config {
   dockHeight: number | null;
   /** Borda da tela onde a dock fica. */
   dockPosition: DockPosition;
+  /** `primary` ou o id de um monitor (`MonitorInfo.id`). */
+  dockMonitor: string;
   githubPollMinutes: number;
   aiPollMinutes: number;
   /** Qual IA o widget de uso lê: "auto" (a de leitura mais recente), "claude" ou "codex". */
@@ -283,6 +285,15 @@ export interface Volume {
   muted: boolean;
 }
 
+export interface MonitorInfo {
+  /** Nome do sistema; monitores com o mesmo nome ganham " 2", " 3"… da esquerda para a direita. */
+  id: string;
+  name: string;
+  primary: boolean;
+  width: number;
+  height: number;
+}
+
 export interface Permission {
   id: "accessibility" | "screen-recording" | "automation" | "location" | "bluetooth";
   /** `unknown`: o sistema só responde com o app envolvido aberto (Automação do Spotify e do Música). */
@@ -452,6 +463,7 @@ export const ipc = {
   platformInfo: () => invoke<PlatformInfo>("platform_info"),
   systemLanguage: () => invoke<Lang>("system_language"),
   platformSetup: (action: "install-extension" | "request-accessibility") => invoke<void>("platform_setup", { action }),
+  listMonitors: () => invoke<MonitorInfo[]>("list_monitors"),
   permissions: () => invoke<Permission[]>("permissions"),
   permissionAction: (id: Permission["id"]) => invoke<void>("permission_action", { id }),
 

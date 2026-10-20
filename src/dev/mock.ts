@@ -72,6 +72,7 @@ const config: Config = {
   autoHide: "smart",
   dockWidth: "fit",
   dockPosition: "bottom",
+  dockMonitor: "primary",
   dockHeight: null,
   githubPollMinutes: 3,
   aiPollMinutes: 1,
@@ -290,6 +291,10 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
     { id: "bluetooth", status: "granted" },
   ],
   permission_action: () => undefined,
+  list_monitors: () => [
+    { id: "Built-in Retina Display", name: "Built-in Retina Display", primary: true, width: 1512, height: 982 },
+    ...(params.has("monitors") ? [{ id: "DELL U2720Q", name: "DELL U2720Q", primary: false, width: 2560, height: 1440 }] : []),
+  ],
   get_windows: () => windows,
   toggle_desktop: () => null,
   list_installed_apps: () => installed,

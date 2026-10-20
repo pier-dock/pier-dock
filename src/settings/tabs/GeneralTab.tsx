@@ -3,7 +3,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { listen } from "@tauri-apps/api/event";
 import { disable as disableAutostart, enable as enableAutostart, isEnabled as autostartEnabled } from "@tauri-apps/plugin-autostart";
 import { Bug, Lightbulb, Sparkles } from "lucide-react";
-import { ipc, type Permission, type ReportKind, type UpdateInfo } from "../../lib/ipc";
+import { ipc, type MonitorInfo, type Permission, type ReportKind, type UpdateInfo } from "../../lib/ipc";
 import { labels, os } from "../../lib/platform";
 import { Card, Row, SectionLabel } from "../../ui/Card";
 import { Logo } from "../../ui/Logo";
@@ -61,6 +61,7 @@ export function GeneralTab({ config, update, platform }: TabProps) {
   const [confirmReset, setConfirmReset] = useState(false);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [reviewing, setReviewing] = useState(false);
+  const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
   const { general: t, report: reportT, permissions: permissionsT } = useT();
   const platformLabels = labels();
 
@@ -89,14 +90,23 @@ export function GeneralTab({ config, update, platform }: TabProps) {
     };
   }, []);
 
-  const refreshPermissions = useCallback(() => {
+  const refreshSystem = useCallback(() => {
     ipc.permissions().then(setPermissions).catch(console.error);
+    ipc.listMonitors().then(setMonitors).catch(console.error);
   }, []);
   useEffect(() => {
-    refreshPermissions();
-    window.addEventListener("focus", refreshPermissions);
-    return () => window.removeEventListener("focus", refreshPermissions);
-  }, [refreshPermissions]);
+    refreshSystem();
+    window.addEventListener("focus", refreshSystem);
+    return () => window.removeEventListener("focus", refreshSystem);
+  }, [refreshSystem]);
+
+  const chosenMissing = config.dockMonitor !== "primary" && !monitors.some((m) => m.id === config.dockMonitor);
+  const monitorOptions = [
+    { value: "primary", label: t.primaryMonitor },
+    ...monitors.filter((m) => !m.primary).map((m) => ({ value: m.id, label: m.id })),
+    ...(chosenMissing ? [{ value: config.dockMonitor, label: t.disconnected(config.dockMonitor) }] : []),
+  ];
+  const monitorHint = chosenMissing ? t.monitorFallback : os === "linux" && config.dockMonitor !== "primary" ? t.gnomeReserve : undefined;
 
   const transferConfig = (run: () => Promise<boolean>, done: string) => {
     setTransfer(null);
@@ -132,6 +142,11 @@ export function GeneralTab({ config, update, platform }: TabProps) {
           <Row label={t.autoUpdate} description={t.autoUpdateHint}>
             <Switch checked={config.autoUpdate} label={t.autoUpdate} onChange={(autoUpdate) => update({ autoUpdate })} />
           </Row>
+          {(monitors.length > 1 || config.dockMonitor !== "primary") && (
+            <Row label={t.dockMonitor} description={monitorHint}>
+              <Segmented label={t.dockMonitor} value={config.dockMonitor} onChange={(dockMonitor) => update({ dockMonitor })} options={monitorOptions} />
+            </Row>
+          )}
           {platform?.hideNative && (
             <Row label={t.replaceBar} description={platformLabels.nativeBar}>
               <Switch checked={config.hideTaskbar} label={t.replaceBar} onChange={(hideTaskbar) => update({ hideTaskbar })} />
@@ -155,7 +170,7 @@ export function GeneralTab({ config, update, platform }: TabProps) {
           </Card>
         </div>
       )}
-      {reviewing && <PermissionsDialog permissions={permissions} refresh={refreshPermissions} onClose={() => setReviewing(false)} />}
+      {reviewing && <PermissionsDialog permissions={permissions} refresh={refreshSystem} onClose={() => setReviewing(false)} />}
 
       <div className="field">
         <SectionLabel>{t.settingsFile}</SectionLabel>

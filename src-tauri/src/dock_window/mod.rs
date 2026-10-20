@@ -1,14 +1,15 @@
-//! Janela da dock: posicionamento na borda escolhida do monitor primário, reserva da área de
-//! trabalho, click-through fora da barra e ocultação automática.
+//! Janela da dock: posicionamento na borda escolhida do monitor escolhido (o principal, por
+//! padrão), reserva da área de trabalho, click-through fora da barra e ocultação automática.
 //!
 //! O estado (medidas vindas do frontend, borda da tela, modo de ocultar, visibilidade) é comum;
 //! cada sistema tem um backend com `init`, `apply_layout` e `hit_rect_changed`.
 
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::Mutex;
+use std::time::Duration;
 
-use serde::Deserialize;
-use tauri::{AppHandle, Manager, WebviewWindow};
+use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, Manager, Monitor, WebviewWindow};
 
 #[cfg_attr(target_os = "windows", path = "win32.rs")]
 #[cfg_attr(target_os = "linux", path = "linux.rs")]
@@ -80,6 +81,113 @@ pub fn set_position(app: &AppHandle, position: &str) {
     }
 }
 
+/// Monitor onde a dock fica: `primary` ou o id de um monitor (`monitor_ids`).
+static MONITOR: Mutex<String> = Mutex::new(String::new());
+
+const PRIMARY: &str = "primary";
+
+pub fn init_monitor(monitor: &str) {
+    *MONITOR.lock().unwrap() = monitor.to_string();
+}
+
+/// Troca o monitor da dock. O painel aberto é fechado: ele ficaria ancorado no monitor antigo.
+pub fn set_monitor(app: &AppHandle, monitor: &str) {
+    let changed = std::mem::replace(&mut *MONITOR.lock().unwrap(), monitor.to_string()) != monitor;
+    if changed {
+        if let Some(window) = app.get_webview_window(DOCK_LABEL) {
+            crate::panels::close_open_panel(app);
+            backend::apply_layout(&window);
+        }
+    }
+}
+
+/// Ids estáveis para os monitores, na ordem recebida: o nome do sistema e, entre monitores com o
+/// mesmo nome (dois do mesmo modelo), " 2", " 3"… da esquerda para a direita.
+fn monitor_ids(monitors: &[(String, i32, i32)]) -> Vec<String> {
+    monitors
+        .iter()
+        .map(|(name, x, y)| {
+            let before = monitors.iter().filter(|(n, ox, oy)| n == name && (ox, oy) < (x, y)).count();
+            if before == 0 {
+                name.clone()
+            } else {
+                format!("{name} {}", before + 1)
+            }
+        })
+        .collect()
+}
+
+fn ids_of(monitors: &[Monitor]) -> Vec<String> {
+    let keys: Vec<_> = monitors
+        .iter()
+        .map(|m| (m.name().cloned().unwrap_or_else(|| "Monitor".into()), m.position().x, m.position().y))
+        .collect();
+    monitor_ids(&keys)
+}
+
+/// O monitor escolhido; se ele não estiver conectado, o principal.
+fn target_monitor(window: &WebviewWindow) -> Option<Monitor> {
+    let wanted = MONITOR.lock().unwrap().clone();
+    if !wanted.is_empty() && wanted != PRIMARY {
+        if let Ok(monitors) = window.available_monitors() {
+            if let Some(i) = ids_of(&monitors).iter().position(|id| *id == wanted) {
+                return monitors.into_iter().nth(i);
+            }
+        }
+    }
+    window.primary_monitor().ok().flatten()
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MonitorInfo {
+    pub id: String,
+    pub name: String,
+    pub primary: bool,
+    /// Tamanho em pixels lógicos.
+    pub width: u32,
+    pub height: u32,
+}
+
+#[tauri::command]
+pub fn list_monitors(app: AppHandle) -> Vec<MonitorInfo> {
+    let monitors = app.available_monitors().unwrap_or_default();
+    let primary = app.primary_monitor().ok().flatten().map(|m| *m.position());
+    ids_of(&monitors)
+        .into_iter()
+        .zip(&monitors)
+        .map(|(id, m)| {
+            let size = m.size().to_logical::<u32>(m.scale_factor());
+            MonitorInfo {
+                id,
+                name: m.name().cloned().unwrap_or_else(|| "Monitor".into()),
+                primary: Some(*m.position()) == primary,
+                width: size.width,
+                height: size.height,
+            }
+        })
+        .collect()
+}
+
+/// Plugar ou desplugar um monitor, ou mudar a resolução, não move a janela sozinho: a cada segundo
+/// confere se o monitor-alvo mudou e reposiciona a dock.
+pub fn start_monitor_watch(app: AppHandle) {
+    std::thread::spawn(move || {
+        let mut last = None;
+        loop {
+            std::thread::sleep(Duration::from_secs(1));
+            let Some(window) = app.get_webview_window(DOCK_LABEL) else { continue };
+            let Some(monitor) = target_monitor(&window) else { continue };
+            let key = (*monitor.position(), *monitor.size(), monitor.scale_factor().to_bits());
+            if last.is_some_and(|l| l != key) {
+                crate::panels::close_open_panel(&app);
+                backend::apply_layout(&window);
+            }
+            last = Some(key);
+        }
+    });
+}
+
 /// Medidas em pixels lógicos (CSS), informadas pelo frontend. As duas primeiras são medidas no eixo
 /// da espessura da barra: a altura, nas bordas de cima e de baixo; a largura, nas laterais.
 #[derive(Clone, Copy, Default, Deserialize)]
@@ -129,7 +237,7 @@ impl Band {
     }
 }
 
-/// Faixa reservada e limites do monitor primário, em pixels físicos de tela — usado para ancorar
+/// Faixa reservada e limites do monitor da dock, em pixels físicos de tela — usado para ancorar
 /// os painéis dos widgets e a bandeja.
 pub struct Reserved {
     pub band: Band,
@@ -241,7 +349,7 @@ pub fn set_preview_glass(app: AppHandle, rect: Option<HitRect>) {
 /// Faixa de `reserved` pixels na borda escolhida do monitor. Na borda de cima a faixa começa
 /// depois do que não pertence às janelas (a barra de menus do macOS).
 fn reserved_band(monitor: Band, reserved: i32) -> Band {
-    let top = monitor.top + backend::top_inset();
+    let top = monitor.top + backend::top_inset(monitor);
     match position() {
         TOP => Band::new(monitor.left, top, monitor.right, top + reserved),
         LEFT => Band::new(monitor.left, monitor.top, monitor.left + reserved, monitor.bottom),
@@ -250,9 +358,9 @@ fn reserved_band(monitor: Band, reserved: i32) -> Band {
     }
 }
 
-/// Faixa reservada no monitor primário, em pixels físicos de tela.
+/// Faixa reservada no monitor da dock, em pixels físicos de tela.
 pub fn reserved_rect(window: &WebviewWindow) -> Option<Reserved> {
-    let monitor = window.primary_monitor().ok().flatten()?;
+    let monitor = target_monitor(window)?;
     let scale = monitor.scale_factor();
     let pos = monitor.position();
     let size = monitor.size();
@@ -328,13 +436,16 @@ struct Placement {
     height: u32,
     /// Faixa que janelas maximizadas não devem ocupar.
     band: Band,
+    /// Limites do monitor onde a janela ficou.
+    #[cfg_attr(not(windows), allow(dead_code))]
+    monitor: Band,
 }
 
-/// Posiciona a janela na borda escolhida do monitor primário, encostada na tela.
+/// Posiciona a janela na borda escolhida do monitor da dock, encostada na tela.
 fn place_window(window: &WebviewWindow) -> Option<Placement> {
     use tauri::{PhysicalPosition, PhysicalSize};
     let layout = layout();
-    let monitor = window.primary_monitor().ok().flatten()?;
+    let monitor = target_monitor(window)?;
     let scale = monitor.scale_factor();
     let pos = monitor.position();
     let size = monitor.size();
@@ -342,14 +453,14 @@ fn place_window(window: &WebviewWindow) -> Option<Placement> {
     let reserved = (layout.reserved * scale).round().max(0.0) as i32;
     let bounds = Band::new(pos.x, pos.y, pos.x + size.width as i32, pos.y + size.height as i32);
     let (x, y, width, height) = match position() {
-        TOP => (bounds.left, bounds.top + backend::top_inset(), size.width, thickness as u32),
+        TOP => (bounds.left, bounds.top + backend::top_inset(bounds), size.width, thickness as u32),
         LEFT => (bounds.left, bounds.top, thickness as u32, size.height),
         RIGHT => (bounds.right - thickness, bounds.top, thickness as u32, size.height),
         _ => (bounds.left, bounds.bottom - thickness, size.width, thickness as u32),
     };
     let _ = window.set_size(PhysicalSize::new(width, height));
     let _ = window.set_position(PhysicalPosition::new(x, y));
-    Some(Placement { x, y, width, height, band: reserved_band(bounds, reserved) })
+    Some(Placement { x, y, width, height, band: reserved_band(bounds, reserved), monitor: bounds })
 }
 
 #[cfg(test)]
@@ -425,6 +536,17 @@ mod tests {
         // A dock é uma faixa: encostar na borda fora do comprimento dela não revela nada.
         let band = Band::new(0, 0, 400, 300);
         assert!(!with_position("left", || at_dock_edge(1.0, 600.0, band, 1.0)));
+    }
+
+    #[test]
+    fn monitors_with_the_same_name_get_a_number() {
+        let ids = monitor_ids(&[
+            ("Built-in Retina Display".into(), 0, 0),
+            ("DELL U2720Q".into(), 3200, 0),
+            ("DELL U2720Q".into(), 1440, 0),
+        ]);
+        // Da esquerda para a direita: o de x 1440 é o primeiro DELL, o de x 3200 o segundo.
+        assert_eq!(ids, vec!["Built-in Retina Display", "DELL U2720Q 2", "DELL U2720Q"]);
     }
 
     #[test]

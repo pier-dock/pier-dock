@@ -184,6 +184,7 @@ fn main() {
             dock_window::set_preview_glass,
             dock_window::dock_visible,
             dock_window::set_dock_hover,
+            dock_window::list_monitors,
             windows_list::get_windows,
             windows_list::toggle_app_windows,
             windows_list::activate_window,
@@ -254,13 +255,14 @@ fn main() {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             let handle = app.handle().clone();
-            let (hide_taskbar, auto_hide, material, dock_position) = {
+            let (hide_taskbar, auto_hide, material, dock_position, dock_monitor) = {
                 let config = app.state::<config::ConfigState>();
                 let config = config.0.lock().unwrap();
-                (config.hide_taskbar, config.auto_hide.clone(), config.material.clone(), config.dock_position.clone())
+                (config.hide_taskbar, config.auto_hide.clone(), config.material.clone(), config.dock_position.clone(), config.dock_monitor.clone())
             };
             dock_window::init_auto_hide(&auto_hide);
             dock_window::init_position(&dock_position);
+            dock_window::init_monitor(&dock_monitor);
             backdrop::init_material(&material);
             if hide_taskbar {
                 taskbar::hide();
@@ -274,6 +276,7 @@ fn main() {
             if let Some(dock) = app.get_webview_window(dock_window::DOCK_LABEL) {
                 dock_window::init(&dock);
             }
+            dock_window::start_monitor_watch(handle.clone());
             // O painel não recebe foco no macOS (o app nunca fica ativo), então "perder o foco" não
             // serve para fechá-lo.
             #[cfg(target_os = "macos")]
