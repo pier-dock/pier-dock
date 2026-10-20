@@ -190,6 +190,8 @@ export const en: Dict = {
     output: "Output",
     apps: "Apps",
     noApps: "No apps are playing audio.",
+    permission: "To change each app's volume, allow Pier in System Audio Recording.",
+    openPermission: "Open Settings",
     volumeOf: (name) => `${name} volume`,
     settings: "Sound settings",
   },

@@ -190,6 +190,8 @@ export const pt = {
     output: "Saída",
     apps: "Apps",
     noApps: "Nenhum app tocando áudio.",
+    permission: "Para mudar o volume de cada app, libere o Pier em Gravação de Áudio do Sistema.",
+    openPermission: "Abrir Ajustes",
     volumeOf: (name: string) => `Volume de ${name}`,
     settings: "Configurações de som",
   },

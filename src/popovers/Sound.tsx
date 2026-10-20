@@ -76,6 +76,14 @@ export function SoundPanel() {
         {audio?.apps && (
           <>
             <span className="eyebrow sound-eyebrow">{t.apps}</span>
+            {audio.appsNeedPermission && (
+              <div className="sound-permission">
+                <span>{t.permission}</span>
+                <button className="btn" onClick={() => ipc.openShell("audio-capture")}>
+                  {t.openPermission}
+                </button>
+              </div>
+            )}
             {audio.apps.length ? (
               <ul className="list sound-list">
                 {audio.apps.map((app) => (
