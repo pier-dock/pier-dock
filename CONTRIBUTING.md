@@ -66,22 +66,6 @@ All platform icons come from `app-icon.svg` and `src-tauri/icons/source/`. To re
 - CI runs `npm run build` and `npm test`, and `cargo test --locked` on Windows, macOS, and Linux. Run them locally before you open the pull request.
 - If the change is visible to users, update `README.md` and `README.pt-BR.md`.
 
-## Releasing
-
-This section is for maintainers. To publish a new version:
-
-1. Add a `## x.y.z` section with the release notes to `CHANGELOG.md` and `CHANGELOG.pt-BR.md`. Pier shows these notes after it updates, so write them for users. The **Release** workflow fails if either file is missing the section.
-2. Run `./scripts/release.sh x.y.z`. The script updates the version in `package.json` and `Cargo.toml`, commits the change, and creates the `vx.y.z` tag.
-3. Run `git push --follow-tags`.
-4. Wait for the **Release** workflow to finish. It builds Pier on macOS, Windows, and Linux and creates a draft release with the installers and the updater's `latest.json`.
-5. Review the draft and publish it. Installed copies of Pier see the new version only after you publish.
-
-To test the build without creating a release, run the workflow manually from **Actions** > **Release** > **Run workflow**. The installers are attached to the workflow run as artifacts.
-
-The workflow signs update packages with the updater key stored in the `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` repository secrets. The matching public key is in `src-tauri/tauri.conf.json`. Keep a backup of the private key: if it's lost, installed copies of Pier reject future updates.
-
-To sign and notarize the macOS app later, add the `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD`, and `APPLE_TEAM_ID` secrets, pass them in the `env` of the `tauri-action` step, and remove `"signingIdentity": "-"` from `src-tauri/tauri.macos.conf.json`.
-
 ## License
 
 By contributing, you agree that your contributions are licensed under the [GNU General Public License v3.0 or later](LICENSE), the same license as Pier.
