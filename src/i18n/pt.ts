@@ -556,6 +556,7 @@ export const pt = {
     autoUpdateHint: "Ao abrir, o Pier instala a versão nova e reinicia sozinho.",
     dockMonitor: "Mostrar a dock em",
     primaryMonitor: "Monitor principal",
+    followCursor: "Seguir o cursor",
     disconnected: (name: string) => `${name} (desconectado)`,
     monitorFallback: "Enquanto ele estiver desconectado, a dock fica no monitor principal.",
     gnomeReserve: "No GNOME, a área que as janelas maximizadas não ocupam continua no monitor principal.",

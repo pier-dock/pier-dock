@@ -6,7 +6,7 @@
 
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, Monitor, WebviewWindow};
@@ -81,10 +81,17 @@ pub fn set_position(app: &AppHandle, position: &str) {
     }
 }
 
-/// Monitor onde a dock fica: `primary` ou o id de um monitor (`monitor_ids`).
+/// Monitor onde a dock fica: `primary`, `cursor` ou o id de um monitor (`monitor_ids`).
 static MONITOR: Mutex<String> = Mutex::new(String::new());
+/// Seguindo o cursor: o monitor para onde a dock foi por último (`None`: o principal).
+static CURSOR_MONITOR: Mutex<Option<String>> = Mutex::new(None);
 
 const PRIMARY: &str = "primary";
+const CURSOR: &str = "cursor";
+/// Seguindo o cursor, a dock só troca de monitor depois que ele fica um tempo no outro: passar de
+/// raspão por uma tela no caminho não a arrasta junto.
+const FOLLOW_TICK: Duration = Duration::from_millis(200);
+const FOLLOW_DWELL: Duration = Duration::from_millis(400);
 
 pub fn init_monitor(monitor: &str) {
     *MONITOR.lock().unwrap() = monitor.to_string();
@@ -125,9 +132,13 @@ fn ids_of(monitors: &[Monitor]) -> Vec<String> {
     monitor_ids(&keys)
 }
 
-/// O monitor escolhido; se ele não estiver conectado, o principal.
+/// O monitor escolhido (ou, seguindo o cursor, o último para onde ela foi); se ele não estiver
+/// conectado, o principal.
 fn target_monitor(window: &WebviewWindow) -> Option<Monitor> {
-    let wanted = MONITOR.lock().unwrap().clone();
+    let mut wanted = MONITOR.lock().unwrap().clone();
+    if wanted == CURSOR {
+        wanted = CURSOR_MONITOR.lock().unwrap().clone().unwrap_or_default();
+    }
     if !wanted.is_empty() && wanted != PRIMARY {
         if let Ok(monitors) = window.available_monitors() {
             if let Some(i) = ids_of(&monitors).iter().position(|id| *id == wanted) {
@@ -169,14 +180,47 @@ pub fn list_monitors(app: AppHandle) -> Vec<MonitorInfo> {
         .collect()
 }
 
+fn contains(monitor: &Monitor, x: f64, y: f64) -> bool {
+    let (pos, size) = (monitor.position(), monitor.size());
+    x >= pos.x as f64 && x < pos.x as f64 + size.width as f64 && y >= pos.y as f64 && y < pos.y as f64 + size.height as f64
+}
+
+/// Seguindo o cursor: o cursor ficou `FOLLOW_DWELL` em outro monitor, sem painel aberto (ele
+/// fecharia no meio do uso)? Esse monitor vira o da dock. `pending` guarda o candidato e desde quando.
+fn follow_cursor(app: &AppHandle, window: &WebviewWindow, pending: &mut Option<(String, Instant)>) {
+    let (Ok(cursor), Ok(monitors)) = (app.cursor_position(), window.available_monitors()) else { return };
+    let Some(index) = monitors.iter().position(|m| contains(m, cursor.x, cursor.y)) else { return };
+    let current = target_monitor(window).map(|m| *m.position());
+    if current == Some(*monitors[index].position()) || crate::panels::panel_open() {
+        *pending = None;
+        return;
+    }
+    let id = ids_of(&monitors).swap_remove(index);
+    match pending {
+        Some((candidate, since)) if *candidate == id => {
+            if since.elapsed() >= FOLLOW_DWELL {
+                *CURSOR_MONITOR.lock().unwrap() = Some(id);
+                *pending = None;
+            }
+        }
+        _ => *pending = Some((id, Instant::now())),
+    }
+}
+
 /// Plugar ou desplugar um monitor, ou mudar a resolução, não move a janela sozinho: a cada segundo
-/// confere se o monitor-alvo mudou e reposiciona a dock.
+/// confere se o monitor-alvo mudou e reposiciona a dock. Seguindo o cursor, confere mais vezes, e o
+/// monitor-alvo muda junto com o cursor.
 pub fn start_monitor_watch(app: AppHandle) {
     std::thread::spawn(move || {
         let mut last = None;
+        let mut pending = None;
         loop {
-            std::thread::sleep(Duration::from_secs(1));
+            let following = *MONITOR.lock().unwrap() == CURSOR;
+            std::thread::sleep(if following { FOLLOW_TICK } else { Duration::from_secs(1) });
             let Some(window) = app.get_webview_window(DOCK_LABEL) else { continue };
+            if following {
+                follow_cursor(&app, &window, &mut pending);
+            }
             let Some(monitor) = target_monitor(&window) else { continue };
             let key = (*monitor.position(), *monitor.size(), monitor.scale_factor().to_bits());
             if last.is_some_and(|l| l != key) {

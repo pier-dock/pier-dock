@@ -75,6 +75,8 @@ pub fn info() -> PlatformInfo {
         hide_native: extension,
         shortcuts: extension || is_x11_session(),
         glass: crate::backdrop::supported(),
+        // No XWayland o cursor global só é atualizado sobre janelas X11.
+        follow_cursor: is_x11_session(),
     }
 }
 

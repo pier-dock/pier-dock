@@ -100,10 +100,12 @@ export function GeneralTab({ config, update, platform }: TabProps) {
     return () => window.removeEventListener("focus", refreshSystem);
   }, [refreshSystem]);
 
-  const chosenMissing = config.dockMonitor !== "primary" && !monitors.some((m) => m.id === config.dockMonitor);
+  const fixedMonitor = config.dockMonitor !== "primary" && config.dockMonitor !== "cursor";
+  const chosenMissing = fixedMonitor && !monitors.some((m) => m.id === config.dockMonitor);
   const monitorOptions = [
     { value: "primary", label: t.primaryMonitor },
     ...monitors.filter((m) => !m.primary).map((m) => ({ value: m.id, label: m.id })),
+    ...(platform?.followCursor || config.dockMonitor === "cursor" ? [{ value: "cursor", label: t.followCursor }] : []),
     ...(chosenMissing ? [{ value: config.dockMonitor, label: t.disconnected(config.dockMonitor) }] : []),
   ];
   const monitorHint = chosenMissing ? t.monitorFallback : os === "linux" && config.dockMonitor !== "primary" ? t.gnomeReserve : undefined;

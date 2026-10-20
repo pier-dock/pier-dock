@@ -29,6 +29,10 @@ fn view_script(view: &str, kind: &str) -> String {
     )
 }
 
+pub fn panel_open() -> bool {
+    OPEN_PANEL.lock().unwrap().is_some()
+}
+
 pub fn close_open_panel(app: &AppHandle) -> Option<String> {
     let (label, kind) = OPEN_PANEL.lock().unwrap().take()?;
     if let Some(window) = app.get_webview_window(&label) {

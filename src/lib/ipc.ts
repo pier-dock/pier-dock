@@ -307,6 +307,8 @@ export interface PlatformInfo {
   shortcuts: boolean;
   /** O sistema desenha o vidro; sem ele o material é sempre sólido. */
   glass: boolean;
+  /** Dá para ler o cursor em qualquer monitor (a dock pode seguir o cursor). */
+  followCursor: boolean;
 }
 
 export interface UpdateInfo {

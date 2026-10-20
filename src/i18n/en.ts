@@ -556,6 +556,7 @@ export const en: Dict = {
     autoUpdateHint: "When it starts, Pier installs the new version and restarts on its own.",
     dockMonitor: "Show the dock on",
     primaryMonitor: "Main display",
+    followCursor: "Follow the cursor",
     disconnected: (name) => `${name} (disconnected)`,
     monitorFallback: "While it's disconnected, the dock stays on the main display.",
     gnomeReserve: "On GNOME, the space maximized windows leave free stays on the main display.",

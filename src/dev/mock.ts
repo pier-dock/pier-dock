@@ -378,7 +378,7 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
     { id: "codex", detected: true },
   ],
   system_language: () => (navigator.language.toLowerCase().startsWith("pt") ? "pt" : "en"),
-  platform_info: () => ({ os: "macos", windowList: "needs-accessibility", hideNative: true, shortcuts: true, glass: true }),
+  platform_info: () => ({ os: "macos", windowList: "needs-accessibility", hideNative: true, shortcuts: true, glass: true, followCursor: true }),
   "plugin:autostart|is_enabled": () => true,
   "plugin:app|version": () => "0.1.0",
   check_update: () => ({ version: "0.2.0", notes: null }),
