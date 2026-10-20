@@ -65,6 +65,7 @@ Os ícones de todas as plataformas saem de `app-icon.svg` e `src-tauri/icons/sou
 - Use um título no estilo [Conventional Commits](https://www.conventionalcommits.org/pt-br), `tipo(escopo): resumo`, por exemplo `feat(dock): …` ou `fix(windows): …`, em inglês. Os pull requests entram com squash, então o título vira a mensagem do commit.
 - O CI roda `npm run build` e `npm test`, e `cargo test --locked` no Windows, no macOS e no Linux. Rode tudo localmente antes de abrir o pull request.
 - Se a mudança aparece para o usuário, atualize o `README.md` e o `README.pt-BR.md`.
+- Não altere a versão no `package.json` nem no `src-tauri/Cargo.toml`, e não adicione seções de versão nos changelogs. Quem mantém o projeto escolhe a versão e escreve as novidades ao publicar, e o CI recusa pull requests que mudam isso.
 
 ## Licença
 
