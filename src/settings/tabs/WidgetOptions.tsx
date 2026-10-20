@@ -6,7 +6,6 @@ import { useCalendar } from "../../hooks/useCalendar";
 import { cycles } from "../../popovers/Pomodoro";
 import { Row } from "../../ui/Card";
 import { Segmented } from "../../ui/Segmented";
-import { Switch } from "../../ui/Switch";
 import type { TabProps } from "../shared";
 import { useT } from "../../i18n";
 
@@ -159,6 +158,8 @@ export function AiUsageOptions({ config, update }: OptionsProps) {
   );
 }
 
+type ClaudeDisplay = "icon" | "both" | "pet";
+
 /** Hooks do Claude Code que alimentam o widget de agents — instalados em `~/.claude/settings.json`. */
 export function ClaudeAgentsOptions({ config, update }: OptionsProps) {
   const [installed, setInstalled] = useState<boolean | null>(null);
@@ -168,6 +169,16 @@ export function ClaudeAgentsOptions({ config, update }: OptionsProps) {
   useEffect(() => {
     ipc.claudeHooksInstalled().then(setInstalled).catch(() => setInstalled(false));
   }, []);
+
+  // "Só o Clawd" é o widget desligado com o Clawd ligado: os dois já funcionam separados, aqui só
+  // ficam numa escolha só.
+  const iconShown = config.widgets.some((w) => w.kind === "claude-agents" && w.enabled);
+  const display: ClaudeDisplay = config.claudePetEnabled ? (iconShown ? "both" : "pet") : "icon";
+  const setDisplay = (next: ClaudeDisplay) =>
+    update((c) => ({
+      claudePetEnabled: next !== "icon",
+      widgets: c.widgets.map((w) => (w.kind === "claude-agents" ? { ...w, enabled: next !== "pet" } : w)),
+    }));
 
   const run = (action: () => Promise<void>, next: boolean) => async () => {
     try {
@@ -191,8 +202,13 @@ export function ClaudeAgentsOptions({ config, update }: OptionsProps) {
           {installed ? t.claudeHooksReinstall : t.claudeHooksInstall}
         </button>
       </Row>
-      <Row label={t.claudePetLabel} description={t.claudePetHint}>
-        <Switch checked={config.claudePetEnabled} label={t.claudePetLabel} onChange={(claudePetEnabled) => update({ claudePetEnabled })} />
+      <Row label={t.claudeDisplayLabel} description={t.claudePetHint}>
+        <Segmented
+          label={t.claudeDisplayLabel}
+          value={display}
+          onChange={setDisplay}
+          options={(["icon", "both", "pet"] as const).map((value) => ({ value, label: t.claudeDisplay[value] }))}
+        />
       </Row>
     </>
   );
