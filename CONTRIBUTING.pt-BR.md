@@ -66,22 +66,6 @@ Os ícones de todas as plataformas saem de `app-icon.svg` e `src-tauri/icons/sou
 - O CI roda `npm run build` e `npm test`, e `cargo test --locked` no Windows, no macOS e no Linux. Rode tudo localmente antes de abrir o pull request.
 - Se a mudança aparece para o usuário, atualize o `README.md` e o `README.pt-BR.md`.
 
-## Publicando uma versão
-
-Esta seção é para quem mantém o projeto. Para publicar uma versão nova:
-
-1. Adicione uma seção `## x.y.z` com as novidades no `CHANGELOG.md` e no `CHANGELOG.pt-BR.md`. O Pier mostra essas notas depois de atualizar, então escreva pensando no usuário. O workflow **Release** falha se faltar a seção em qualquer um dos dois arquivos.
-2. Rode `./scripts/release.sh x.y.z`. O script atualiza a versão no `package.json` e no `Cargo.toml`, faz o commit e cria a tag `vx.y.z`.
-3. Rode `git push --follow-tags`.
-4. Espere o workflow **Release** terminar. Ele compila o Pier no macOS, no Windows e no Linux e cria um release rascunho com os instaladores e o `latest.json` do atualizador.
-5. Confira o rascunho e publique. As cópias instaladas do Pier só enxergam a versão nova depois da publicação.
-
-Para testar o build sem criar um release, rode o workflow à mão em **Actions** > **Release** > **Run workflow**. Os instaladores ficam anexados à execução como artefatos.
-
-O workflow assina os pacotes de atualização com a chave do atualizador guardada nos secrets `TAURI_SIGNING_PRIVATE_KEY` e `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` do repositório. A chave pública correspondente está em `src-tauri/tauri.conf.json`. Guarde uma cópia da chave privada: se ela for perdida, as cópias instaladas do Pier recusam as próximas atualizações.
-
-Para assinar e notarizar o app do macOS no futuro, adicione os secrets `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD` e `APPLE_TEAM_ID`, passe-os no `env` do passo `tauri-action` e remova o `"signingIdentity": "-"` de `src-tauri/tauri.macos.conf.json`.
-
 ## Licença
 
 Ao contribuir, você concorda que suas contribuições sejam licenciadas sob a [Licença Pública Geral GNU, versão 3 ou posterior](LICENSE), a mesma licença do Pier.
