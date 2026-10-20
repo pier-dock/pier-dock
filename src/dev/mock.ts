@@ -302,6 +302,7 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
       { id: "1", name: "Spotify", icon: null, level: 0.8, muted: false },
       { id: "2", name: "Firefox", icon: null, level: 0.45, muted: true },
     ],
+    appsNeedPermission: params.has("audio-permission"),
   }),
   wifi_status: () => ({
     available: true,

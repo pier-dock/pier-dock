@@ -202,6 +202,17 @@ fn tcc() -> Option<&'static Tcc> {
 
 const AUDIO_CAPTURE: &str = "kTCCServiceAudioCapture";
 
+/// 0: concedida; 1: negada; outro valor: ainda não perguntada.
+fn preflight(tcc: &Tcc) -> i32 {
+    let service = CFString::new(AUDIO_CAPTURE);
+    unsafe { (tcc.preflight)(service.as_concrete_TypeRef(), std::ptr::null()) }
+}
+
+/// O usuário negou a permissão: só as Configurações do sistema liberam de novo.
+pub fn permission_denied() -> bool {
+    tcc().is_some_and(|tcc| preflight(tcc) == 1)
+}
+
 /// Sem a permissão o tap entrega silêncio e o app ficaria mudo, então nenhum tap é criado antes
 /// dela. `request` mostra o pedido do sistema, uma vez por execução.
 fn capture_allowed(request: bool) -> bool {
@@ -211,8 +222,7 @@ fn capture_allowed(request: bool) -> bool {
         return true;
     }
     let Some(tcc) = tcc() else { return false };
-    let service = CFString::new(AUDIO_CAPTURE);
-    if unsafe { (tcc.preflight)(service.as_concrete_TypeRef(), std::ptr::null()) } == 0 {
+    if preflight(tcc) == 0 {
         GRANTED.store(true, Ordering::SeqCst);
         return true;
     }
@@ -223,6 +233,7 @@ fn capture_allowed(request: bool) -> bool {
                 wake();
             }
         });
+        let service = CFString::new(AUDIO_CAPTURE);
         unsafe { (tcc.request)(service.as_concrete_TypeRef(), std::ptr::null(), &*done) };
     }
     false

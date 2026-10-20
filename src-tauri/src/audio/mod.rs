@@ -37,6 +37,8 @@ pub struct AudioState {
     pub outputs: Vec<OutputDevice>,
     /// `None` quando o sistema não deixa mexer no volume de cada app (macOS antes do 14.2).
     pub apps: Option<Vec<AppStream>>,
+    /// No macOS, o usuário negou a Gravação de Áudio do Sistema e os volumes dos apps não valem.
+    pub apps_need_permission: bool,
 }
 
 /// No macOS o volume de cada app depende de taps que o Pier mantém e reconcilia em segundo plano.
@@ -47,9 +49,15 @@ pub fn start() {
 
 #[tauri::command]
 pub async fn audio_status() -> Result<AudioState, String> {
-    tauri::async_runtime::spawn_blocking(|| AudioState { outputs: backend::outputs().unwrap_or_default(), apps: backend::apps() })
-        .await
-        .err_str()
+    tauri::async_runtime::spawn_blocking(|| {
+        #[cfg(target_os = "macos")]
+        let apps_need_permission = backend::apps_need_permission();
+        #[cfg(not(target_os = "macos"))]
+        let apps_need_permission = false;
+        AudioState { outputs: backend::outputs().unwrap_or_default(), apps: backend::apps(), apps_need_permission }
+    })
+    .await
+    .err_str()
 }
 
 #[tauri::command]

@@ -328,8 +328,10 @@ export interface AppStream {
 
 export interface AudioState {
   outputs: OutputDevice[];
-  /** `null` quando o sistema não permite o volume por app (macOS). */
+  /** `null` quando o sistema não permite o volume por app (macOS antes do 14.2). */
   apps: AppStream[] | null;
+  /** No macOS, a Gravação de Áudio do Sistema foi negada e os volumes dos apps não valem. */
+  appsNeedPermission: boolean;
 }
 
 export interface WifiNetwork {
@@ -393,7 +395,7 @@ export const ipc = {
   getVolume: () => invoke<Volume>("get_volume"),
   setVolume: (args: { level?: number; muted?: boolean }) => invoke<void>("set_volume", args),
   openTray: (anchorX: number, anchorY: number) => invoke<void>("open_tray", { anchorX, anchorY }),
-  openShell: (kind: "start" | "quick-settings" | "notifications" | "system-monitor" | "calendar" | "bluetooth" | "sound" | "network") =>
+  openShell: (kind: "start" | "quick-settings" | "notifications" | "system-monitor" | "calendar" | "bluetooth" | "sound" | "network" | "audio-capture") =>
     invoke<void>("open_shell", { kind }),
   audioStatus: () => invoke<AudioState>("audio_status"),
   setOutputDevice: (id: string) => invoke<void>("set_output_device", { id }),

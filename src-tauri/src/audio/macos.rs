@@ -114,6 +114,10 @@ pub fn apps() -> Option<Vec<AppStream>> {
     tap::supported().then(tap::apps)
 }
 
+pub fn apps_need_permission() -> bool {
+    tap::supported() && tap::permission_denied()
+}
+
 pub fn set_app_volume(id: &str, level: Option<f32>, muted: Option<bool>) -> Result<(), String> {
     if !tap::supported() {
         return Err("o volume de cada app precisa do macOS 14.2 ou mais novo".into());

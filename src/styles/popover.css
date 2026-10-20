@@ -1284,6 +1284,19 @@
   color: var(--text-tertiary);
 }
 
+.sound-permission {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 16px 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.sound-permission .btn {
+  flex-shrink: 0;
+}
+
 /* Slider (popover de som) */
 .slider {
   position: relative;
