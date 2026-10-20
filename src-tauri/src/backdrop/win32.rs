@@ -251,7 +251,7 @@ fn update(window: &WebviewWindow, only: Option<String>, create: bool, change: im
         with_backdrops(|backdrops| {
             if let Some(key) = only.as_ref().filter(|key| create && !backdrops.contains_key(*key)) {
                 let Some(hwnd) = create_window() else { return };
-                backdrops.insert(key.clone(), Backdrop { hwnd, rect: Rect::default(), radius: 0.0, hidden: false });
+                backdrops.insert(key.clone(), Backdrop { hwnd, rect: Rect::default(), radius: 0.0, hidden: super::starts_hidden(key) });
             }
             for (_, b) in backdrops.iter_mut().filter(|(k, _)| only.as_ref().map_or(owner(k) == label, |key| *k == key)) {
                 change(b);

@@ -41,6 +41,12 @@ pub fn active() -> bool {
     GLASS.load(Ordering::SeqCst) && supported()
 }
 
+/// O vidro da barra da dock nasce escondido enquanto ela está fora da tela (abrindo o Pier), para
+/// aparecer junto com ela.
+fn starts_hidden(key: &str) -> bool {
+    key == crate::dock_window::DOCK_LABEL && !crate::dock_window::dock_visible()
+}
+
 pub fn init_material(material: &str) {
     GLASS.store(material != "solid", Ordering::SeqCst);
 }

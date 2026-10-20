@@ -98,7 +98,7 @@ fn update(window: &WebviewWindow, only: Option<String>, create: bool, change: im
     let _ = window.run_on_main_thread(move || {
         let shapes = with_backdrops(|backdrops| {
             if let Some(key) = only.as_ref().filter(|key| create && !backdrops.contains_key(*key)) {
-                backdrops.insert(key.clone(), Backdrop::default());
+                backdrops.insert(key.clone(), Backdrop { hidden: super::starts_hidden(key), ..Backdrop::default() });
             }
             let mut found = false;
             for (_, b) in backdrops.iter_mut().filter(|(k, _)| only.as_ref().map_or(owner(k) == label, |key| *k == key)) {

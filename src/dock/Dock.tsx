@@ -180,8 +180,9 @@ export function Dock({ config }: { config: Config }) {
     };
   }, [position, full, metrics.margin]);
 
-  // Ocultar automaticamente: o Rust decide quando a dock aparece; aqui só anima.
-  const [visible, setVisible] = useState(true);
+  // O Rust decide quando a dock aparece (ao abrir, ao trocar de monitor, ocultar automaticamente);
+  // aqui só anima. Ela começa fora da tela e entra quando o Rust manda.
+  const [visible, setVisible] = useState(false);
   useEffect(() => {
     ipc.dockVisible().then(setVisible);
     const unlisten = listen<boolean>("dock-visibility", (e) => {

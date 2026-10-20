@@ -30,8 +30,20 @@ pub const RIGHT: u8 = 3;
 
 static POSITION: AtomicU8 = AtomicU8::new(BOTTOM);
 
-/// A dock está à mostra (ou escondida pelo "ocultar automaticamente").
-static VISIBLE: AtomicBool = AtomicBool::new(true);
+/// A dock está à mostra (ou escondida pelo "ocultar automaticamente"). Começa escondida: ela entra
+/// na tela quando a página já desenhou a barra (`start_monitor_watch`).
+static VISIBLE: AtomicBool = AtomicBool::new(false);
+/// A dock está fora da tela de propósito: abrindo o Pier ou trocando de monitor.
+static MOVING: AtomicBool = AtomicBool::new(true);
+/// Até quando a dock fica à mostra depois de chegar num monitor, mesmo com o "ocultar
+/// automaticamente": sem isso, numa tela com um app em foco ela chegaria escondida e a troca
+/// passaria despercebida.
+static ARRIVED_UNTIL: Mutex<Option<Instant>> = Mutex::new(None);
+const ARRIVAL: Duration = Duration::from_millis(1500);
+/// A saída da tela antiga, igual à transição do `.dock-hidden` no CSS.
+const LEAVE: Duration = Duration::from_millis(260);
+/// Para a janela assentar na tela nova antes de a dock entrar.
+const SETTLE: Duration = Duration::from_millis(120);
 
 const AUTO_HIDE_NEVER: u8 = 0;
 const AUTO_HIDE_SMART: u8 = 1;
@@ -101,10 +113,7 @@ pub fn init_monitor(monitor: &str) {
 pub fn set_monitor(app: &AppHandle, monitor: &str) {
     let changed = std::mem::replace(&mut *MONITOR.lock().unwrap(), monitor.to_string()) != monitor;
     if changed {
-        if let Some(window) = app.get_webview_window(DOCK_LABEL) {
-            crate::panels::close_open_panel(app);
-            backend::apply_layout(&window);
-        }
+        move_dock(app);
     }
 }
 
@@ -217,22 +226,34 @@ fn follow_cursor(app: &AppHandle, window: &WebviewWindow, pending: &mut Option<(
 /// monitor-alvo muda junto com o cursor.
 pub fn start_monitor_watch(app: AppHandle) {
     std::thread::spawn(move || {
-        let mut last = None;
+        // Abrindo o Pier: a dock entra quando a página já mediu e desenhou a barra.
+        let started = Instant::now();
+        while hit_rect().width <= 0.0 && started.elapsed() < Duration::from_secs(3) {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        std::thread::sleep(SETTLE);
+        if let Some(window) = app.get_webview_window(DOCK_LABEL) {
+            arrive(&window);
+        }
+
         let mut pending = None;
         loop {
             let following = *MONITOR.lock().unwrap() == CURSOR;
             std::thread::sleep(if following { FOLLOW_TICK } else { Duration::from_secs(1) });
+            // Uma troca em andamento já vai posicionar a dock no monitor-alvo mais recente.
+            if MOVING.load(Ordering::SeqCst) {
+                continue;
+            }
             let Some(window) = app.get_webview_window(DOCK_LABEL) else { continue };
             if following {
                 follow_cursor(&app, &window, &mut pending);
             }
             let Some(monitor) = target_monitor(&window) else { continue };
-            let key = (*monitor.position(), *monitor.size(), monitor.scale_factor().to_bits());
-            if last.is_some_and(|l| l != key) {
-                crate::panels::close_open_panel(&app);
-                backend::apply_layout(&window);
+            // Compara com onde a dock foi posicionada de fato: uma troca pedida pelas configurações
+            // já se moveu sozinha, e não pode ser animada de novo aqui.
+            if *PLACED.lock().unwrap() != Some(monitor_key(&monitor)) {
+                move_dock(&app);
             }
-            last = Some(key);
         }
     });
 }
@@ -312,6 +333,12 @@ fn auto_hide() -> u8 {
 /// A dock deve estar à mostra? `hovering` inclui a folga depois que o mouse sai.
 #[allow(dead_code)]
 fn want_visible(hovering: bool, app_focused: impl FnOnce() -> bool) -> bool {
+    if MOVING.load(Ordering::SeqCst) {
+        return false;
+    }
+    if ARRIVED_UNTIL.lock().unwrap().is_some_and(|until| Instant::now() < until) {
+        return true;
+    }
     match auto_hide() {
         AUTO_HIDE_NEVER => true,
         AUTO_HIDE_SMART => hovering || !app_focused(),
@@ -328,6 +355,43 @@ fn set_visible(window: &WebviewWindow, visible: bool) {
         let _ = window.emit("dock-visibility", visible);
         crate::backdrop::set_hidden(window, !visible);
     }
+}
+
+/// Posição, tamanho e escala do monitor onde a dock foi posicionada por último.
+type MonitorKey = (tauri::PhysicalPosition<i32>, tauri::PhysicalSize<u32>, u64);
+static PLACED: Mutex<Option<MonitorKey>> = Mutex::new(None);
+
+fn monitor_key(monitor: &Monitor) -> MonitorKey {
+    (*monitor.position(), *monitor.size(), monitor.scale_factor().to_bits())
+}
+
+/// A dock entra na tela (abrindo o Pier ou num monitor novo) e fica à mostra um instante.
+fn arrive(window: &WebviewWindow) {
+    *ARRIVED_UNTIL.lock().unwrap() = Some(Instant::now() + ARRIVAL);
+    MOVING.store(false, Ordering::SeqCst);
+    set_visible(window, true);
+}
+
+/// Troca a dock de monitor com animação: ela desliza para fora da tela antiga, a janela muda de
+/// lugar e ela desliza para dentro da nova. Com uma troca já em andamento (ou o Pier abrindo), não
+/// faz nada: a que está em andamento posiciona a dock no monitor-alvo do momento, e a thread de
+/// monitores confere de novo depois.
+fn move_dock(app: &AppHandle) {
+    let Some(window) = app.get_webview_window(DOCK_LABEL) else { return };
+    if MOVING.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let app = app.clone();
+    std::thread::spawn(move || {
+        crate::panels::close_open_panel(&app);
+        if dock_visible() {
+            set_visible(&window, false);
+            std::thread::sleep(LEAVE);
+        }
+        backend::apply_layout(&window);
+        std::thread::sleep(SETTLE);
+        arrive(&window);
+    });
 }
 
 fn parse_auto_hide(mode: &str) -> u8 {
@@ -496,6 +560,7 @@ fn place_window(window: &WebviewWindow) -> Option<Placement> {
     use tauri::{PhysicalPosition, PhysicalSize};
     let layout = layout();
     let monitor = target_monitor(window)?;
+    *PLACED.lock().unwrap() = Some(monitor_key(&monitor));
     let scale = monitor.scale_factor();
     let pos = monitor.position();
     let size = monitor.size();

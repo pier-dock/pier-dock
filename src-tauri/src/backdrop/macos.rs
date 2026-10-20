@@ -91,7 +91,7 @@ fn update(window: &WebviewWindow, only: Option<String>, create: bool, change: im
             if let Some(key) = only.as_ref().filter(|key| create && !backdrops.contains_key(*key)) {
                 let view = make_view(mtm);
                 parent.addSubview_positioned_relativeTo(&view, NSWindowOrderingMode::Below, Some(webview));
-                backdrops.insert(key.clone(), Backdrop { view, rect: Rect::default(), radius: 0.0, hidden: false });
+                backdrops.insert(key.clone(), Backdrop { view, rect: Rect::default(), radius: 0.0, hidden: super::starts_hidden(key) });
             }
             let targets = backdrops.iter_mut().filter(|(k, _)| only.as_ref().map_or(owner(k) == label, |key| *k == key));
             for (_, b) in targets {

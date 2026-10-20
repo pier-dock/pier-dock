@@ -6,13 +6,11 @@
 
 .dock-bar {
   --glass-blur: var(--dock-blur);
-  /* O que mantém a barra centrada no eixo do comprimento, e de onde ela "vem" ao aparecer. */
+  /* O que mantém a barra centrada no eixo do comprimento. */
   --dock-center: translateX(-50%);
-  --dock-enter-x: 0px;
-  --dock-enter-y: 30px;
   position: absolute;
   left: 50%;
-  transform: var(--dock-center);
+  transform: var(--dock-center) translate(0, 0) scale(1);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -21,39 +19,41 @@
   border-radius: var(--radius-dock);
   box-shadow: var(--glass-highlight), var(--glass-shadow);
   white-space: nowrap;
-  animation: dock-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  /* Entrada (ao abrir, num monitor novo, ao reaparecer): sobe da borda e passa um pouco do ponto
+     antes de assentar. */
   transition:
-    transform 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.1),
-    opacity 0.22s ease;
+    transform 0.42s cubic-bezier(0.22, 1.25, 0.36, 1),
+    opacity 0.2s ease-out;
 }
 
-@keyframes dock-in {
-  from {
-    opacity: 0;
-    transform: var(--dock-center) translate(var(--dock-enter-x), var(--dock-enter-y));
-  }
-}
-
-/* Ocultar automaticamente: desliza para fora da borda da tela onde a dock vive. */
+/* Fora da tela (ocultar automaticamente, abrindo, trocando de monitor): desliza para fora da borda
+   onde a dock vive, encolhendo de leve. */
 .dock-bar.dock-hidden {
-  transform: var(--dock-center) translateY(calc(100% + 24px));
+  transform: var(--dock-center) translate(0, calc(100% + 24px)) scale(0.94);
   opacity: 0;
   pointer-events: none;
   transition:
-    transform 0.26s ease-in,
-    opacity 0.26s ease-in;
+    transform 0.26s cubic-bezier(0.4, 0, 1, 1),
+    opacity 0.22s ease-in 0.04s;
 }
 
 .dock-root[data-pos="top"] .dock-bar.dock-hidden {
-  transform: var(--dock-center) translateY(calc(-100% - 24px));
+  transform: var(--dock-center) translate(0, calc(-100% - 24px)) scale(0.94);
 }
 
 .dock-root[data-pos="left"] .dock-bar.dock-hidden {
-  transform: var(--dock-center) translateX(calc(-100% - 24px));
+  transform: var(--dock-center) translate(calc(-100% - 24px), 0) scale(0.94);
 }
 
 .dock-root[data-pos="right"] .dock-bar.dock-hidden {
-  transform: var(--dock-center) translateX(calc(100% + 24px));
+  transform: var(--dock-center) translate(calc(100% + 24px), 0) scale(0.94);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock-bar,
+  .dock-bar.dock-hidden {
+    transition: opacity 0.2s ease;
+  }
 }
 
 /* Largura total: a barra vai de ponta a ponta com as quinas retas e sem a borda do lado que
@@ -83,15 +83,9 @@
 .dock-root[data-pos="left"] .dock-bar,
 .dock-root[data-pos="right"] .dock-bar {
   --dock-center: translateY(-50%);
-  --dock-enter-x: -30px;
-  --dock-enter-y: 0px;
   left: auto;
   top: 50%;
   flex-direction: column;
-}
-
-.dock-root[data-pos="right"] .dock-bar {
-  --dock-enter-x: 30px;
 }
 
 .dock-root[data-pos="left"] .dock-bar.dock-full {
