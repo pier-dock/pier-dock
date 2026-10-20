@@ -65,6 +65,7 @@ All platform icons come from `app-icon.svg` and `src-tauri/icons/source/`. To re
 - Title it in the [Conventional Commits](https://www.conventionalcommits.org) style, `type(scope): summary`, for example `feat(dock): …` or `fix(windows): …`. Pull requests are squash-merged, so the title becomes the commit message.
 - CI runs `npm run build` and `npm test`, and `cargo test --locked` on Windows, macOS, and Linux. Run them locally before you open the pull request.
 - If the change is visible to users, update `README.md` and `README.pt-BR.md`.
+- Don't change the version in `package.json` or `src-tauri/Cargo.toml`, and don't add version sections to the changelogs. The maintainer picks the version and writes the release notes when publishing a release, and CI rejects pull requests that change them.
 
 ## License
 
