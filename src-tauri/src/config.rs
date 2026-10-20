@@ -110,6 +110,8 @@ pub struct Config {
     pub pomodoro: PomodoroConfig,
     /// Idioma da interface: "system", "pt" ou "en".
     pub language: String,
+    /// Instala sozinho a atualização encontrada logo depois de abrir.
+    pub auto_update: bool,
 }
 
 fn widget(kind: &str, size: &str) -> WidgetConfig {
@@ -192,6 +194,7 @@ impl Default for Config {
             weather_location: None,
             pomodoro: PomodoroConfig::default(),
             language: "system".into(),
+            auto_update: true,
         }
     }
 }
