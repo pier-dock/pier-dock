@@ -890,3 +890,100 @@
 .ai-tile.stale .ai-value {
   color: var(--text-secondary);
 }
+
+/* Claude Agents: o sprite anda só com alguma sessão ativa; parado, fica como os outros ícones de
+   sistema (sys-tile). */
+.claude-tile {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  justify-content: center;
+  border-radius: var(--radius-control);
+}
+
+.claude-sprite {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.claude-sprite.walking {
+  animation: claude-walk 0.9s ease-in-out infinite;
+}
+
+.claude-sprite.claude-running {
+  color: var(--accent);
+}
+
+.claude-sprite.claude-permission {
+  color: var(--warning);
+}
+
+.claude-sprite.claude-error {
+  color: var(--danger);
+}
+
+.claude-sprite.claude-done {
+  color: var(--success);
+}
+
+@keyframes claude-walk {
+  0%,
+  100% {
+    transform: translateX(-2px) rotate(-4deg);
+  }
+  50% {
+    transform: translateX(2px) rotate(4deg);
+  }
+}
+
+/* Cluster de pontos por sessão ativa, no canto do ícone — mesmo lugar do .bt-dot. */
+.claude-dots {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  display: flex;
+  gap: 2px;
+}
+
+.claude-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px rgb(var(--glass-tint));
+  flex-shrink: 0;
+}
+
+.claude-dot-running {
+  background: var(--accent);
+  animation: claude-pulse 1.4s ease-in-out infinite;
+}
+
+.claude-dot-permission {
+  background: var(--warning);
+  animation: claude-pulse 0.8s ease-in-out infinite;
+}
+
+.claude-dot-error {
+  background: var(--danger);
+}
+
+.claude-dot-done {
+  background: var(--success);
+}
+
+@keyframes claude-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.claude-row {
+  gap: 10px;
+}

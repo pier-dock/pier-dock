@@ -115,6 +115,9 @@ pub struct Config {
     pub language: String,
     /// Instala sozinho a atualização encontrada logo depois de abrir.
     pub auto_update: bool,
+    /// Mascote decorativo que anda sobre a borda da dock, reagindo às sessões do Claude Code (ver
+    /// `claude_agents.rs`). Puramente visual; sem hooks instalados fica só parado.
+    pub claude_pet_enabled: bool,
 }
 
 fn widget(kind: &str, size: &str) -> WidgetConfig {
@@ -174,6 +177,7 @@ impl Default for Config {
                 disabled("system-usage", "wide"),
                 disabled("calendar", "wide"),
                 disabled("ai-usage", "small"),
+                disabled("claude-agents", "small"),
                 disabled("show-desktop", "small"),
             ],
             material: "glass".into(),
@@ -199,6 +203,7 @@ impl Default for Config {
             pomodoro: PomodoroConfig::default(),
             language: "system".into(),
             auto_update: true,
+            claude_pet_enabled: false,
         }
     }
 }

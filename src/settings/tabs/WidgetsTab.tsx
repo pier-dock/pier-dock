@@ -10,7 +10,7 @@ import { useWeather } from "../../hooks/useWeather";
 import { useCalendar } from "../../hooks/useCalendar";
 import { useAiUsage } from "../../hooks/useAiUsage";
 import { RESIZABLE, WidgetView, formatsOf, type WidgetData } from "../../widgets/WidgetView";
-import { AiUsageOptions, CalendarOptions, PomodoroOptions, WeatherOptions } from "./WidgetOptions";
+import { AiUsageOptions, CalendarOptions, ClaudeAgentsOptions, PomodoroOptions, WeatherOptions } from "./WidgetOptions";
 import { Card, Row } from "../../ui/Card";
 import { Segmented } from "../../ui/Segmented";
 import { Switch } from "../../ui/Switch";
@@ -38,6 +38,7 @@ const WIDGETS: Record<WidgetKind, { group: Group; tint: [string, string] }> = {
   "system-usage": { group: "system", tint: ["#3A1E6A", "#1E2A4A"] },
   calendar: { group: "productivity", tint: ["#1E2A6A", "#2A1E5A"] },
   "ai-usage": { group: "productivity", tint: ["#5A2E1E", "#20242C"] },
+  "claude-agents": { group: "productivity", tint: ["#3A2E1E", "#20242C"] },
 };
 
 const isWidget = (key: string) => key.startsWith("widget:");
@@ -213,6 +214,7 @@ function WidgetDialog({
             {widget.kind === "pomodoro" && <PomodoroOptions config={config} update={update} />}
             {widget.kind === "calendar" && <CalendarOptions />}
             {widget.kind === "ai-usage" && <AiUsageOptions config={config} update={update} />}
+            {widget.kind === "claude-agents" && <ClaudeAgentsOptions config={config} update={update} />}
             {widget.enabled && (
               <Row label={t.position} description={common.dragInDock}>
                 <span className="row-value">{common.positionOf(position, enabled.length)}</span>

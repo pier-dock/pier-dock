@@ -6,6 +6,7 @@ import { useCalendar } from "../../hooks/useCalendar";
 import { cycles } from "../../popovers/Pomodoro";
 import { Row } from "../../ui/Card";
 import { Segmented } from "../../ui/Segmented";
+import { Switch } from "../../ui/Switch";
 import type { TabProps } from "../shared";
 import { useT } from "../../i18n";
 
@@ -155,6 +156,45 @@ export function AiUsageOptions({ config, update }: OptionsProps) {
         options={[{ value: "auto", label: t.providerAuto }, ...AI_PROVIDERS.map((id) => ({ value: id, label: name(id) }))]}
       />
     </Row>
+  );
+}
+
+/** Hooks do Claude Code que alimentam o widget de agents — instalados em `~/.claude/settings.json`. */
+export function ClaudeAgentsOptions({ config, update }: OptionsProps) {
+  const [installed, setInstalled] = useState<boolean | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const { widgetOptions: t, common } = useT();
+
+  useEffect(() => {
+    ipc.claudeHooksInstalled().then(setInstalled).catch(() => setInstalled(false));
+  }, []);
+
+  const run = (action: () => Promise<void>, next: boolean) => async () => {
+    try {
+      await action();
+      setInstalled(next);
+      setStatus(null);
+    } catch (e) {
+      setStatus(common.error(String(e)));
+    }
+  };
+
+  return (
+    <>
+      <Row label={t.claudeHooksLabel} description={status ?? (installed ? t.claudeHooksOnHint : t.claudeHooksOffHint)}>
+        {installed && (
+          <button className="btn btn-danger" onClick={run(ipc.uninstallClaudeHooks, false)}>
+            {t.claudeHooksRemove}
+          </button>
+        )}
+        <button className="btn" disabled={installed === null} onClick={run(ipc.installClaudeHooks, true)}>
+          {installed ? t.claudeHooksReinstall : t.claudeHooksInstall}
+        </button>
+      </Row>
+      <Row label={t.claudePetLabel} description={t.claudePetHint}>
+        <Switch checked={config.claudePetEnabled} label={t.claudePetLabel} onChange={(claudePetEnabled) => update({ claudePetEnabled })} />
+      </Row>
+    </>
   );
 }
 

@@ -158,6 +158,19 @@ export const en: Dict = {
       `${provider} · ${name}: ${percent} of the limit, resets in ${resetsIn}`,
     tileTokensToday: (tokens: string) => `${tokens} tokens today`,
   },
+  claudeAgents: {
+    title: "Claude Code",
+    idle: "Claude Code: no active session",
+    tile: (n: number, status: string) => `Claude Code: ${n} ${n === 1 ? "session" : "sessions"} · ${status}`,
+    empty: "No active session",
+    focusFailed: "Couldn't find this session's window.",
+    status: {
+      running: "Running",
+      permission: "Needs permission",
+      error: "Error",
+      done: "Done",
+    },
+  },
   system: {
     cpuLast60: "CPU · last 60 s",
     cpuChart: "CPU usage chart for the last 60 seconds",
@@ -300,6 +313,7 @@ export const en: Dict = {
       "system-usage": "System usage",
       calendar: "Calendar",
       "ai-usage": "AI usage",
+      "claude-agents": "Claude Code",
       bluetooth: "Bluetooth",
       launcher: "App launcher",
       volume: "Sound",
@@ -449,6 +463,12 @@ export const en: Dict = {
         description:
           "How much of the limit has been used in the 5h session and the week (Claude Code) or in the plan's window (Codex CLI), plus today's tokens. Reads the AIs' local files; nothing goes over the network.",
       },
+      "claude-agents": {
+        summary: "Claude Code walking the dock, with each active session.",
+        name: "Claude Agents",
+        description:
+          "Shows Claude Code sessions that are running, asking for permission, erroring, or done. Needs the Claude Code hooks enabled (see below). Click to focus the terminal or IDE window that launched the session; with more than one active, it opens a list to choose from.",
+      },
     },
     preview: "Preview",
     show: (name) => `Show ${name}`,
@@ -503,6 +523,14 @@ export const en: Dict = {
     icalAddress: "iCal address",
     calendarHint: (keychain) =>
       `Google Calendar: Calendar settings → Secret address in iCal format. Outlook: Calendar → Shared calendars → Publish a calendar (ICS link). The address is stored ${keychain}.`,
+    claudeHooksLabel: "Claude Code hooks",
+    claudeHooksOnHint: "Installed in ~/.claude/settings.json — sessions show up here automatically.",
+    claudeHooksOffHint: "Without them Pier can't tell when a Claude Code session is running, asked for permission, or finished.",
+    claudeHooksInstall: "Enable",
+    claudeHooksReinstall: "Reinstall",
+    claudeHooksRemove: "Disable",
+    claudePetLabel: "Dock pet",
+    claudePetHint: "A small mascot that walks the dock while a session runs, jumps when one needs permission, and rests when idle.",
   },
   githubTab: {
     widgets: {

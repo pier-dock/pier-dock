@@ -156,6 +156,19 @@ export const pt = {
       `${provider} · ${name}: ${percent} do limite, reseta em ${resetsIn}`,
     tileTokensToday: (tokens: string) => `${tokens} tokens hoje`,
   },
+  claudeAgents: {
+    title: "Claude Code",
+    idle: "Claude Code: nenhuma sessão ativa",
+    tile: (n: number, status: string) => `Claude Code: ${n} ${n === 1 ? "sessão" : "sessões"} · ${status}`,
+    empty: "Nenhuma sessão ativa",
+    focusFailed: "Não achei a janela desta sessão.",
+    status: {
+      running: "Rodando",
+      permission: "Pedindo permissão",
+      error: "Erro",
+      done: "Concluída",
+    } as Record<string, string>,
+  },
   system: {
     cpuLast60: "CPU · últimos 60 s",
     cpuChart: "Gráfico de uso de CPU nos últimos 60 segundos",
@@ -300,6 +313,7 @@ export const pt = {
       "system-usage": "Uso do sistema",
       calendar: "Agenda",
       "ai-usage": "Uso de IA",
+      "claude-agents": "Claude Code",
       bluetooth: "Bluetooth",
       launcher: "Lançador de apps",
       volume: "Som",
@@ -449,6 +463,12 @@ export const pt = {
         description:
           "Quanto do limite já foi usado na sessão de 5h e na semana (Claude Code) ou na janela do plano (Codex CLI), mais os tokens do dia. Lê os arquivos locais das IAs; nada vai para a rede.",
       },
+      "claude-agents": {
+        summary: "O Claude Code andando no dock, com cada sessão ativa.",
+        name: "Claude Agents",
+        description:
+          "Mostra as sessões do Claude Code rodando, pedindo permissão, com erro ou concluídas. Precisa dos hooks do Claude Code ativados (veja abaixo). O clique foca a janela do terminal ou IDE que lançou a sessão; com mais de uma ativa, abre uma lista para escolher.",
+      },
     },
     preview: "Pré-visualização",
     show: (name: string) => `Mostrar ${name}`,
@@ -503,6 +523,14 @@ export const pt = {
     icalAddress: "Endereço iCal",
     calendarHint: (keychain: string) =>
       `Google Agenda: Configurações da agenda → Endereço secreto no formato iCal. Outlook: Calendário → Calendários compartilhados → Publicar um calendário (link ICS). O endereço fica guardado ${keychain}.`,
+    claudeHooksLabel: "Hooks do Claude Code",
+    claudeHooksOnHint: "Instalados em ~/.claude/settings.json — as sessões aparecem aqui automaticamente.",
+    claudeHooksOffHint: "Sem eles o Pier não sabe quando uma sessão do Claude Code está rodando, pediu permissão ou terminou.",
+    claudeHooksInstall: "Ativar",
+    claudeHooksReinstall: "Reinstalar",
+    claudeHooksRemove: "Desativar",
+    claudePetLabel: "Bichinho da dock",
+    claudePetHint: "Um bichinho que anda pela dock enquanto uma sessão roda, pula quando uma pede permissão, e descansa quando está tudo parado.",
   },
   githubTab: {
     widgets: {

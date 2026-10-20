@@ -17,6 +17,7 @@ import { useBluetooth, useSystemStatus } from "../hooks/useSystem";
 import { buildDockApps, type DockApp } from "./apps";
 import { PREVIEW_GAP, barRect, dockMetrics, isVertical, previewSpace } from "./layout";
 import { WindowPreview } from "./WindowPreview";
+import { ClawdPet } from "./ClawdPet";
 import { MagnifyCtx } from "./Magnify";
 import { AppIcon } from "./AppIcon";
 import { SortableItem } from "./SortableItem";
@@ -437,6 +438,7 @@ export function Dock({ config }: { config: Config }) {
           ))}
         </MagnifyCtx.Provider>
       </div>
+      {config.claudePetEnabled && <ClawdPet position={position} full={full} margin={metrics.margin} barRef={barRef} />}
       {previewApp && preview && (
         <WindowPreview app={previewApp} anchor={preview} position={position} onClose={() => setPreview(null)} onHoverChange={onPreviewHover} />
       )}

@@ -55,6 +55,7 @@ pub fn snapshot() -> WindowsSnapshot {
                 aumid: w.app_id.or_else(|| w.wm_class.as_deref().and_then(desktop_entry::by_wm_class).map(|e| e.id)),
                 title: w.title,
                 minimized: w.minimized,
+                pid: w.pid as u32,
             })
             .collect()
     } else if let Some(x) = x11_session() {
@@ -71,6 +72,7 @@ pub fn snapshot() -> WindowsSnapshot {
                 aumid: w.wm_class.as_deref().and_then(desktop_entry::by_wm_class).map(|e| e.id),
                 title: w.title,
                 minimized: w.minimized,
+                pid: w.pid,
             })
             .collect()
     } else {

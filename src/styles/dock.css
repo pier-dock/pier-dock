@@ -414,6 +414,71 @@
   }
 }
 
+/* Clawd: mascote decorativo que anda sobre a borda da dock (ver `ClawdPet.tsx`). Puro enfeite:
+   pointer-events none, nunca entra na área clicável (`set_hit_rect`). */
+.claude-pet {
+  position: absolute;
+  z-index: 15;
+  pointer-events: none;
+  width: 26px;
+  height: 26px;
+}
+
+.claude-pet-facing {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease;
+}
+
+/* Bordas de cima e de baixo: espelha o sprite para o lado do passeio. */
+.claude-pet-facing.facing-left {
+  transform: scaleX(-1);
+}
+
+/* Laterais: não espelha de cabeça para baixo, só inclina na direção do passeio. */
+.claude-pet-facing.facing-up {
+  transform: rotate(-6deg);
+}
+.claude-pet-facing.facing-down {
+  transform: rotate(6deg);
+}
+
+.claude-sprite.claude-pet-idle {
+  animation: claude-pulse 1.8s ease-in-out infinite;
+}
+
+.claude-sprite.claude-pet-waiting {
+  animation: claude-pet-jump-y 0.5s ease-in-out infinite;
+}
+
+.dock-root[data-pos="left"] .claude-sprite.claude-pet-waiting,
+.dock-root[data-pos="right"] .claude-sprite.claude-pet-waiting {
+  animation-name: claude-pet-jump-x;
+}
+
+@keyframes claude-pet-jump-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes claude-pet-jump-x {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-8px);
+  }
+}
+
 .preview-card {
   position: relative;
   flex: 0 0 auto;

@@ -7,6 +7,7 @@ import { PomodoroWidget } from "./PomodoroWidget";
 import { UsageWidget } from "./UsageWidget";
 import { CalendarWidget } from "./CalendarWidget";
 import { AiUsageWidget } from "./AiUsageWidget";
+import { ClaudeAgentsWidget } from "./ClaudeAgentsWidget";
 
 /** Dados que os widgets mostram, lidos uma vez por quem os desenha (a dock ou as configurações). */
 export interface WidgetData {
@@ -65,5 +66,7 @@ export function WidgetView({ kind, size, data }: { kind: WidgetKind; size: Widge
       return <CalendarWidget data={data.calendar} wide={wide} />;
     case "ai-usage":
       return <AiUsageWidget data={data.ai} wide={wide} />;
+    case "claude-agents":
+      return <ClaudeAgentsWidget />;
   }
 }

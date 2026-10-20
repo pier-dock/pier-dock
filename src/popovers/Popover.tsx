@@ -3,6 +3,7 @@ import { ipc } from "../lib/ipc";
 import { BluetoothPanel } from "./Bluetooth";
 import { Calendar } from "./Calendar";
 import { AiUsagePanel } from "./AiUsagePanel";
+import { ClaudeAgentsPanel } from "./ClaudeAgentsPanel";
 import { Commits } from "./Commits";
 import { Contributions } from "./Contributions";
 import { Launcher } from "./Launcher";
@@ -38,6 +39,8 @@ function Content({ kind }: { kind: string }) {
       return <Calendar />;
     case "ai-usage":
       return <AiUsagePanel />;
+    case "claude-agents":
+      return <ClaudeAgentsPanel />;
     case "bluetooth":
       return <BluetoothPanel />;
     case "launcher":

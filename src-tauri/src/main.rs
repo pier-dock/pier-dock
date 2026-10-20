@@ -5,6 +5,7 @@ mod apps;
 mod audio;
 mod backdrop;
 mod calendar;
+mod claude_agents;
 mod config;
 mod dock_window;
 mod github;
@@ -234,6 +235,11 @@ fn main() {
             ai_usage::ai_usage,
             ai_usage::ai_usage_cached,
             ai_usage::ai_providers,
+            claude_agents::get_claude_agents,
+            claude_agents::focus_claude_agent,
+            claude_agents::claude_hooks_installed,
+            claude_agents::install_claude_hooks,
+            claude_agents::uninstall_claude_hooks,
             panels::open_panel,
             panels::close_panel,
             panels::focus_panel,
@@ -287,6 +293,7 @@ fn main() {
                 });
             }
             windows_list::start(handle.clone());
+            claude_agents::start(handle.clone());
             media::start(handle.clone());
             #[cfg(target_os = "macos")]
             audio::start();

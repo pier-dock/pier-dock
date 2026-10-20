@@ -134,6 +134,7 @@ pub fn snapshot() -> WindowsSnapshot {
                 exe: process_path(pid),
                 aumid: window_aumid(h),
                 minimized: unsafe { IsIconic(h).as_bool() },
+                pid,
             })
         })
         .collect();

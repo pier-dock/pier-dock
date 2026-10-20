@@ -7,7 +7,7 @@
  * chama `listen` ao ser carregado. Dentro do Tauri ele não faz nada.
  */
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
-import type { AiUsage, AppEntry, BluetoothState, CalendarData, Config, GithubData, MediaState, PomodoroState, SystemUsage, WeatherData, WindowsSnapshot } from "../lib/ipc";
+import type { AiUsage, AppEntry, BluetoothState, CalendarData, ClaudeAgent, Config, GithubData, MediaState, PomodoroState, SystemUsage, WeatherData, WindowsSnapshot } from "../lib/ipc";
 import { PANEL_INSET, PANEL_SIZES } from "../popovers/sizes";
 
 const insideTauri = "__TAURI_INTERNALS__" in window;
@@ -85,10 +85,11 @@ const config: Config = {
   pomodoro: { preset: "25-5", focusMinutes: 25, breakMinutes: 5 },
   language: "system",
   autoUpdate: true,
+  claudePetEnabled: true,
 };
 
 const windows: WindowsSnapshot = {
-  windows: apps.map((a, i) => ({ id: i + 1, title: a.name, exe: a.target, minimized: false })),
+  windows: apps.map((a, i) => ({ id: i + 1, title: a.name, exe: a.target, minimized: false, pid: 1000 + i })),
   foreground: 4,
 };
 
@@ -264,6 +265,11 @@ const claudeUsage: AiUsage = {
   fetchedAt: Date.now(),
 };
 
+const claudeAgents: ClaudeAgent[] = [
+  { sessionId: "a1", status: "running", cwd: "/Users/dev/pier", project: "pier", updatedAt: Date.now() - 30_000, windowId: 1 },
+  { sessionId: "a2", status: "permission", cwd: "/Users/dev/outro-projeto", project: "outro-projeto", updatedAt: Date.now() - 5_000, windowId: null },
+];
+
 /** Uma conta Plus: uma janela só, a da semana, e o modelo do Codex. */
 const codexUsage: AiUsage = {
   provider: "codex",
@@ -377,6 +383,11 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
     { id: "claude", detected: true },
     { id: "codex", detected: true },
   ],
+  get_claude_agents: () => claudeAgents,
+  focus_claude_agent: () => {},
+  claude_hooks_installed: () => true,
+  install_claude_hooks: () => {},
+  uninstall_claude_hooks: () => {},
   system_language: () => (navigator.language.toLowerCase().startsWith("pt") ? "pt" : "en"),
   platform_info: () => ({ os: "macos", windowList: "needs-accessibility", hideNative: true, shortcuts: true, glass: true, followCursor: true, reserveAnyMonitor: true }),
   "plugin:autostart|is_enabled": () => true,

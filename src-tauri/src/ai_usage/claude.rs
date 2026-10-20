@@ -31,7 +31,7 @@ const WEEK_MINUTES: i64 = 7 * 24 * 60;
 // --- caminhos ---------------------------------------------------------------
 
 /// Pasta de dados do Claude Code: `$CLAUDE_CONFIG_DIR` ou `~/.claude`.
-fn config_root() -> PathBuf {
+pub(crate) fn config_root() -> PathBuf {
     match std::env::var_os("CLAUDE_CONFIG_DIR") {
         Some(dir) if !dir.is_empty() => PathBuf::from(dir),
         _ => dirs::home_dir().unwrap_or_else(|| ".".into()).join(".claude"),
