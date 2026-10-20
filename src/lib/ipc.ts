@@ -86,6 +86,8 @@ export interface Config {
   weatherLocation: WeatherLocation | null;
   pomodoro: PomodoroConfig;
   language: LanguageSetting;
+  /** Instala sozinho a atualização encontrada logo depois de abrir. */
+  autoUpdate: boolean;
 }
 
 export interface WindowInfo {

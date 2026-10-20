@@ -549,6 +549,8 @@ export const pt = {
     language: "Idioma",
     languageSystem: "Sistema",
     replaceBar: "Substituir a barra do sistema",
+    autoUpdate: "Atualizar automaticamente",
+    autoUpdateHint: "Ao abrir, o Pier instala a versão nova e reinicia sozinho.",
     system: "Sistema",
     openWindows: "Janelas abertas",
     installRestart: "Instalar e reiniciar",
