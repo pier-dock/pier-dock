@@ -25,13 +25,14 @@ interface Props {
   position: DockPosition;
   full: boolean;
   margin: number;
+  visible: boolean;
   barRef: React.RefObject<HTMLDivElement>;
 }
 
 /** Mascote decorativo que anda sobre a borda da dock, reagindo às sessões do Claude Code (ver
  * `useClaudeAgents`). Puramente visual: `pointer-events: none`, não participa da área clicável
  * (`set_hit_rect`) nem precisa de nenhuma mudança no Rust. */
-export function ClawdPet({ position, full, margin, barRef }: Props) {
+export function ClawdPet({ position, full, margin, visible, barRef }: Props) {
   const agents = useClaudeAgents();
   const vertical = isVertical(position);
   const mood = moodOf(agents);
@@ -60,6 +61,7 @@ export function ClawdPet({ position, full, margin, barRef }: Props) {
     const axis = vertical ? rect.height : rect.width;
     const bounds = Math.max(0, axis - EDGE_PAD * 2 - PET);
     if (posRef.current > bounds) posRef.current = bounds;
+    el.style.setProperty("--pet-hide", `${(vertical ? barSize.width : barSize.height) + PET + 24}px`);
     if (!vertical) {
       el.style.top = `${position === "bottom" ? rect.y - PET + OVERLAP : rect.y + rect.height - OVERLAP}px`;
       el.style.left = `${rect.x + EDGE_PAD + posRef.current}px`;
@@ -112,7 +114,7 @@ export function ClawdPet({ position, full, margin, barRef }: Props) {
   }, [mood, position, full, margin, barSize, vertical]);
 
   return (
-    <div ref={outerRef} className="claude-pet" aria-hidden>
+    <div ref={outerRef} className={`claude-pet ${visible ? "" : "claude-pet-hidden"}`} aria-hidden>
       <div className={`claude-pet-facing facing-${facing}`}>
         <span className={`claude-sprite claude-pet-sprite ${mood === "walking" ? "walking" : `claude-pet-${mood}`} ${lead ? `claude-${lead}` : ""}`}>
           <ClaudeMascotIcon size={18} />

@@ -422,6 +422,39 @@
   pointer-events: none;
   width: 26px;
   height: 26px;
+  transform: translate(0, 0);
+  transition:
+    transform 0.42s cubic-bezier(0.22, 1.25, 0.36, 1),
+    opacity 0.2s ease-out;
+}
+
+/* Acompanha a barra quando ela sai da tela (`.dock-hidden`): `--pet-hide` é a espessura da barra
+   mais o próprio Clawd, calculada em `ClawdPet.tsx`. */
+.claude-pet.claude-pet-hidden {
+  transform: translate(0, var(--pet-hide));
+  opacity: 0;
+  transition:
+    transform 0.26s cubic-bezier(0.4, 0, 1, 1),
+    opacity 0.22s ease-in 0.04s;
+}
+
+.dock-root[data-pos="top"] .claude-pet.claude-pet-hidden {
+  transform: translate(0, calc(-1 * var(--pet-hide)));
+}
+
+.dock-root[data-pos="left"] .claude-pet.claude-pet-hidden {
+  transform: translate(calc(-1 * var(--pet-hide)), 0);
+}
+
+.dock-root[data-pos="right"] .claude-pet.claude-pet-hidden {
+  transform: translate(var(--pet-hide), 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .claude-pet,
+  .claude-pet.claude-pet-hidden {
+    transition: opacity 0.2s ease;
+  }
 }
 
 .claude-pet-facing {
