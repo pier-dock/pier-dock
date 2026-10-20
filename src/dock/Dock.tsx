@@ -438,7 +438,7 @@ export function Dock({ config }: { config: Config }) {
           ))}
         </MagnifyCtx.Provider>
       </div>
-      {config.claudePetEnabled && <ClawdPet position={position} full={full} margin={metrics.margin} barRef={barRef} />}
+      {config.claudePetEnabled && <ClawdPet position={position} full={full} margin={metrics.margin} visible={visible} barRef={barRef} />}
       {previewApp && preview && (
         <WindowPreview app={previewApp} anchor={preview} position={position} onClose={() => setPreview(null)} onHoverChange={onPreviewHover} />
       )}
