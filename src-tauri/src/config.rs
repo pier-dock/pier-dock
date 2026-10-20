@@ -209,10 +209,13 @@ pub fn load() -> Config {
     std::fs::read_to_string(config_path())
         .ok()
         .and_then(|s| serde_json::from_str(&s).ok())
-        .map(migrate)
-        .and_then(|v| serde_json::from_value(v).ok())
-        .map(add_missing_widgets)
+        .and_then(|v| read(v).ok())
         .unwrap_or_default()
+}
+
+/// Uma config salva, com as migrações e os widgets que surgiram depois dela.
+fn read(value: serde_json::Value) -> Result<Config, String> {
+    serde_json::from_value(migrate(value)).map(add_missing_widgets).err_str()
 }
 
 /// Widgets que surgiram depois que a config foi salva entram desligados, no fim da lista; sem
@@ -284,6 +287,12 @@ pub fn get_config(state: State<ConfigState>) -> Config {
 
 #[tauri::command]
 pub fn save_config(app: AppHandle, state: State<ConfigState>, config: Config) -> Result<(), String> {
+    apply(&app, &state, config)
+}
+
+/// Grava a config e aplica o que muda fora da página (idioma, dock, material, barra nativa); as
+/// janelas recebem a nova pelo `config-changed`.
+pub fn apply(app: &AppHandle, state: &ConfigState, config: Config) -> Result<(), String> {
     persist(&config)?;
     let (old_hide, old_language) = {
         let mut guard = state.0.lock().unwrap();
@@ -292,12 +301,12 @@ pub fn save_config(app: AppHandle, state: State<ConfigState>, config: Config) ->
         old
     };
     if old_language != config.language {
-        crate::i18n::apply(&app);
+        crate::i18n::apply(app);
     }
-    crate::dock_window::set_auto_hide(&app, &config.auto_hide);
-    crate::dock_window::set_position(&app, &config.dock_position);
-    crate::backdrop::set_material(&app, &config.material);
-    crate::pomodoro::config_changed(&app);
+    crate::dock_window::set_auto_hide(app, &config.auto_hide);
+    crate::dock_window::set_position(app, &config.dock_position);
+    crate::backdrop::set_material(app, &config.material);
+    crate::pomodoro::config_changed(app);
     if old_hide != config.hide_taskbar {
         if config.hide_taskbar {
             crate::taskbar::hide();
