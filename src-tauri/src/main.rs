@@ -12,6 +12,7 @@ mod i18n;
 mod icons;
 mod media;
 mod panels;
+mod permissions;
 mod platform;
 mod pomodoro;
 mod report;
@@ -240,6 +241,8 @@ fn main() {
             platform::platform_info,
             i18n::system_language,
             platform::platform_setup,
+            permissions::permissions,
+            permissions::permission_action,
             updater::check_update,
             updater::install_update,
             report::report_environment,

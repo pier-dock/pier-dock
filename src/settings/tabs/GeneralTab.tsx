@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { listen } from "@tauri-apps/api/event";
 import { disable as disableAutostart, enable as enableAutostart, isEnabled as autostartEnabled } from "@tauri-apps/plugin-autostart";
 import { Bug, Lightbulb, Sparkles } from "lucide-react";
-import { ipc, type ReportKind, type UpdateInfo } from "../../lib/ipc";
+import { ipc, type Permission, type ReportKind, type UpdateInfo } from "../../lib/ipc";
 import { labels, os } from "../../lib/platform";
 import { Card, Row, SectionLabel } from "../../ui/Card";
 import { Logo } from "../../ui/Logo";
@@ -12,6 +12,7 @@ import { Switch } from "../../ui/Switch";
 import type { TabProps } from "../shared";
 import { ReportDialog } from "../ReportDialog";
 import { ConfirmDialog } from "../ConfirmDialog";
+import { PermissionsDialog } from "../PermissionsDialog";
 import { useT, type Dict, type LanguageSetting } from "../../i18n";
 
 const LANGUAGES: { value: LanguageSetting; label: string }[] = [
@@ -41,6 +42,16 @@ function updateText(status: UpdateStatus, t: Dict["general"]) {
   }
 }
 
+/** "Gravação de Tela: pendente · 3 concedidas": as que faltam primeiro, as concedidas só contadas. */
+function permissionSummary(permissions: Permission[], t: Dict["permissions"]) {
+  const pending = permissions.filter((p) => p.status === "denied" || p.status === "not-determined");
+  if (!pending.length) return t.allGranted;
+  const granted = permissions.filter((p) => p.status === "granted").length;
+  const parts = pending.map((p) => t.summary(t.names[p.id], t.status[p.status].toLowerCase()));
+  if (granted) parts.push(t.grantedCount(granted));
+  return parts.join(" · ");
+}
+
 export function GeneralTab({ config, update, platform }: TabProps) {
   const [autostart, setAutostart] = useState<boolean | null>(null);
   const [version, setVersion] = useState("");
@@ -48,7 +59,9 @@ export function GeneralTab({ config, update, platform }: TabProps) {
   const [report, setReport] = useState<ReportKind | null>(null);
   const [transfer, setTransfer] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
-  const { general: t, report: reportT } = useT();
+  const [permissions, setPermissions] = useState<Permission[]>([]);
+  const [reviewing, setReviewing] = useState(false);
+  const { general: t, report: reportT, permissions: permissionsT } = useT();
   const platformLabels = labels();
 
   const checkUpdate = () => {
@@ -75,6 +88,15 @@ export function GeneralTab({ config, update, platform }: TabProps) {
       unlisten.then((f) => f());
     };
   }, []);
+
+  const refreshPermissions = useCallback(() => {
+    ipc.permissions().then(setPermissions).catch(console.error);
+  }, []);
+  useEffect(() => {
+    refreshPermissions();
+    window.addEventListener("focus", refreshPermissions);
+    return () => window.removeEventListener("focus", refreshPermissions);
+  }, [refreshPermissions]);
 
   const transferConfig = (run: () => Promise<boolean>, done: string) => {
     setTransfer(null);
@@ -118,14 +140,22 @@ export function GeneralTab({ config, update, platform }: TabProps) {
         </Card>
       </div>
 
-      {platform && os !== "windows" && (
+      {platform && (os === "linux" || permissions.length > 0) && (
         <div className="field">
           <SectionLabel>{t.system}</SectionLabel>
           <Card>
-            <Row label={t.openWindows} description={t.permission[platform.windowList]} />
+            {os === "linux" && <Row label={t.openWindows} description={t.permission[platform.windowList]} />}
+            {permissions.length > 0 && (
+              <Row label={permissionsT.row} description={permissionSummary(permissions, permissionsT)}>
+                <button className="btn" onClick={() => setReviewing(true)}>
+                  {permissionsT.review}
+                </button>
+              </Row>
+            )}
           </Card>
         </div>
       )}
+      {reviewing && <PermissionsDialog permissions={permissions} refresh={refreshPermissions} onClose={() => setReviewing(false)} />}
 
       <div className="field">
         <SectionLabel>{t.settingsFile}</SectionLabel>

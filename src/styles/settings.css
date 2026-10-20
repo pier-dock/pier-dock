@@ -836,6 +836,11 @@ input[type="range"] {
   background: color-mix(in srgb, var(--success) 12%, transparent);
 }
 
+.status-pill.warn {
+  color: var(--warning);
+  background: var(--warning-fill);
+}
+
 .status-pill.off {
   color: var(--text-secondary);
   background: var(--fill-selected);
@@ -1227,6 +1232,10 @@ input[type="range"] {
 
 .confirm-dialog .widget-dialog-footer .btn {
   margin-left: 0;
+}
+
+.permissions-dialog .row-control {
+  gap: 10px;
 }
 
 .reset-actions {

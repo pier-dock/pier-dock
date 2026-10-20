@@ -108,6 +108,12 @@ pub async fn wifi_disconnect() -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(backend::disconnect).await.err_str()?
 }
 
+/// O Windows 11 24H2 só mostra os nomes das redes para apps com acesso à Localização.
+#[cfg(windows)]
+pub fn needs_location() -> bool {
+    backend::status().needs_permission
+}
+
 #[tauri::command]
 pub fn wifi_request_permission(app: tauri::AppHandle) {
     backend::request_permission(&app);

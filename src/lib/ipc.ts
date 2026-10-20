@@ -283,6 +283,12 @@ export interface Volume {
   muted: boolean;
 }
 
+export interface Permission {
+  id: "accessibility" | "screen-recording" | "automation" | "location" | "bluetooth";
+  /** `unknown`: o sistema só responde com o app envolvido aberto (Automação do Spotify e do Música). */
+  status: "granted" | "denied" | "not-determined" | "unknown";
+}
+
 export interface PlatformInfo {
   os: "windows" | "linux" | "macos";
   windowList: "ok" | "needs-extension" | "needs-relogin" | "needs-accessibility" | "x11-only" | "unsupported";
@@ -446,6 +452,8 @@ export const ipc = {
   platformInfo: () => invoke<PlatformInfo>("platform_info"),
   systemLanguage: () => invoke<Lang>("system_language"),
   platformSetup: (action: "install-extension" | "request-accessibility") => invoke<void>("platform_setup", { action }),
+  permissions: () => invoke<Permission[]>("permissions"),
+  permissionAction: (id: Permission["id"]) => invoke<void>("permission_action", { id }),
 
   checkUpdate: () => invoke<UpdateInfo | null>("check_update"),
   installUpdate: () => invoke<void>("install_update"),

@@ -44,6 +44,7 @@ export const pt = {
       macos: "Nunca (fica por cima das janelas)",
     },
     keychain: { windows: "no Gerenciador de Credenciais", linux: "no chaveiro do sistema", macos: "nas Chaves (Keychain)" },
+    openSettings: { windows: "Abrir Configurações", linux: "Abrir configurações", macos: "Abrir Ajustes" },
   },
   format: {
     /** "qua, 15 out" */
@@ -577,6 +578,32 @@ export const pt = {
     empty: "Esta versão não tem notas de novidades.",
     close: "Fechar",
     allReleases: "Todas as versões no GitHub",
+  },
+  permissions: {
+    row: "Permissões",
+    review: "Revisar",
+    allGranted: "Todas concedidas",
+    summary: (name: string, status: string) => `${name}: ${status}`,
+    grantedCount: (n: number) => `${n} ${n === 1 ? "concedida" : "concedidas"}`,
+    title: "Permissões",
+    intro: "O que o Pier pede ao sistema e para quê. Sem uma delas, só o recurso que depende dela deixa de funcionar.",
+    close: "Fechar",
+    grant: "Conceder",
+    status: { granted: "Concedida", denied: "Negada", "not-determined": "Pendente", unknown: "Ao usar" },
+    names: {
+      accessibility: "Acessibilidade",
+      "screen-recording": "Gravação de Tela",
+      automation: "Automação",
+      location: "Localização",
+      bluetooth: "Bluetooth",
+    },
+    why: {
+      accessibility: "Listar, focar, minimizar e fechar as janelas dos apps.",
+      "screen-recording": "Mostrar a miniatura de cada janela nas prévias.",
+      automation: "Ler e controlar o Spotify e o Música no widget de mídia. O sistema só responde com um deles aberto.",
+      location: "Mostrar os nomes das redes Wi-Fi por perto.",
+      bluetooth: "Mostrar os dispositivos pareados e conectados.",
+    },
   },
   confirm: {
     cancel: "Cancelar",

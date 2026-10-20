@@ -27,5 +27,6 @@ export function labels() {
     dropHint: t.dropHint[os],
     autoHideNever: t.autoHideNever[os],
     keychain: t.keychain[os],
+    openSettings: t.openSettings[os],
   };
 }
