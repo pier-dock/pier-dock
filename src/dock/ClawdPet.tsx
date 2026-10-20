@@ -55,14 +55,17 @@ export function ClawdPet({ position, full, margin, visible, barRef }: Props) {
   const [barSize, setBarSize] = useState({ width: 0, height: 0 });
   // Fica parado sob o cursor, senão o clique erra o alvo andando.
   const [hovered, setHovered] = useState(false);
-  const walking = mood === "walking" && !(hovered && clickable);
+  // Também fica parado enquanto o painel das sessões (aberto por ele ou pelo widget) está aberto.
+  const [panelOpen, setPanelOpen] = useState(false);
+  const walking = mood === "walking" && !(hovered && clickable) && !panelOpen;
 
   // Ao sair da área dele o Rust liga o click-through e o WebView não recebe o mouseleave.
   useEffect(() => {
-    const unlisten = listen("dock-pointer-left", () => setHovered(false));
-    return () => {
-      unlisten.then((f) => f());
-    };
+    const subs = [
+      listen("dock-pointer-left", () => setHovered(false)),
+      listen<string | null>("panel-changed", (e) => setPanelOpen(e.payload === "claude-agents")),
+    ];
+    return () => subs.forEach((s) => s.then((unlisten) => unlisten()));
   }, []);
 
   useEffect(() => {

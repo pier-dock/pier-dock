@@ -3,7 +3,7 @@
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Mutex;
 
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
 
 use crate::dock_window::{position, reserved_rect, DOCK_LABEL, LEFT, RIGHT, TOP};
 use crate::util::ErrStr;
@@ -29,6 +29,12 @@ fn view_script(view: &str, kind: &str) -> String {
     )
 }
 
+/// Avisa a dock qual painel está aberto (`None`: nenhum), para o Clawd parar enquanto o das sessões
+/// estiver aberto.
+fn notify(app: &AppHandle, kind: Option<&str>) {
+    let _ = app.emit_to(DOCK_LABEL, "panel-changed", kind);
+}
+
 pub fn panel_open() -> bool {
     OPEN_PANEL.lock().unwrap().is_some()
 }
@@ -38,6 +44,7 @@ pub fn close_open_panel(app: &AppHandle) -> Option<String> {
     if let Some(window) = app.get_webview_window(&label) {
         let _ = window.destroy();
     }
+    notify(app, None);
     Some(kind)
 }
 
@@ -121,10 +128,12 @@ pub async fn open_panel(app: AppHandle, kind: String, anchor_x: f64, anchor_y: f
             let mut open = OPEN_PANEL.lock().unwrap();
             if open.as_ref().map(|(l, _)| l == handle.label()).unwrap_or(false) {
                 *open = None;
+                notify(handle.app_handle(), None);
             }
             let _ = handle.destroy();
         }
     });
+    notify(&app, Some(&kind));
     *OPEN_PANEL.lock().unwrap() = Some((label, kind));
     Ok(())
 }
