@@ -166,7 +166,22 @@ pub fn open_settings_window(app: &AppHandle) -> tauri::Result<WebviewWindow> {
 /// Novidades das versões depois de `since` (vazio: só a atual), lidas do changelog pelo frontend.
 pub fn open_whats_new_window(app: &AppHandle, since: &str) -> tauri::Result<WebviewWindow> {
     let title = crate::i18n::current(app).t("Novidades do Pier", "What's new in Pier");
-    app_window(app, WHATS_NEW_LABEL, since, title, (600.0, 680.0), (480.0, 480.0))
+    let window = app_window(app, WHATS_NEW_LABEL, since, title, (600.0, 680.0), (480.0, 480.0))?;
+    // Aberta no boot, sem interação do usuário, o sistema não traz a janela para a frente (o app
+    // não está ativo no macOS, o Windows bloqueia o primeiro plano). Fica por cima até a primeira
+    // mudança de foco e depois volta a ser uma janela comum.
+    let _ = window.set_always_on_top(true);
+    let handle = window.clone();
+    let released = AtomicBool::new(false);
+    window.on_window_event(move |event| {
+        if let WindowEvent::Focused(_) = event {
+            if !released.swap(true, Ordering::SeqCst) {
+                let _ = handle.set_always_on_top(false);
+            }
+        }
+    });
+    let _ = window.set_focus();
+    Ok(window)
 }
 
 /// Janelas normais do app (configurações e novidades), com o material do sistema; o label também é
