@@ -180,9 +180,14 @@ pub fn list_monitors(app: AppHandle) -> Vec<MonitorInfo> {
         .collect()
 }
 
+/// O ponto (no espaço do `backend::cursor`) está no monitor? No macOS cada monitor vem em pixels
+/// da própria escala e o cursor em pontos: a comparação é em pontos.
 fn contains(monitor: &Monitor, x: f64, y: f64) -> bool {
+    let scale = if cfg!(target_os = "macos") { monitor.scale_factor() } else { 1.0 };
     let (pos, size) = (monitor.position(), monitor.size());
-    x >= pos.x as f64 && x < pos.x as f64 + size.width as f64 && y >= pos.y as f64 && y < pos.y as f64 + size.height as f64
+    let (left, top) = (pos.x as f64 / scale, pos.y as f64 / scale);
+    let (width, height) = (size.width as f64 / scale, size.height as f64 / scale);
+    x >= left && x < left + width && y >= top && y < top + height
 }
 
 /// Seguindo o cursor: o cursor ficou `FOLLOW_DWELL` em outro monitor, sem painel aberto (ele
@@ -487,6 +492,7 @@ struct Placement {
 
 /// Posiciona a janela na borda escolhida do monitor da dock, encostada na tela.
 fn place_window(window: &WebviewWindow) -> Option<Placement> {
+    #[cfg(not(target_os = "macos"))]
     use tauri::{PhysicalPosition, PhysicalSize};
     let layout = layout();
     let monitor = target_monitor(window)?;
@@ -502,8 +508,20 @@ fn place_window(window: &WebviewWindow) -> Option<Placement> {
         RIGHT => (bounds.right - thickness, bounds.top, thickness as u32, size.height),
         _ => (bounds.left, bounds.bottom - thickness, size.width, thickness as u32),
     };
-    let _ = window.set_size(PhysicalSize::new(width, height));
-    let _ = window.set_position(PhysicalPosition::new(x, y));
+    // No macOS o tao converte pixels físicos em pontos pela escala da tela onde a janela está
+    // agora, não da tela de destino: indo de um Retina para um monitor 1x, a janela cairia no lugar
+    // e no tamanho errados. Em pontos (pela escala do destino) ela chega certa.
+    #[cfg(target_os = "macos")]
+    {
+        use tauri::{LogicalPosition, LogicalSize};
+        let _ = window.set_size(LogicalSize::new(width as f64 / scale, height as f64 / scale));
+        let _ = window.set_position(LogicalPosition::new(x as f64 / scale, y as f64 / scale));
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = window.set_size(PhysicalSize::new(width, height));
+        let _ = window.set_position(PhysicalPosition::new(x, y));
+    }
     Some(Placement { x, y, width, height, band: reserved_band(bounds, reserved), monitor: bounds })
 }
 

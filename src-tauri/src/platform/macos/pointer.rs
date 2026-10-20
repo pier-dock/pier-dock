@@ -6,7 +6,21 @@
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
-use tauri::{Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewWindow};
+use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewWindow};
+
+/// Escala da tela principal: a que o `cursor_position` do tao usa.
+pub fn primary_scale(app: &AppHandle) -> f64 {
+    app.primary_monitor().ok().flatten().map_or(1.0, |m| m.scale_factor())
+}
+
+/// O cursor em pontos, a partir do canto de cima à esquerda da tela principal. O `cursor_position`
+/// do tao multiplica os pontos pela escala da tela principal, mas a posição de uma janela ou de um
+/// monitor usa a escala da própria tela: com telas de escalas diferentes (um Retina e um monitor
+/// externo) os "pixels físicos" de cada um não se comparam. Os pontos, sim.
+pub fn cursor_points(app: &AppHandle, primary_scale: f64) -> Option<(f64, f64)> {
+    let cursor = app.cursor_position().ok()?;
+    Some((cursor.x / primary_scale, cursor.y / primary_scale))
+}
 
 /// Posição em pixels CSS, relativa ao topo esquerdo da janela.
 #[derive(Serialize, Clone, Copy, PartialEq, Debug)]
@@ -22,22 +36,24 @@ pub fn forward(window: &WebviewWindow) {
     let label = window.label().to_string();
     std::thread::spawn(move || {
         let mut last: Option<Pointer> = None;
-        let mut frame: Option<(PhysicalPosition<i32>, PhysicalSize<u32>, f64)> = None;
+        let mut frame: Option<(PhysicalPosition<i32>, PhysicalSize<u32>, f64, f64)> = None;
         let mut frame_read = Instant::now();
         loop {
             std::thread::sleep(Duration::from_millis(16));
             let Some(window) = app.get_webview_window(&label) else { return };
-            // Posição e tamanho só mudam com o layout; cada leitura é uma ida à thread principal.
+            // Posição, tamanho e telas só mudam com o layout; cada leitura é uma ida à thread principal.
             if frame.is_none() || frame_read.elapsed() > Duration::from_millis(500) {
                 frame = match (window.outer_position(), window.outer_size(), window.scale_factor()) {
-                    (Ok(pos), Ok(size), Ok(scale)) => Some((pos, size, scale)),
+                    (Ok(pos), Ok(size), Ok(scale)) => Some((pos, size, scale, primary_scale(&app))),
                     _ => None,
                 };
                 frame_read = Instant::now();
             }
-            let (Some((pos, size, scale)), Ok(cursor)) = (frame, app.cursor_position()) else { continue };
-            let x = (cursor.x - pos.x as f64) / scale;
-            let y = (cursor.y - pos.y as f64) / scale;
+            let Some((pos, size, scale, primary)) = frame else { continue };
+            let Some((cx, cy)) = cursor_points(&app, primary) else { continue };
+            // Pontos da tela são pixels CSS da página.
+            let x = cx - pos.x as f64 / scale;
+            let y = cy - pos.y as f64 / scale;
             let inside = x >= 0.0 && y >= 0.0 && x < size.width as f64 / scale && y < size.height as f64 / scale;
             let pointer = Pointer { x, y, inside };
             // Fora da janela, só a primeira posição interessa (para a página encerrar o hover).
