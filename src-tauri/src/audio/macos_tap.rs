@@ -8,6 +8,7 @@
 
 use std::collections::HashMap;
 use std::ffi::{c_char, c_void, CStr};
+use std::path::PathBuf;
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::mpsc::{self, SyncSender};
@@ -32,6 +33,7 @@ use objc2_core_audio::{
 };
 use objc2_core_audio_types::{AudioBuffer, AudioBufferList, AudioTimeStamp};
 use objc2_foundation::{NSArray, NSNumber, NSUUID};
+use serde::{Deserialize, Serialize};
 
 use super::procs::{self, symbol, AppGroup};
 use super::{default_output, device_uid, global, AppStream, SYSTEM};
@@ -59,7 +61,7 @@ extern "C" {
 
 const RTLD_NOW: i32 = 2;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 struct Volume {
     level: f32,
     muted: bool,
@@ -378,15 +380,21 @@ fn reconcile(state: &mut State, request: bool) {
     });
 
     let Some(output) = output else { return };
-    if volumes.keys().all(|bundle| taps.contains_key(bundle)) || !capture_allowed(request) {
+    let pending: Vec<(&AppGroup, &str, Volume)> = groups
+        .iter()
+        .filter(|g| g.playing)
+        .filter_map(|g| {
+            let bundle = key(g)?;
+            let volume = *volumes.get(bundle)?;
+            let waiting = taps.contains_key(bundle) || failures.get(bundle).is_some_and(|at| at.elapsed() < RETRY);
+            (!waiting).then_some((g, bundle, volume))
+        })
+        .collect();
+    // A consulta ao TCC é uma chamada a outro processo: só quando há um tap a criar.
+    if pending.is_empty() || !capture_allowed(request) {
         return;
     }
-    for group in groups.iter().filter(|g| g.playing) {
-        let Some(bundle) = key(group) else { continue };
-        let Some(volume) = volumes.get(bundle) else { continue };
-        if taps.contains_key(bundle) || failures.get(bundle).is_some_and(|at| at.elapsed() < RETRY) {
-            continue;
-        }
+    for (group, bundle, volume) in pending {
         match create(group, &output, volume.gain()) {
             Ok(tap) => {
                 failures.remove(bundle);
@@ -434,8 +442,26 @@ pub fn set_volume(bundle: &str, level: Option<f32>, muted: Option<bool>) {
     } else {
         state.volumes.insert(bundle.to_string(), volume);
     }
+    save_volumes(&state.volumes);
     state.failures.remove(bundle);
     reconcile(&mut state, true);
+}
+
+/// Os volumes ficam num arquivo próprio, fora da config, para não disputar com o `save_config`
+/// do frontend. Só os apps fora dos 100% entram; ao abrir o Pier, o tap volta quando o app tocar.
+fn volumes_path() -> PathBuf {
+    crate::util::data_dir().join("app-volumes.json")
+}
+
+fn load_volumes() -> HashMap<String, Volume> {
+    std::fs::read_to_string(volumes_path()).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default()
+}
+
+fn save_volumes(volumes: &HashMap<String, Volume>) {
+    let result = serde_json::to_string_pretty(volumes).map_err(|e| e.to_string()).and_then(|json| std::fs::write(volumes_path(), json).map_err(|e| e.to_string()));
+    if let Err(e) = result {
+        log::warn!("falha ao gravar o volume dos apps: {e}");
+    }
 }
 
 unsafe extern "C-unwind" fn on_change(_object: AudioObjectID, _count: u32, _addresses: NonNull<AudioObjectPropertyAddress>, _client: *mut c_void) -> i32 {
@@ -448,6 +474,7 @@ pub fn start() {
     if WAKE.set(tx).is_err() {
         return;
     }
+    STATE.lock().unwrap().volumes = load_volumes();
     for selector in [kAudioHardwarePropertyProcessObjectList, kAudioHardwarePropertyDefaultOutputDevice] {
         let mut address = global(selector);
         unsafe { AudioObjectAddPropertyListener(SYSTEM, NonNull::from(&mut address), Some(on_change), std::ptr::null_mut()) };
@@ -456,4 +483,24 @@ pub fn start() {
         let _ = rx.recv_timeout(TICK);
         reconcile(&mut STATE.lock().unwrap(), false);
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_saved_volumes() {
+        let volumes: HashMap<String, Volume> = serde_json::from_str(r#"{"com.spotify.client": {"level": 0.4, "muted": true}}"#).unwrap();
+        let spotify = volumes["com.spotify.client"];
+        assert_eq!(spotify, Volume { level: 0.4, muted: true });
+        assert_eq!(spotify.gain(), 0.0);
+    }
+
+    #[test]
+    fn full_volume_drops_the_tap() {
+        assert!(Volume::default().is_default());
+        assert!(!Volume { level: 1.0, muted: true }.is_default());
+        assert!(!Volume { level: 0.5, muted: false }.is_default());
+    }
 }
