@@ -182,6 +182,7 @@ fn main() {
             config::reset_config,
             dock_window::set_dock_layout,
             dock_window::set_hit_rect,
+            dock_window::set_pet_rect,
             dock_window::set_preview_glass,
             dock_window::dock_visible,
             dock_window::set_dock_hover,

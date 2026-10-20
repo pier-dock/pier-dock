@@ -317,6 +317,7 @@ pub struct Reserved {
 
 static LAYOUT: Mutex<Layout> = Mutex::new(Layout { reserved: 72.0, window_size: 170.0, hover_headroom: 80.0 });
 static HIT: Mutex<HitRect> = Mutex::new(HitRect { x: 0.0, y: 0.0, width: 0.0, height: 0.0, radius: 0.0 });
+static PET: Mutex<Option<HitRect>> = Mutex::new(None);
 
 fn layout() -> Layout {
     *LAYOUT.lock().unwrap()
@@ -446,6 +447,25 @@ pub fn set_hit_rect(app: AppHandle, rect: HitRect) {
         crate::backdrop::set_frame(&window, glass, rect.radius);
     }
     backend::hit_rect_changed(&app);
+}
+
+/// O Clawd (mascote das sessões do Claude Code) anda logo para fora da barra, então a área dele
+/// também recebe clique, mesmo sem o cursor ter passado pela barra. `None` quando ele está
+/// escondido ou não tem o que abrir.
+#[tauri::command]
+pub fn set_pet_rect(app: AppHandle, rect: Option<HitRect>) {
+    *PET.lock().unwrap() = rect;
+    backend::hit_rect_changed(&app);
+}
+
+pub fn pet_rect() -> Option<HitRect> {
+    *PET.lock().unwrap()
+}
+
+/// O ponto (em pixels lógicos da janela) está sobre o Clawd?
+#[cfg_attr(target_os = "linux", allow(dead_code))]
+pub fn over_pet(x: f64, y: f64) -> bool {
+    pet_rect().is_some_and(|r| x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height)
 }
 
 /// A faixa de prévias das janelas abriu, mudou de tamanho (`Some`) ou fechou (`None`): o vidro

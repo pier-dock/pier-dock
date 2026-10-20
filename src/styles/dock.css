@@ -414,8 +414,8 @@
   }
 }
 
-/* Clawd: mascote decorativo que anda sobre a borda da dock (ver `ClawdPet.tsx`). Puro enfeite:
-   pointer-events none, nunca entra na área clicável (`set_hit_rect`). */
+/* Clawd: mascote que anda sobre a borda da dock (ver `ClawdPet.tsx`). Só recebe clique quando há
+   sessões para abrir (`.clickable`). */
 .claude-pet {
   position: absolute;
   z-index: 15;
@@ -455,6 +455,11 @@
   .claude-pet.claude-pet-hidden {
     transition: opacity 0.2s ease;
   }
+}
+
+.claude-pet.clickable {
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .claude-pet-facing {

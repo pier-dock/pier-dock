@@ -15,23 +15,25 @@ export function leadStatus(agents: ClaudeAgent[]): ClaudeAgentState | null {
   return null;
 }
 
+/** Com uma sessão só (e a janela dela encontrada) foca direto o terminal; senão abre a lista
+ * ancorada em `el`. É o clique do widget e do Clawd (`ClawdPet`). */
+export function openClaudeAgents(agents: ClaudeAgent[], el: Element) {
+  if (agents.length === 0) return;
+  if (agents.length === 1 && agents[0].windowId !== null) {
+    ipc.focusClaudeAgent(agents[0].sessionId).catch(console.error);
+    return;
+  }
+  togglePanel("claude-agents", el);
+}
+
 export function ClaudeAgentsWidget() {
   const agents = useClaudeAgents();
   const t = useT().claudeAgents;
   const lead = leadStatus(agents);
   const label = agents.length === 0 ? t.idle : t.tile(agents.length, t.status[lead ?? "running"]);
 
-  const onClick = (el: HTMLButtonElement) => {
-    if (agents.length === 0) return;
-    if (agents.length === 1 && agents[0].windowId !== null) {
-      ipc.focusClaudeAgent(agents[0].sessionId).catch(console.error);
-      return;
-    }
-    togglePanel("claude-agents", el);
-  };
-
   return (
-    <Tile kind="claude-agents" label={label} className="claude-tile" onClick={onClick}>
+    <Tile kind="claude-agents" label={label} className="claude-tile" onClick={(el) => openClaudeAgents(agents, el)}>
       <span className={`claude-sprite ${agents.length ? "walking" : ""} ${lead ? `claude-${lead}` : ""}`} aria-hidden>
         <ClaudeMascotIcon size={18} />
       </span>
