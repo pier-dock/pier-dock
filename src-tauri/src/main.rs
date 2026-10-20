@@ -166,6 +166,7 @@ fn main() {
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(shortcuts)
         .manage(config::ConfigState(Mutex::new(config::load())))
@@ -174,6 +175,8 @@ fn main() {
             quit_app,
             config::get_config,
             config::save_config,
+            config::export_config,
+            config::import_config,
             dock_window::set_dock_layout,
             dock_window::set_hit_rect,
             dock_window::set_preview_glass,

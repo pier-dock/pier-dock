@@ -1,7 +1,8 @@
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
+use tauri_plugin_dialog::DialogExt;
 
 use crate::util::{data_dir, ErrStr};
 
@@ -218,6 +219,17 @@ fn read(value: serde_json::Value) -> Result<Config, String> {
     serde_json::from_value(migrate(value)).map(add_missing_widgets).err_str()
 }
 
+/// Uma config importada de um arquivo. Os campos que faltam ganham o padrão, como no `load`, mas um
+/// JSON sem `widgets` nem `pinnedApps` não é uma config do Pier.
+pub fn parse(json: &str) -> Result<Config, String> {
+    let value: serde_json::Value = serde_json::from_str(json).err_str()?;
+    let is_config = value.as_object().is_some_and(|o| o.contains_key("widgets") || o.contains_key("pinnedApps"));
+    if !is_config {
+        return Err("o arquivo não é uma configuração do Pier".into());
+    }
+    read(value)
+}
+
 /// Widgets que surgiram depois que a config foi salva entram desligados, no fim da lista; sem
 /// isso eles nunca apareceriam nas configurações.
 fn add_missing_widgets(mut config: Config) -> Config {
@@ -288,6 +300,33 @@ pub fn get_config(state: State<ConfigState>) -> Config {
 #[tauri::command]
 pub fn save_config(app: AppHandle, state: State<ConfigState>, config: Config) -> Result<(), String> {
     apply(&app, &state, config)
+}
+
+/// Salva a config atual num arquivo escolhido pelo usuário. `false` se ele cancelar. O token do
+/// GitHub e o link da agenda ficam no chaveiro, fora da config, e não vão junto.
+#[tauri::command]
+pub async fn export_config(app: AppHandle, window: WebviewWindow) -> Result<bool, String> {
+    let json = serde_json::to_string_pretty(&*app.state::<ConfigState>().0.lock().unwrap()).err_str()?;
+    let title = crate::i18n::current(&app).t("Exportar configuração", "Export settings");
+    let dialog = app.dialog().file().set_parent(&window).set_title(title).set_file_name("pier-config.json").add_filter("JSON", &["json"]);
+    let Some(path) = tauri::async_runtime::spawn_blocking(move || dialog.blocking_save_file()).await.err_str()? else {
+        return Ok(false);
+    };
+    std::fs::write(path.into_path().err_str()?, json).err_str()?;
+    Ok(true)
+}
+
+/// Troca a config pela de um arquivo exportado. `false` se o usuário cancelar.
+#[tauri::command]
+pub async fn import_config(app: AppHandle, window: WebviewWindow) -> Result<bool, String> {
+    let title = crate::i18n::current(&app).t("Importar configuração", "Import settings");
+    let dialog = app.dialog().file().set_parent(&window).set_title(title).add_filter("JSON", &["json"]);
+    let Some(path) = tauri::async_runtime::spawn_blocking(move || dialog.blocking_pick_file()).await.err_str()? else {
+        return Ok(false);
+    };
+    let config = parse(&std::fs::read_to_string(path.into_path().err_str()?).err_str()?)?;
+    apply(&app, &app.state::<ConfigState>(), config)?;
+    Ok(true)
 }
 
 /// Grava a config e aplica o que muda fora da página (idioma, dock, material, barra nativa); as
@@ -367,6 +406,21 @@ mod tests {
         assert!(!weather.enabled);
         assert_eq!(weather.size, "wide");
         assert_eq!(config.widgets.len(), Config::default().widgets.len());
+    }
+
+    #[test]
+    fn parse_migrates_an_exported_config() {
+        let config = parse(r#"{"theme":"midnight","widgets":[{"kind":"claude-usage","enabled":true,"size":"small"}]}"#).unwrap();
+        assert_eq!((config.material.as_str(), config.accent.as_str()), ("solid", "lilac"));
+        assert_eq!(config.widgets[0].kind, "ai-usage");
+        assert_eq!(config.widgets.len(), Config::default().widgets.len());
+    }
+
+    #[test]
+    fn parse_rejects_other_json() {
+        assert!(parse(r#"{"name":"package","version":"1.0.0"}"#).is_err());
+        assert!(parse("[1, 2]").is_err());
+        assert!(parse("not json").is_err());
     }
 
     #[test]

@@ -279,6 +279,8 @@ const codexUsage: AiUsage = {
 const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   get_config: () => config,
   save_config: (args) => Object.assign(config, args.config),
+  export_config: () => true,
+  import_config: () => true,
   get_windows: () => windows,
   toggle_desktop: () => null,
   list_installed_apps: () => installed,

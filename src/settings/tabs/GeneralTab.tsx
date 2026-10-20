@@ -45,6 +45,7 @@ export function GeneralTab({ config, update, platform }: TabProps) {
   const [version, setVersion] = useState("");
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ kind: "checking" });
   const [report, setReport] = useState<ReportKind | null>(null);
+  const [transfer, setTransfer] = useState<string | null>(null);
   const { general: t, report: reportT } = useT();
   const platformLabels = labels();
 
@@ -72,6 +73,16 @@ export function GeneralTab({ config, update, platform }: TabProps) {
       unlisten.then((f) => f());
     };
   }, []);
+
+  const transferConfig = (run: () => Promise<boolean>, done: string) => {
+    setTransfer(null);
+    run()
+      .then((changed) => changed && setTransfer(done))
+      .catch((e) => {
+        console.error(e);
+        setTransfer(t.transferFailed);
+      });
+  };
 
   const toggleAutostart = async (on: boolean) => {
     await (on ? enableAutostart() : disableAutostart());
@@ -113,6 +124,20 @@ export function GeneralTab({ config, update, platform }: TabProps) {
           </Card>
         </div>
       )}
+
+      <div className="field">
+        <SectionLabel>{t.settingsFile}</SectionLabel>
+        <Card>
+          <Row label={t.transfer} description={transfer ?? t.transferHint}>
+            <button className="btn" onClick={() => transferConfig(ipc.importConfig, t.imported)}>
+              {t.importConfig}
+            </button>
+            <button className="btn" onClick={() => transferConfig(ipc.exportConfig, t.exported)}>
+              {t.exportConfig}
+            </button>
+          </Row>
+        </Card>
+      </div>
 
       <div className="version-card">
         <span className="version-logo">

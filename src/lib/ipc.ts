@@ -357,6 +357,9 @@ export interface WifiState {
 export const ipc = {
   getConfig: () => invoke<Config>("get_config"),
   saveConfig: (config: Config) => invoke<void>("save_config", { config }),
+  /** `false` quando o usuário cancela o diálogo. */
+  exportConfig: () => invoke<boolean>("export_config"),
+  importConfig: () => invoke<boolean>("import_config"),
   quit: () => invoke<void>("quit_app"),
 
   setDockLayout: (layout: { reserved: number; windowSize: number; hoverHeadroom: number }) =>
