@@ -35,8 +35,14 @@ pub struct AppStream {
 #[serde(rename_all = "camelCase")]
 pub struct AudioState {
     pub outputs: Vec<OutputDevice>,
-    /// `None` quando o sistema não deixa mexer no volume de cada app (macOS).
+    /// `None` quando o sistema não deixa mexer no volume de cada app (macOS antes do 14.2).
     pub apps: Option<Vec<AppStream>>,
+}
+
+/// No macOS o volume de cada app depende de taps que o Pier mantém e reconcilia em segundo plano.
+#[cfg(target_os = "macos")]
+pub fn start() {
+    backend::start();
 }
 
 #[tauri::command]

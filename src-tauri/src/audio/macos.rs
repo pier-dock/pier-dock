@@ -1,5 +1,10 @@
-//! Saídas de áudio pelo CoreAudio. O macOS não tem API pública para o volume de cada app, então o
-//! mixer fica escondido.
+//! Saídas de áudio pelo CoreAudio e o volume de cada app pelos process taps (macOS 14.2+). Antes
+//! do 14.2 não há API para o volume de cada app, e o mixer fica escondido.
+
+#[path = "macos_procs.rs"]
+mod procs;
+#[path = "macos_tap.rs"]
+mod tap;
 
 use std::ffi::c_void;
 use std::ptr::NonNull;
@@ -7,9 +12,10 @@ use std::ptr::NonNull;
 use core_foundation::base::TCFType;
 use core_foundation::string::{CFString, CFStringRef};
 use objc2_core_audio::{
-    kAudioDevicePropertyStreams, kAudioHardwarePropertyDefaultOutputDevice, kAudioHardwarePropertyDevices, kAudioObjectPropertyElementMain,
-    kAudioObjectPropertyName, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyScopeOutput, kAudioObjectSystemObject,
-    AudioObjectGetPropertyData, AudioObjectGetPropertyDataSize, AudioObjectID, AudioObjectPropertyAddress, AudioObjectSetPropertyData,
+    kAudioDevicePropertyDeviceUID, kAudioDevicePropertyStreams, kAudioHardwarePropertyDefaultOutputDevice, kAudioHardwarePropertyDevices,
+    kAudioObjectPropertyElementMain, kAudioObjectPropertyName, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyScopeOutput,
+    kAudioObjectSystemObject, AudioObjectGetPropertyData, AudioObjectGetPropertyDataSize, AudioObjectID, AudioObjectPropertyAddress,
+    AudioObjectSetPropertyData,
 };
 
 use super::{AppStream, OutputDevice};
@@ -18,6 +24,10 @@ const SYSTEM: AudioObjectID = kAudioObjectSystemObject as AudioObjectID;
 
 fn address(selector: u32, scope: u32) -> AudioObjectPropertyAddress {
     AudioObjectPropertyAddress { mSelector: selector, mScope: scope, mElement: kAudioObjectPropertyElementMain }
+}
+
+fn global(selector: u32) -> AudioObjectPropertyAddress {
+    address(selector, kAudioObjectPropertyScopeGlobal)
 }
 
 fn data_size(object: AudioObjectID, mut address: AudioObjectPropertyAddress) -> Option<u32> {
@@ -36,16 +46,16 @@ fn get<T: Default>(object: AudioObjectID, mut address: AudioObjectPropertyAddres
     (status == 0).then_some(value)
 }
 
-fn device_ids() -> Vec<AudioObjectID> {
-    let mut addr = address(kAudioHardwarePropertyDevices, kAudioObjectPropertyScopeGlobal);
-    let Some(size) = data_size(SYSTEM, addr) else { return Vec::new() };
+/// Lê uma propriedade que é uma lista de ids (dispositivos, processos).
+fn get_ids(object: AudioObjectID, mut address: AudioObjectPropertyAddress) -> Vec<AudioObjectID> {
+    let Some(size) = data_size(object, address) else { return Vec::new() };
     let mut ids = vec![0 as AudioObjectID; size as usize / std::mem::size_of::<AudioObjectID>()];
-    let mut size = (ids.len() * std::mem::size_of::<AudioObjectID>()) as u32;
     if ids.is_empty() {
         return ids;
     }
+    let mut size = (ids.len() * std::mem::size_of::<AudioObjectID>()) as u32;
     let status = unsafe {
-        AudioObjectGetPropertyData(SYSTEM, NonNull::from(&mut addr), 0, std::ptr::null(), NonNull::from(&mut size), NonNull::new_unchecked(ids.as_mut_ptr().cast()))
+        AudioObjectGetPropertyData(object, NonNull::from(&mut address), 0, std::ptr::null(), NonNull::from(&mut size), NonNull::new_unchecked(ids.as_mut_ptr().cast()))
     };
     if status != 0 {
         return Vec::new();
@@ -54,36 +64,41 @@ fn device_ids() -> Vec<AudioObjectID> {
     ids
 }
 
-fn has_output(device: AudioObjectID) -> bool {
-    data_size(device, address(kAudioDevicePropertyStreams, kAudioObjectPropertyScopeOutput)).is_some_and(|size| size > 0)
-}
-
-fn name(device: AudioObjectID) -> Option<String> {
-    let raw: usize = get(device, address(kAudioObjectPropertyName, kAudioObjectPropertyScopeGlobal))?;
+/// Lê uma propriedade CFString (nome, UID, bundle id).
+fn get_string(object: AudioObjectID, selector: u32) -> Option<String> {
+    let raw: usize = get(object, global(selector))?;
     if raw == 0 {
         return None;
     }
     // O CoreAudio entrega a string com +1 de referência (regra de "create").
-    let name = unsafe { CFString::wrap_under_create_rule(raw as CFStringRef) };
-    Some(name.to_string())
+    let string = unsafe { CFString::wrap_under_create_rule(raw as CFStringRef) };
+    Some(string.to_string())
+}
+
+fn has_output(device: AudioObjectID) -> bool {
+    data_size(device, address(kAudioDevicePropertyStreams, kAudioObjectPropertyScopeOutput)).is_some_and(|size| size > 0)
 }
 
 fn default_output() -> Option<AudioObjectID> {
-    get(SYSTEM, address(kAudioHardwarePropertyDefaultOutputDevice, kAudioObjectPropertyScopeGlobal))
+    get(SYSTEM, global(kAudioHardwarePropertyDefaultOutputDevice))
+}
+
+fn device_uid(device: AudioObjectID) -> Option<String> {
+    get_string(device, kAudioDevicePropertyDeviceUID)
 }
 
 pub fn outputs() -> Result<Vec<OutputDevice>, String> {
     let current = default_output();
-    Ok(device_ids()
+    Ok(get_ids(SYSTEM, global(kAudioHardwarePropertyDevices))
         .into_iter()
-        .filter(|&id| has_output(id))
-        .filter_map(|id| Some(OutputDevice { id: id.to_string(), name: name(id)?, default: Some(id) == current }))
+        .filter(|&id| has_output(id) && !device_uid(id).is_some_and(|uid| tap::is_own_device(&uid)))
+        .filter_map(|id| Some(OutputDevice { id: id.to_string(), name: get_string(id, kAudioObjectPropertyName)?, default: Some(id) == current }))
         .collect())
 }
 
 pub fn set_output(id: &str) -> Result<(), String> {
     let mut device: AudioObjectID = id.parse().map_err(|_| format!("saída inválida: {id}"))?;
-    let mut addr = address(kAudioHardwarePropertyDefaultOutputDevice, kAudioObjectPropertyScopeGlobal);
+    let mut addr = global(kAudioHardwarePropertyDefaultOutputDevice);
     let size = std::mem::size_of::<AudioObjectID>() as u32;
     let status = unsafe {
         AudioObjectSetPropertyData(SYSTEM, NonNull::from(&mut addr), 0, std::ptr::null(), size, NonNull::from(&mut device).cast::<c_void>())
@@ -96,9 +111,19 @@ pub fn set_output(id: &str) -> Result<(), String> {
 }
 
 pub fn apps() -> Option<Vec<AppStream>> {
-    None
+    tap::supported().then(tap::apps)
 }
 
-pub fn set_app_volume(_id: &str, _level: Option<f32>, _muted: Option<bool>) -> Result<(), String> {
-    Err("o macOS não permite ajustar o volume de cada app".into())
+pub fn set_app_volume(id: &str, level: Option<f32>, muted: Option<bool>) -> Result<(), String> {
+    if !tap::supported() {
+        return Err("o volume de cada app precisa do macOS 14.2 ou mais novo".into());
+    }
+    tap::set_volume(id, level, muted);
+    Ok(())
+}
+
+pub fn start() {
+    if tap::supported() {
+        tap::start();
+    }
 }

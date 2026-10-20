@@ -10,6 +10,8 @@
   <string>O macOS só mostra os nomes das redes Wi-Fi para apps com acesso à Localização. O Pier usa isso para listar as redes no widget de Wi-Fi.</string>
   <key>NSLocationUsageDescription</key>
   <string>O macOS só mostra os nomes das redes Wi-Fi para apps com acesso à Localização. O Pier usa isso para listar as redes no widget de Wi-Fi.</string>
+  <key>NSAudioCaptureUsageDescription</key>
+  <string>O Pier passa o áudio de cada app por ele para ajustar o volume desse app no widget de som.</string>
   <key>NSAppleEventsUsageDescription</key>
   <string>O Pier controla o Spotify e o Música para mostrar o que está tocando no widget de mídia.</string>
 </dict>

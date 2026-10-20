@@ -278,6 +278,8 @@ fn main() {
             }
             windows_list::start(handle.clone());
             media::start(handle.clone());
+            #[cfg(target_os = "macos")]
+            audio::start();
             pomodoro::start(handle.clone());
             usage::start();
             register_shortcuts(&handle);
