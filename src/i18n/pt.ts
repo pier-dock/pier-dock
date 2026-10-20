@@ -529,7 +529,8 @@ export const pt = {
     claudeHooksInstall: "Ativar",
     claudeHooksReinstall: "Reinstalar",
     claudeHooksRemove: "Desativar",
-    claudePetLabel: "Bichinho da dock",
+    claudeDisplayLabel: "Mostrar na dock",
+    claudeDisplay: { icon: "Ícone", both: "Ícone e Clawd", pet: "Só o Clawd" },
     claudePetHint: "Um bichinho que anda pela dock enquanto uma sessão roda, pula quando uma pede permissão, e descansa quando está tudo parado.",
   },
   githubTab: {

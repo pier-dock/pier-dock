@@ -529,7 +529,8 @@ export const en: Dict = {
     claudeHooksInstall: "Enable",
     claudeHooksReinstall: "Reinstall",
     claudeHooksRemove: "Disable",
-    claudePetLabel: "Dock pet",
+    claudeDisplayLabel: "Show in dock",
+    claudeDisplay: { icon: "Icon", both: "Icon and Clawd", pet: "Clawd only" },
     claudePetHint: "A small mascot that walks the dock while a session runs, jumps when one needs permission, and rests when idle.",
   },
   githubTab: {
