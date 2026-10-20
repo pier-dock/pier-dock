@@ -63,7 +63,7 @@ A atualização automática funciona com o instalador do Windows, com o app do m
 - **Clique com o botão direito** num app para ver as janelas dele, fixá-lo, desafixá-lo ou fechá-lo.
 - **Clique com o botão direito** no fundo da dock para abrir as configurações ou sair.
 - **Arraste** os apps fixados para reordená-los. Para fixar um app, solte-o na dock (um `.exe` ou atalho no Windows, um `.app` no macOS ou um arquivo `.desktop` no Linux), ou adicione-o em **Configurações** > **Apps**.
-- **Clique** num widget para abrir o painel dele. No widget de volume, use a roda do mouse para ajustar e o botão direito para silenciar; o painel dele tem a saída de áudio e, no Windows e no Linux, o volume de cada app.
+- **Clique** num widget para abrir o painel dele. No widget de volume, use a roda do mouse para ajustar e o botão direito para silenciar; o painel dele tem a saída de áudio e o volume de cada app (no macOS, a partir do 14.2).
 
 | Atalho | Windows e Linux | macOS |
 | --- | --- | --- |
@@ -93,13 +93,14 @@ Só os campos numéricos de `usage`, o nome do modelo e o timestamp são lidos �
 
 ### macOS
 
-O Pier pede duas permissões:
+O Pier pede estas permissões:
 
 - **Acessibilidade** (**Ajustes do Sistema** > **Privacidade e Segurança** > **Acessibilidade**), para listar, focar, minimizar e fechar janelas. Sem ela, o Pier ainda mostra os apps abertos e consegue focá-los, escondê-los e encerrá-los. As configurações do Pier mostram o botão **Conceder permissão** para pedi-la.
 - **Automação**, na primeira vez que o Spotify ou o Música tocarem algo, para que o widget de mídia leia e controle esses apps por AppleScript.
 - **Gravação de Tela** (macOS 14 ou mais novo), na primeira vez que as prévias das janelas abrirem, para que cada cartão mostre a miniatura da janela. Sem ela, os cartões mostram o ícone do app.
+- **Gravação de Áudio do Sistema** (macOS 14.2 ou mais novo), na primeira vez que você mexer no controle de um app no painel de volume. O Pier passa o áudio desse app por ele para mudar o volume. Sem ela, o painel lista os apps mas não muda o volume deles, e mostra um botão que abre o ajuste.
 
-Como o app ainda não é assinado com um Apple Developer ID, o macOS pede as permissões de Acessibilidade e de Gravação de Tela de novo a cada atualização.
+Como o app ainda não é assinado com um Apple Developer ID, o macOS pede as permissões de Acessibilidade, de Gravação de Tela e de Gravação de Áudio do Sistema de novo a cada atualização.
 
 O macOS tem algumas limitações em relação ao Windows:
 
