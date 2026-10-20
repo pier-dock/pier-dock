@@ -218,20 +218,44 @@ fn app_window(app: &AppHandle, label: &str, kind: &str, title: &str, size: (f64,
     #[cfg(target_os = "macos")]
     let builder = builder.title_bar_style(tauri::TitleBarStyle::Overlay).hidden_title(true);
     // O material da janela inteira vem do sistema; no Linux não há, e a página pinta o sólido.
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(not(any(target_os = "linux", windows)))]
     let builder = builder.transparent(true).effects(settings_effects());
-    builder.build()
+    #[cfg(windows)]
+    let builder = builder.transparent(true);
+    let window = builder.build()?;
+    #[cfg(windows)]
+    apply_mica(&window);
+    Ok(window)
 }
 
-/// Vibrancy escura no macOS, Mica no Windows 11; sem efeito com o material sólido.
-#[cfg(not(target_os = "linux"))]
+/// O Mica falha sem aviso no `.effects()` do Tauri; aplicado direto, dá para saber e cair no
+/// material sólido (`mica_applied`) em vez de deixar a janela transparente sem nada atrás.
+#[cfg(windows)]
+static MICA_FAILED: AtomicBool = AtomicBool::new(false);
+
+#[cfg(windows)]
+fn apply_mica(window: &WebviewWindow) {
+    let result = if crate::backdrop::active() { window_vibrancy::apply_mica(window, Some(true)) } else { window_vibrancy::clear_mica(window) };
+    if let Err(error) = &result {
+        log::warn!("Mica indisponível na janela {}: {error}", window.label());
+    }
+    MICA_FAILED.store(result.is_err() && crate::backdrop::active(), Ordering::SeqCst);
+}
+
+#[cfg(windows)]
+pub fn mica_applied() -> bool {
+    !MICA_FAILED.load(Ordering::SeqCst)
+}
+
+/// Vibrancy escura no macOS; sem efeito com o material sólido. No Windows o Mica é aplicado por
+/// `apply_mica`.
+#[cfg(not(any(target_os = "linux", windows)))]
 fn settings_effects() -> tauri::utils::config::WindowEffectsConfig {
     use tauri::window::{Effect, EffectState, EffectsBuilder};
     if !crate::backdrop::active() {
         return EffectsBuilder::new().build();
     }
-    let effect = if cfg!(target_os = "macos") { Effect::HudWindow } else { Effect::MicaDark };
-    EffectsBuilder::new().effect(effect).state(EffectState::Active).build()
+    EffectsBuilder::new().effect(Effect::HudWindow).state(EffectState::Active).build()
 }
 
 /// Troca o material das janelas de configurações e de novidades abertas (a dock e os painéis são
@@ -239,6 +263,9 @@ fn settings_effects() -> tauri::utils::config::WindowEffectsConfig {
 pub fn apply_settings_material(app: &AppHandle) {
     #[cfg(not(target_os = "linux"))]
     for window in [SETTINGS_LABEL, WHATS_NEW_LABEL].into_iter().filter_map(|label| app.get_webview_window(label)) {
+        #[cfg(windows)]
+        apply_mica(&window);
+        #[cfg(not(windows))]
         let _ = window.set_effects(settings_effects());
     }
     #[cfg(target_os = "linux")]

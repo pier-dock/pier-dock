@@ -29,8 +29,15 @@ pub struct PlatformInfo {
 }
 
 #[tauri::command]
-pub async fn platform_info() -> Result<PlatformInfo, String> {
-    tauri::async_runtime::spawn_blocking(info).await.map_err(|e| e.to_string())
+pub async fn platform_info(window: tauri::WebviewWindow) -> Result<PlatformInfo, String> {
+    #[allow(unused_mut)]
+    let mut info = tauri::async_runtime::spawn_blocking(info).await.map_err(|e| e.to_string())?;
+    #[cfg(windows)]
+    if matches!(window.label(), crate::panels::SETTINGS_LABEL | crate::panels::WHATS_NEW_LABEL) && !crate::panels::mica_applied() {
+        info.glass = false;
+    }
+    let _ = window;
+    Ok(info)
 }
 
 #[cfg(windows)]
