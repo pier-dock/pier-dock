@@ -83,6 +83,7 @@ const config: Config = {
   weatherLocation: { name: "Campinas", admin: "São Paulo, Brasil", latitude: -22.9, longitude: -47.06 },
   pomodoro: { preset: "25-5", focusMinutes: 25, breakMinutes: 5 },
   language: "system",
+  autoUpdate: true,
 };
 
 const windows: WindowsSnapshot = {

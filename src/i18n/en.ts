@@ -549,6 +549,8 @@ export const en: Dict = {
     language: "Language",
     languageSystem: "System",
     replaceBar: "Replace the system bar",
+    autoUpdate: "Update automatically",
+    autoUpdateHint: "When it starts, Pier installs the new version and restarts on its own.",
     system: "System",
     openWindows: "Open windows",
     installRestart: "Install and restart",

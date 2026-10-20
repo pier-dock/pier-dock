@@ -94,6 +94,9 @@ export function GeneralTab({ config, update, platform }: TabProps) {
           <Row label={platformLabels.autostart}>
             <Switch checked={!!autostart} disabled={autostart === null} label={platformLabels.autostart} onChange={toggleAutostart} />
           </Row>
+          <Row label={t.autoUpdate} description={t.autoUpdateHint}>
+            <Switch checked={config.autoUpdate} label={t.autoUpdate} onChange={(autoUpdate) => update({ autoUpdate })} />
+          </Row>
           {platform?.hideNative && (
             <Row label={t.replaceBar} description={platformLabels.nativeBar}>
               <Switch checked={config.hideTaskbar} label={t.replaceBar} onChange={(hideTaskbar) => update({ hideTaskbar })} />
