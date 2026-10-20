@@ -177,6 +177,7 @@ fn main() {
             config::save_config,
             config::export_config,
             config::import_config,
+            config::reset_config,
             dock_window::set_dock_layout,
             dock_window::set_hit_rect,
             dock_window::set_preview_glass,

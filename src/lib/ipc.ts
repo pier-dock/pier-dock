@@ -362,6 +362,7 @@ export const ipc = {
   /** `false` quando o usuário cancela o diálogo. */
   exportConfig: () => invoke<boolean>("export_config"),
   importConfig: () => invoke<boolean>("import_config"),
+  resetConfig: () => invoke<void>("reset_config"),
   quit: () => invoke<void>("quit_app"),
 
   setDockLayout: (layout: { reserved: number; windowSize: number; hoverHeadroom: number }) =>

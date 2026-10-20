@@ -1217,6 +1217,22 @@ input[type="range"] {
   margin-left: auto;
 }
 
+.confirm-dialog {
+  width: min(440px, calc(100vw - 48px));
+}
+
+.confirm-dialog .widget-dialog-footer {
+  justify-content: flex-end;
+}
+
+.confirm-dialog .widget-dialog-footer .btn {
+  margin-left: 0;
+}
+
+.reset-actions {
+  display: flex;
+}
+
 /* Reportar um problema / sugerir um recurso */
 .report-actions {
   display: flex;

@@ -329,6 +329,13 @@ pub async fn import_config(app: AppHandle, window: WebviewWindow) -> Result<bool
     Ok(true)
 }
 
+/// Volta todas as configurações ao padrão. As contas (token do GitHub, link da agenda) ficam no
+/// chaveiro e continuam.
+#[tauri::command]
+pub fn reset_config(app: AppHandle, state: State<ConfigState>) -> Result<(), String> {
+    apply(&app, &state, Config::default())
+}
+
 /// Grava a config e aplica o que muda fora da página (idioma, dock, material, barra nativa); as
 /// janelas recebem a nova pelo `config-changed`.
 pub fn apply(app: &AppHandle, state: &ConfigState, config: Config) -> Result<(), String> {

@@ -563,6 +563,10 @@ export const en: Dict = {
     exported: "Settings exported.",
     imported: "Settings imported.",
     transferFailed: "Couldn't read or write the file.",
+    resetAll: "Reset everything",
+    resetTitle: "Reset all settings?",
+    resetDescription: "Pinned apps, widgets and appearance go back to the defaults. The GitHub account and the calendar stay connected.",
+    reset: "Reset",
     installRestart: "Install and restart",
     checkUpdates: "Check for updates",
     whatsNew: "What's new",
@@ -573,6 +577,10 @@ export const en: Dict = {
     empty: "This version has no release notes.",
     close: "Close",
     allReleases: "All releases on GitHub",
+  },
+  confirm: {
+    cancel: "Cancel",
+    close: "Close",
   },
   report: {
     reportProblem: "Report a problem",

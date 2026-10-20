@@ -11,6 +11,7 @@ import { Segmented } from "../../ui/Segmented";
 import { Switch } from "../../ui/Switch";
 import type { TabProps } from "../shared";
 import { ReportDialog } from "../ReportDialog";
+import { ConfirmDialog } from "../ConfirmDialog";
 import { useT, type Dict, type LanguageSetting } from "../../i18n";
 
 const LANGUAGES: { value: LanguageSetting; label: string }[] = [
@@ -46,6 +47,7 @@ export function GeneralTab({ config, update, platform }: TabProps) {
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ kind: "checking" });
   const [report, setReport] = useState<ReportKind | null>(null);
   const [transfer, setTransfer] = useState<string | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
   const { general: t, report: reportT } = useT();
   const platformLabels = labels();
 
@@ -173,6 +175,21 @@ export function GeneralTab({ config, update, platform }: TabProps) {
         </button>
       </div>
       {report && <ReportDialog kind={report} onClose={() => setReport(null)} />}
+
+      <div className="reset-actions">
+        <button className="btn btn-danger" onClick={() => setConfirmReset(true)}>
+          {t.resetAll}
+        </button>
+      </div>
+      {confirmReset && (
+        <ConfirmDialog
+          title={t.resetTitle}
+          description={t.resetDescription}
+          confirmLabel={t.reset}
+          onConfirm={() => ipc.resetConfig().catch(console.error)}
+          onClose={() => setConfirmReset(false)}
+        />
+      )}
 
       <p className="field-hint">{t.restoreHint[os]}</p>
     </div>

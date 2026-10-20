@@ -563,6 +563,10 @@ export const pt = {
     exported: "Configuração exportada.",
     imported: "Configuração importada.",
     transferFailed: "Não foi possível ler ou gravar o arquivo.",
+    resetAll: "Redefinir tudo",
+    resetTitle: "Redefinir todas as configurações?",
+    resetDescription: "Apps fixados, widgets e aparência voltam ao padrão. A conta do GitHub e a agenda continuam conectadas.",
+    reset: "Redefinir",
     installRestart: "Instalar e reiniciar",
     checkUpdates: "Procurar atualizações",
     whatsNew: "Ver novidades",
@@ -573,6 +577,10 @@ export const pt = {
     empty: "Esta versão não tem notas de novidades.",
     close: "Fechar",
     allReleases: "Todas as versões no GitHub",
+  },
+  confirm: {
+    cancel: "Cancelar",
+    close: "Fechar",
   },
   report: {
     reportProblem: "Reportar um problema",
