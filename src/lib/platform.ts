@@ -1,10 +1,11 @@
-import { dict } from "../i18n";
+import { dict } from "../i18n/index.ts";
 
 /** Sistema em que a dock está rodando, detectado pelo WebView (WebView2, WebKitGTK ou WKWebView). */
 export type Os = "windows" | "linux" | "macos";
 
-const ua = navigator.userAgent;
-export const os: Os = /Windows/i.test(ua) ? "windows" : /Macintosh|Mac OS X/i.test(ua) ? "macos" : "linux";
+export const detectOs = (ua: string): Os => (/Windows/i.test(ua) ? "windows" : /Macintosh|Mac OS X/i.test(ua) ? "macos" : "linux");
+
+export const os: Os = detectOs(navigator.userAgent);
 
 /** A bandeja (ícones ocultos) só existe no Windows. */
 export const widgetSupported = (kind: string) => kind !== "tray" || os === "windows";
