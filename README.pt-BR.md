@@ -28,6 +28,7 @@ O Pier substitui a barra de tarefas ou a dock do sistema por uma barra única co
 - **Widgets do GitHub:** pull requests aguardando a sua revisão, os seus pull requests abertos, commits recentes e o gráfico de contribuições.
 - **Widgets do sistema:** rede (com as redes Wi-Fi por perto), volume (com a saída de áudio e o volume por app), Bluetooth (com os dispositivos pareados, que dá para conectar e desconectar no macOS e no Linux), bateria, relógio, mostrar a área de trabalho (minimiza todas as janelas com um clique), uso do sistema (CPU e memória com o histórico do último minuto) e, no Windows, a seta da bandeja que abre os ícones ocultos.
 - **Widgets de produtividade:** clima, timer Pomodoro, o próximo compromisso da agenda, com botão para entrar na videochamada, e o uso das suas IAs de linha de comando.
+- **Claude Code:** o widget Claude Agents mostra as suas sessões do Claude Code como em execução, pedindo permissão, com erro ou concluídas, e um clique leva ao terminal ou à IDE que a iniciou. O Clawd, mascote do Claude, pode andar pela dock enquanto uma sessão roda. Ele precisa dos hooks do Claude Code, que você ativa nas opções do widget.
 - **Atalhos de teclado:** abra ou foque o app da posição 1 a 9 de qualquer lugar.
 - **Atualização automática:** o Pier procura versões novas e as instala com um clique.
 - **Português e inglês:** a interface segue o idioma do sistema. Para trocar, vá em **Configurações** > **Geral** > **Idioma**.
