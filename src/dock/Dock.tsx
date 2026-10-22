@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMotionValue } from "framer-motion";
 import { LayoutGrid, Search } from "lucide-react";
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
@@ -15,6 +15,7 @@ import { useMedia } from "../hooks/useMedia";
 import { useGithub } from "../hooks/useGithub";
 import { useBluetooth, useSystemStatus } from "../hooks/useSystem";
 import { buildDockApps, type DockApp } from "./apps";
+import { fitItems, type FitItem } from "./fit";
 import { PREVIEW_GAP, barRect, dockMetrics, isVertical, previewSpace } from "./layout";
 import { WindowPreview } from "./WindowPreview";
 import { ClawdPet } from "./ClawdPet";
@@ -23,7 +24,7 @@ import { resetDockHover } from "./hoverReset";
 import { AppIcon } from "./AppIcon";
 import { SortableItem } from "./SortableItem";
 import { addDivider, applyOrder, isDivider, LAUNCHER_KEY, removeItem, resolveOrder, START_KEY, widgetKey } from "./order";
-import { WidgetView, type WidgetData } from "../widgets/WidgetView";
+import { RESIZABLE, WidgetView, type WidgetData } from "../widgets/WidgetView";
 import { togglePanel } from "../widgets/Tile";
 import { useWeather } from "../hooks/useWeather";
 import { useCalendar } from "../hooks/useCalendar";
@@ -114,6 +115,9 @@ export function Dock({ config }: { config: Config }) {
   // O cursor na direção da barra: x nas bordas de cima e de baixo, y nas laterais.
   const mouse = useMotionValue(Infinity);
   const barRef = useRef<HTMLDivElement>(null);
+  // Widgets largos desenhados no formato pequeno porque a barra não cabe na tela.
+  const [compact, setCompact] = useState<string[]>([]);
+  const lengths = useRef(new Map<string, { full?: number; small?: number }>());
   // Janela em prévia: guarda o app pelo `key`, porque a lista de apps é remontada a cada snapshot.
   const [preview, setPreview] = useState<{ key: string; x: number; y: number } | null>(null);
 
@@ -271,6 +275,53 @@ export function Dock({ config }: { config: Config }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const order = resolveOrder(config);
 
+  // Barra maior que a tela: os widgets largos passam ao formato pequeno, só os que forem preciso.
+  // Os comprimentos de cada formato são guardados na primeira vez que aparecem, para decidir sempre
+  // pelo natural e não pelo que está na tela. Com o cursor na barra a magnificação muda as
+  // medidas, então espera ele sair.
+  useLayoutEffect(() => {
+    const bar = barRef.current;
+    if (!bar || vertical) {
+      setCompact((c) => (c.length ? [] : c));
+      return;
+    }
+    const refit = () => {
+      if (mouse.get() !== Infinity) return;
+      const items: FitItem[] = [];
+      for (const child of Array.from(bar.children) as HTMLElement[]) {
+        const key = child.dataset.key;
+        const widget = key ? widgets.get(key) : undefined;
+        if (!key || !widget) {
+          items.push({ key: `#${items.length}`, length: child.offsetWidth, fixed: true });
+          continue;
+        }
+        const entry = lengths.current.get(key) ?? {};
+        const isSmall = compact.includes(key) || widget.size === "small";
+        entry[isSmall ? "small" : "full"] = child.offsetWidth;
+        lengths.current.set(key, entry);
+        const resizable = widget.size === "wide" && RESIZABLE.has(widget.kind);
+        items.push({
+          key,
+          length: widget.size === "small" ? entry.small! : (entry.full ?? child.offsetWidth),
+          compact: resizable ? (entry.small ?? 48) : undefined,
+        });
+      }
+      const edge = (full ? 0 : metrics.margin) * 2 + metrics.padding * 2 + 2;
+      // O vão entre itens é o gap da barra (4) menos a margem negativa dos vizinhos (-2).
+      const fit = fitItems(items, window.innerWidth - edge - 4, 2, 0);
+      const next = fit.overflow.length ? items.filter((i) => i.compact != null).map((i) => i.key) : [...fit.compact];
+      setCompact((c) => (c.length === next.length && c.every((k) => next.includes(k)) ? c : next));
+    };
+    refit();
+    const observer = new ResizeObserver(refit);
+    observer.observe(bar);
+    window.addEventListener("resize", refit);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", refit);
+    };
+  });
+
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
     update((c) => {
@@ -341,9 +392,10 @@ export function Dock({ config }: { config: Config }) {
   };
   // Numa barra em pé os widgets usam o formato compacto: os largos são horizontais. O mapa de
   // contribuições não tem formato que caiba na espessura, então fica só com o total do ano.
-  const renderWidget = (w: WidgetConfig) => (
-    <WidgetView kind={w.kind} size={vertical ? (w.kind === "github-contrib" ? "count" : "small") : w.size} data={widgetData} />
-  );
+  const renderWidget = (w: WidgetConfig) => {
+    const size = compact.includes(widgetKey(w.kind)) ? "small" : w.size;
+    return <WidgetView kind={w.kind} size={vertical ? (w.kind === "github-contrib" ? "count" : "small") : size} data={widgetData} />;
+  };
 
   const pinnedApps = new Map(apps.filter((a) => a.pinned).map((a) => [a.key, a]));
   const unpinnedApps = apps.filter((a) => !a.pinned);

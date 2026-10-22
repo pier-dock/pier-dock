@@ -16,6 +16,7 @@ export function SortableItem({ id, className, onContextMenu, children }: Props) 
     <div
       ref={setNodeRef}
       className={`${className} ${isDragging ? "dragging" : ""}`}
+      data-key={id}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       onContextMenu={onContextMenu}
       {...attributes}
