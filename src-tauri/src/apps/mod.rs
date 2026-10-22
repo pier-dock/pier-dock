@@ -17,6 +17,11 @@ fn app_id(seed: &str) -> String {
     format!("{:016x}", hasher.finish())
 }
 
+#[cfg(windows)]
+pub(crate) fn installed_apps() -> windows::core::Result<Vec<AppEntry>> {
+    backend::installed_apps()
+}
+
 #[tauri::command]
 pub async fn list_installed_apps() -> Result<Vec<AppEntry>, String> {
     tauri::async_runtime::spawn_blocking(|| backend::installed_apps().err_str()).await.err_str()?

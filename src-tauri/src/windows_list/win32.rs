@@ -128,14 +128,16 @@ pub fn snapshot() -> WindowsSnapshot {
             if pid == own_pid {
                 return None;
             }
+            let exe = process_path(pid);
+            let aumid = window_aumid(h);
             Some(WindowInfo {
                 id: h.0 as isize as i64,
                 title: window_title(h),
-                exe: process_path(pid),
-                aumid: window_aumid(h),
+                badge: crate::notifications::badge_for(&exe, aumid.as_deref(), pid),
+                exe,
+                aumid,
                 minimized: unsafe { IsIconic(h).as_bool() },
                 pid,
-                badge: 0,
             })
         })
         .collect();

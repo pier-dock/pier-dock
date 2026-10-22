@@ -12,6 +12,8 @@ mod github;
 mod i18n;
 mod icons;
 mod media;
+#[cfg(windows)]
+mod notifications;
 mod panels;
 mod permissions;
 mod platform;
@@ -294,6 +296,8 @@ fn main() {
                 });
             }
             windows_list::start(handle.clone());
+            #[cfg(windows)]
+            notifications::start();
             agent_sessions::start(handle.clone());
             media::start(handle.clone());
             #[cfg(target_os = "macos")]
