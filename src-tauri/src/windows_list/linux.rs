@@ -56,6 +56,7 @@ pub fn snapshot() -> WindowsSnapshot {
                 title: w.title,
                 minimized: w.minimized,
                 pid: w.pid as u32,
+                badge: 0,
             })
             .collect()
     } else if let Some(x) = x11_session() {
@@ -73,6 +74,7 @@ pub fn snapshot() -> WindowsSnapshot {
                 title: w.title,
                 minimized: w.minimized,
                 pid: w.pid,
+                badge: 0,
             })
             .collect()
     } else {

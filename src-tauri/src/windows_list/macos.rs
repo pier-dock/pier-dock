@@ -9,7 +9,7 @@ use std::sync::{mpsc, Mutex};
 use std::time::Duration;
 
 use accessibility_sys::{
-    kAXCloseButtonAttribute, kAXFocusedWindowAttribute, kAXMainAttribute, kAXMinimizedAttribute, kAXPressAction,
+    kAXChildrenAttribute, kAXCloseButtonAttribute, kAXFocusedWindowAttribute, kAXListRole, kAXRoleAttribute, kAXMainAttribute, kAXMinimizedAttribute, kAXPressAction,
     kAXRaiseAction, kAXStandardWindowSubrole, kAXSubroleAttribute, kAXTitleAttribute, kAXWindowsAttribute,
 };
 use core_foundation::base::TCFType;
@@ -31,6 +31,8 @@ use crate::platform::macos::ax::{self, Element};
 use crate::platform::macos::workspace;
 
 const FINDER: &str = "com.apple.finder";
+const DOCK: &str = "com.apple.dock";
+const AX_STATUS_LABEL: &str = "AXStatusLabel";
 
 #[link(name = "ApplicationServices", kind = "framework")]
 extern "C" {
@@ -101,13 +103,31 @@ fn note_focus(trusted: bool) {
     APP_FOCUSED.store(!desktop, Ordering::SeqCst);
 }
 
+/// Badge de cada app no Dock nativo, por nome. O Dock expõe os itens via Acessibilidade e o
+/// `AXStatusLabel` traz o texto do badge; rótulos que não são número (como "•") ficam de fora.
+fn dock_badges() -> HashMap<String, u32> {
+    let mut badges = HashMap::new();
+    let Some(dock) = workspace::pid_of(DOCK).and_then(Element::application) else { return badges };
+    for list in dock.elements(kAXChildrenAttribute).iter().filter(|e| e.string(kAXRoleAttribute).as_deref() == Some(kAXListRole)) {
+        for item in list.elements(kAXChildrenAttribute) {
+            let count = item.string(AX_STATUS_LABEL).and_then(|l| l.trim().parse::<u32>().ok()).filter(|n| *n > 0);
+            if let (Some(name), Some(count)) = (item.string(kAXTitleAttribute), count) {
+                badges.insert(name, count);
+            }
+        }
+    }
+    badges
+}
+
 pub fn snapshot() -> WindowsSnapshot {
     let trusted = ax::is_trusted();
     let mut windows = Vec::new();
     let mut elements = HashMap::new();
+    let badges = if trusted { dock_badges() } else { HashMap::new() };
     for app in workspace::running_apps() {
         let exe = app.path.clone().unwrap_or_default();
         let before = windows.len();
+        let badge = badges.get(&app.name).copied().unwrap_or(0);
         if let Some(element) = trusted.then(|| Element::application(app.pid)).flatten() {
             for (id, window) in standard_windows(&element) {
                 let title = window.string(kAXTitleAttribute).filter(|t| !t.is_empty()).unwrap_or_else(|| app.name.clone());
@@ -118,6 +138,7 @@ pub fn snapshot() -> WindowsSnapshot {
                     aumid: app.bundle_id.clone(),
                     minimized: app.hidden || window.bool(kAXMinimizedAttribute),
                     pid: app.pid as u32,
+                    badge,
                 });
                 elements.insert(id as i64, window);
             }
@@ -130,6 +151,7 @@ pub fn snapshot() -> WindowsSnapshot {
                 aumid: app.bundle_id.clone(),
                 minimized: app.hidden,
                 pid: app.pid as u32,
+                badge,
             });
         }
     }

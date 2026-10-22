@@ -104,6 +104,8 @@ export interface WindowInfo {
   minimized: boolean;
   /** Pid do processo dono da janela. */
   pid: number;
+  /** Badge numérico do app no Dock nativo (macOS); 0 ou ausente quando não há. */
+  badge?: number;
 }
 
 export interface WindowsSnapshot {

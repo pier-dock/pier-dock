@@ -22,7 +22,7 @@ Pier replaces your system's taskbar or dock with a single bar that holds your pi
 
 ## Features
 
-- **Apps:** Pinned and running apps with magnification, drag-to-reorder, window lists, dividers, and a badge with the count shown in the window title, like "(3) WhatsApp".
+- **Apps:** Pinned and running apps with magnification, drag-to-reorder, window lists, dividers, and a badge with the count shown in the window title, like "(3) WhatsApp" (on macOS, also the badge from the native Dock).
 - **Customizable bar:** Put the dock on the bottom, top, left, or right edge of the screen (it stands vertically on the sides), fit it to the icons or stretch it along the edge, and pick the icon size, panel height, material, and accent color.
 - **Media player:** Shows what's playing in Spotify, YouTube Music, and other players, with playback controls.
 - **GitHub widgets:** Pull requests waiting for your review, your open pull requests, recent commits, and your contribution graph.

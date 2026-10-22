@@ -117,7 +117,11 @@ export function buildDockApps(
     app.windows.push(w);
   }
   const apps = [...pinnedApps, ...running.values()];
-  for (const app of apps) app.badge = app.windows.reduce((sum, w) => sum + parseTitleCount(w.title), 0);
+  for (const app of apps) {
+    const fromTitle = app.windows.reduce((sum, w) => sum + parseTitleCount(w.title), 0);
+    const fromSystem = Math.max(0, ...app.windows.map((w) => w.badge ?? 0));
+    app.badge = Math.max(fromTitle, fromSystem);
+  }
   return apps;
 }
 

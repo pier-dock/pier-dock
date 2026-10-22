@@ -135,6 +135,7 @@ pub fn snapshot() -> WindowsSnapshot {
                 aumid: window_aumid(h),
                 minimized: unsafe { IsIconic(h).as_bool() },
                 pid,
+                badge: 0,
             })
         })
         .collect();

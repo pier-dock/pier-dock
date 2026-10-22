@@ -522,7 +522,7 @@ mod tests {
     use super::*;
 
     fn window(id: i64, pid: u32, title: &str) -> windows_list::WindowInfo {
-        windows_list::WindowInfo { id, title: title.into(), exe: String::new(), aumid: None, minimized: false, pid }
+        windows_list::WindowInfo { id, title: title.into(), exe: String::new(), aumid: None, minimized: false, pid, badge: 0 }
     }
 
     #[test]
