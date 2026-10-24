@@ -488,10 +488,10 @@ export const pt = {
           "Quanto do limite já foi usado na sessão de 5h e na semana (Claude Code) ou na janela do plano (Codex CLI), mais os tokens do dia. Lê os arquivos locais das IAs; nada vai para a rede.",
       },
       pokemon: {
-        summary: "Um Pokémon da sua escolha andando pela dock.",
+        summary: "Pokémon da sua escolha andando pela dock.",
         name: "Pokémon",
         description:
-          "Mostra o ícone de time do Pokémon escolhido, vindo da PokeAPI (até o #809). Pode ficar na dock como ícone, andar pela borda dela, ou os dois.",
+          "Mostra o ícone de time do primeiro Pokémon escolhido, vindo da PokeAPI (até o #809). Dá para escolher até 10, e eles podem ficar na dock como ícone, andar pela borda dela, ou os dois.",
       },
       "ai-agents": {
         summary: "As sessões dos CLIs de IA andando no dock.",
@@ -578,9 +578,12 @@ export const pt = {
     agentPokemonChoose: "Pokémon do mascote",
     agentDisplay: { icon: "Ícone", both: "Ícone e mascote", pet: "Só o mascote" },
     petHint: "Um bichinho que anda pela dock enquanto uma sessão roda, pula quando uma pede permissão, e descansa quando está tudo parado.",
-    pokemonHint: "Um Pokémon pequeno que anda pela borda da dock.",
+    pokemonHint: "Pokémon pequenos que andam pela borda da dock.",
     pokemonDisplay: { icon: "Ícone", both: "Ícone e andando", pet: "Só andando" },
-    pokemonChoose: "Escolher Pokémon",
+    pokemonChoose: (max: number) => `Escolher até ${max} Pokémon`,
+    pokemonSelected: (count: number, max: number) => `${count} de ${max} escolhidos`,
+    pokemonLimit: (max: number) => `Limite de ${max} atingido. Remova um para adicionar outro.`,
+    pokemonRemove: (name: string) => `Remover ${name}`,
     pokemonSearch: "Buscar por nome ou número",
     pokemonNone: "Nenhum Pokémon encontrado.",
     pokemonRange: "Há ícones de time do #1 ao #809.",

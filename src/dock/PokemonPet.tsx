@@ -8,6 +8,9 @@ const SPEED = 38;
 
 interface Props {
   id: number;
+  /** Posição na lista: espalha os Pokémon pela borda e varia a velocidade para não andarem colados. */
+  index: number;
+  count: number;
   position: DockPosition;
   full: boolean;
   margin: number;
@@ -17,13 +20,16 @@ interface Props {
 
 /** Pokémon que anda sobre a borda da dock com o ícone de time. Só decora: não recebe clique, então
  * não precisa informar a área ao Rust como o Clawd. */
-export function PokemonPet({ id, position, full, margin, visible, barRef }: Props) {
+export function PokemonPet({ id, index, count, position, full, margin, visible, barRef }: Props) {
   const src = usePokemonSprite(id);
   const vertical = isVertical(position);
   const outerRef = useRef<HTMLDivElement>(null);
   const posRef = useRef(0);
-  const dirRef = useRef<1 | -1>(1);
-  const [direction, setDirection] = useState<1 | -1>(1);
+  const startDir = index % 2 === 0 ? 1 : -1;
+  const speed = SPEED * (1 + 0.12 * (index % 4));
+  const placedRef = useRef(false);
+  const dirRef = useRef<1 | -1>(startDir);
+  const [direction, setDirection] = useState<1 | -1>(startDir);
   const [barSize, setBarSize] = useState({ width: 0, height: 0 });
   const walking = visible && !!src;
 
@@ -43,6 +49,10 @@ export function PokemonPet({ id, position, full, margin, visible, barRef }: Prop
     const rect = barRect(position, full, margin, barSize, { width: window.innerWidth, height: window.innerHeight });
     const axis = vertical ? rect.height : rect.width;
     const bounds = Math.max(0, axis - EDGE_PAD * 2 - PET);
+    if (!placedRef.current) {
+      placedRef.current = true;
+      posRef.current = (bounds * index) / count;
+    }
     if (posRef.current > bounds) posRef.current = bounds;
     el.style.setProperty("--pet-hide", `${(vertical ? barSize.width : barSize.height) + PET + 24}px`);
     const { x, y } = petPose(position, rect, posRef.current, dirRef.current);
@@ -69,7 +79,7 @@ export function PokemonPet({ id, position, full, margin, visible, barRef }: Prop
       const dt = (now - last) / 1000;
       last = now;
       if (bounds > 0) {
-        let next = posRef.current + dirRef.current * SPEED * dt;
+        let next = posRef.current + dirRef.current * speed * dt;
         if (next >= bounds) {
           next = bounds;
           dirRef.current = -1;

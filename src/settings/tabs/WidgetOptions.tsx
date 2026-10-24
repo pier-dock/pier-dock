@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ipc, type AgentIntegration, type AgentProviderId, type AiProvider, type PokemonEntry, type WeatherLocation } from "../../lib/ipc";
+import { X } from "lucide-react";
+import { ipc, MAX_POKEMON, type AgentIntegration, type AgentProviderId, type AiProvider, type PokemonEntry, type WeatherLocation } from "../../lib/ipc";
 import { usePokemonSprite } from "../../hooks/usePokemonSprite";
 import { AI_PROVIDERS, providerName } from "../../lib/aiUsage";
 import { labels } from "../../lib/platform";
@@ -336,10 +337,10 @@ export const matchPokemon = (list: PokemonEntry[], query: string, limit = 8): Po
   return list.filter((p) => p.name.includes(q) || String(p.id) === q).slice(0, limit);
 };
 
-function PokemonChoice({ pokemon, onPick }: { pokemon: PokemonEntry; onPick: () => void }) {
+function PokemonChoice({ pokemon, disabled, onPick }: { pokemon: PokemonEntry; disabled?: boolean; onPick: () => void }) {
   const src = usePokemonSprite(pokemon.id);
   return (
-    <button className="choice" onClick={onPick}>
+    <button className="choice" disabled={disabled} onClick={onPick}>
       <span>
         {src && <img src={src} alt="" width={40} height={30} style={{ imageRendering: "pixelated", verticalAlign: "middle" }} />} {pokemon.name}
       </span>
@@ -348,49 +349,119 @@ function PokemonChoice({ pokemon, onPick }: { pokemon: PokemonEntry; onPick: () 
   );
 }
 
-function PokemonPicker({ id, label, onPick }: { id: number; label: string; onPick: (id: number) => void }) {
+function usePokemonList() {
   const [list, setList] = useState<PokemonEntry[]>([]);
-  const [query, setQuery] = useState("");
   const [status, setStatus] = useState<string | null>(null);
-  const { widgetOptions: t, common } = useT();
+  const { common } = useT();
 
   useEffect(() => {
     ipc.pokemonList().then(setList).catch((e) => setStatus(common.error(String(e))));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const current = list.find((p) => p.id === id);
+  return { list, status };
+}
+
+interface PokemonSearchProps {
+  list: PokemonEntry[];
+  status: string | null;
+  /** Texto abaixo do campo no lugar do intervalo de ids, por exemplo quando o limite foi atingido. */
+  hint?: string;
+  isDisabled?: (id: number) => boolean;
+  onPick: (id: number) => void;
+}
+
+function PokemonSearch({ list, status, hint, isDisabled, onPick }: PokemonSearchProps) {
+  const [query, setQuery] = useState("");
+  const { widgetOptions: t } = useT();
   const results = matchPokemon(list, query);
+
+  return (
+    <div className="row row-stack">
+      <form className="token-form" onSubmit={(e) => e.preventDefault()}>
+        <label className="visually-hidden" htmlFor="pokemon">
+          {t.pokemonSearch}
+        </label>
+        <input id="pokemon" className="text-input" placeholder={t.pokemonSearch} value={query} onChange={(e) => setQuery(e.target.value)} />
+        <p className="field-hint" role="status">
+          {status ?? hint ?? (query.trim() && !results.length ? t.pokemonNone : t.pokemonRange)}
+        </p>
+      </form>
+      {results.length > 0 && (
+        <ul className="choice-list" aria-label={t.pokemonSearch}>
+          {results.map((p) => (
+            <li key={p.id}>
+              <PokemonChoice
+                pokemon={p}
+                disabled={isDisabled?.(p.id)}
+                onPick={() => {
+                  onPick(p.id);
+                  setQuery("");
+                }}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function PokemonPicker({ id, label, onPick }: { id: number; label: string; onPick: (id: number) => void }) {
+  const { list, status } = usePokemonList();
+  const current = list.find((p) => p.id === id);
 
   return (
     <>
       <Row label={label} description={current ? `#${current.id} ${current.name}` : `#${id}`} />
+      <PokemonSearch list={list} status={status} onPick={onPick} />
+    </>
+  );
+}
+
+function PokemonSelected({ id, entry, removable, onRemove }: { id: number; entry?: PokemonEntry; removable: boolean; onRemove: () => void }) {
+  const src = usePokemonSprite(id);
+  const { widgetOptions: t } = useT();
+  const name = entry?.name ?? `#${id}`;
+  return (
+    <div className="list-item static">
+      {src ? <img src={src} alt="" width={40} height={30} style={{ imageRendering: "pixelated" }} /> : <span style={{ width: 40, height: 30 }} />}
+      <span className="list-item-name">{name}</span>
+      <span className="row-description">#{id}</span>
+      <button className="icon-button" aria-label={t.pokemonRemove(name)} title={t.pokemonRemove(name)} disabled={!removable} onClick={onRemove}>
+        <X size={16} />
+      </button>
+    </div>
+  );
+}
+
+/** Até `MAX_POKEMON` Pokémon, sem repetir; sempre fica ao menos um. */
+function PokemonMultiPicker({ ids, onChange }: { ids: number[]; onChange: (ids: number[]) => void }) {
+  const { list, status } = usePokemonList();
+  const { widgetOptions: t } = useT();
+  const full = ids.length >= MAX_POKEMON;
+
+  return (
+    <>
+      <Row label={t.pokemonChoose(MAX_POKEMON)} description={t.pokemonSelected(ids.length, MAX_POKEMON)} />
       <div className="row row-stack">
-        <form className="token-form" onSubmit={(e) => e.preventDefault()}>
-          <label className="visually-hidden" htmlFor="pokemon">
-            {t.pokemonSearch}
-          </label>
-          <input id="pokemon" className="text-input" placeholder={t.pokemonSearch} value={query} onChange={(e) => setQuery(e.target.value)} />
-          <p className="field-hint" role="status">
-            {status ?? (query.trim() && !results.length ? t.pokemonNone : t.pokemonRange)}
-          </p>
-        </form>
-        {results.length > 0 && (
-          <ul className="choice-list" aria-label={t.pokemonSearch}>
-            {results.map((p) => (
-              <li key={p.id}>
-                <PokemonChoice
-                  pokemon={p}
-                  onPick={() => {
-                    onPick(p.id);
-                    setQuery("");
-                  }}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
+        {ids.map((id) => (
+          <PokemonSelected
+            key={id}
+            id={id}
+            entry={list.find((p) => p.id === id)}
+            removable={ids.length > 1}
+            onRemove={() => onChange(ids.filter((other) => other !== id))}
+          />
+        ))}
       </div>
+      <PokemonSearch
+        list={list}
+        status={status}
+        hint={full ? t.pokemonLimit(MAX_POKEMON) : undefined}
+        isDisabled={(id) => full || ids.includes(id)}
+        onPick={(id) => onChange([...ids, id])}
+      />
     </>
   );
 }
@@ -409,7 +480,7 @@ export function PokemonOptions({ config, update }: OptionsProps) {
 
   return (
     <>
-      <PokemonPicker id={config.pokemonPetId} label={t.pokemonChoose} onPick={(pokemonPetId) => update({ pokemonPetId })} />
+      <PokemonMultiPicker ids={config.pokemonPetIds} onChange={(pokemonPetIds) => update({ pokemonPetIds })} />
       <Row label={t.agentDisplayLabel} description={t.pokemonHint}>
         <Segmented
           label={t.agentDisplayLabel}

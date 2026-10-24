@@ -63,6 +63,7 @@ const config: Config = {
     { kind: "calendar", enabled: params.has("new"), size: "wide" },
     { kind: "ai-usage", enabled: params.has("new"), size: "wide" },
     { kind: "show-desktop", enabled: params.has("new"), size: "small" },
+    { kind: "pokemon", enabled: false, size: "small" },
   ],
   material: "glass",
   reducedEffects: false,
@@ -92,7 +93,7 @@ const config: Config = {
   agentPetMascot: "clawd",
   agentPokemonId: 25,
   pokemonPetEnabled: false,
-  pokemonPetId: 25,
+  pokemonPetIds: [25],
 };
 
 const windows: WindowsSnapshot = {
@@ -337,9 +338,11 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
     return app ? iconDataUrl(app.color, app.init) : iconDataUrl("#2B2B2F", String(args.key).split("/").pop()!.slice(0, 2));
   },
   pokemon_list: () => [
-    { id: 1, name: "bulbasaur" },
-    { id: 6, name: "charizard" },
+    ...["bulbasaur", "ivysaur", "venusaur", "charmander", "charmeleon", "charizard", "squirtle", "wartortle", "blastoise", "caterpie", "metapod"].map(
+      (name, i) => ({ id: i + 1, name }),
+    ),
     { id: 25, name: "pikachu" },
+    { id: 100, name: "voltorb" },
   ],
   pokemon_sprite: (args) => iconDataUrl("#E8B923", String(args.id)),
   media_state: () => media,

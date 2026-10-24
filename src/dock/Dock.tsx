@@ -500,7 +500,10 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
           barRef={barRef}
         />
       )}
-      {config.pokemonPetEnabled && <PokemonPet id={config.pokemonPetId} position={position} full={full} margin={metrics.margin} visible={visible} barRef={barRef} />}
+      {config.pokemonPetEnabled &&
+        config.pokemonPetIds.map((id, index) => (
+          <PokemonPet key={id} id={id} index={index} count={config.pokemonPetIds.length} position={position} full={full} margin={metrics.margin} visible={visible} barRef={barRef} />
+        ))}
       {previewApp && preview && (
         <WindowPreview app={previewApp} anchor={preview} position={position} onClose={() => setPreview(null)} onHoverChange={onPreviewHover} />
       )}

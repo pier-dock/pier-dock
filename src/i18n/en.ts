@@ -488,10 +488,10 @@ export const en: Dict = {
           "How much of the limit has been used in the 5h session and the week (Claude Code) or in the plan's window (Codex CLI), plus today's tokens. Reads the AIs' local files; nothing goes over the network.",
       },
       pokemon: {
-        summary: "A Pokémon of your choice walking the dock.",
+        summary: "Pokémon of your choice walking the dock.",
         name: "Pokémon",
         description:
-          "Shows the party icon of the Pokémon you pick, from PokeAPI (up to #809). It can sit in the dock as an icon, walk along its edge, or both.",
+          "Shows the party icon of the first Pokémon you pick, from PokeAPI (up to #809). You can pick up to 10, and they can sit in the dock as an icon, walk along its edge, or both.",
       },
       "ai-agents": {
         summary: "AI CLI sessions walking the dock.",
@@ -578,9 +578,12 @@ export const en: Dict = {
     agentPokemonChoose: "Mascot Pokémon",
     agentDisplay: { icon: "Icon", both: "Icon and mascot", pet: "Mascot only" },
     petHint: "A small mascot that walks the dock while a session runs, jumps when one needs permission, and rests when idle.",
-    pokemonHint: "A small Pokémon that walks along the dock edge.",
+    pokemonHint: "Small Pokémon that walk along the dock edge.",
     pokemonDisplay: { icon: "Icon", both: "Icon and walking", pet: "Walking only" },
-    pokemonChoose: "Choose Pokémon",
+    pokemonChoose: (max: number) => `Choose up to ${max} Pokémon`,
+    pokemonSelected: (count: number, max: number) => `${count} of ${max} selected`,
+    pokemonLimit: (max: number) => `Limit of ${max} reached. Remove one to add another.`,
+    pokemonRemove: (name: string) => `Remove ${name}`,
     pokemonSearch: "Search by name or number",
     pokemonNone: "No Pokémon found.",
     pokemonRange: "Party icons exist for #1 to #809.",

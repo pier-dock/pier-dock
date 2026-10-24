@@ -9,7 +9,7 @@ use serde_json::Value;
 
 use crate::util::{data_dir, ErrStr};
 
-const MAX_ID: u32 = 809;
+pub const MAX_ID: u32 = 809;
 const SPRITE_URL: &str = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-vii/icons";
 const LIST_URL: &str = "https://pokeapi.co/api/v2/pokemon?limit=809";
 

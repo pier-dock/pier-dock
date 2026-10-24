@@ -8,6 +8,8 @@ use tauri_plugin_dialog::DialogExt;
 
 use crate::util::{data_dir, write_atomic, ErrStr};
 
+const MAX_POKEMON: usize = 10;
+
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct AppEntry {
@@ -123,13 +125,14 @@ pub struct Config {
     /// `agent_sessions.rs`). Puramente visual; sem hooks instalados fica só parado.
     pub claude_pet_enabled: bool,
     /// Mascote das sessões de IA: "clawd" ou "pokemon". O Pokémon usa `agent_pokemon_id`,
-    /// independente do `pokemon_pet_id` do widget Pokémon.
+    /// independente do `pokemon_pet_ids` do widget Pokémon.
     pub agent_pet_mascot: String,
     /// Sprite do Pokémon usado como mascote das sessões de IA.
     pub agent_pokemon_id: u32,
-    /// Pokémon que anda sobre a borda da dock, com o ícone de time da PokeAPI (ver `pokemon.rs`).
+    /// Pokémon que andam sobre a borda da dock, com o ícone de time da PokeAPI (ver `pokemon.rs`).
+    /// Até `MAX_POKEMON`, sem repetir; o primeiro também é o ícone do widget.
     pub pokemon_pet_enabled: bool,
-    pub pokemon_pet_id: u32,
+    pub pokemon_pet_ids: Vec<u32>,
 }
 
 fn widget(kind: &str, size: &str) -> WidgetConfig {
@@ -221,7 +224,7 @@ impl Default for Config {
             agent_pet_mascot: "clawd".into(),
             agent_pokemon_id: 25,
             pokemon_pet_enabled: false,
-            pokemon_pet_id: 25,
+            pokemon_pet_ids: vec![25],
         }
     }
 }
@@ -301,7 +304,22 @@ fn read_file(path: &Path) -> Result<Option<Config>, String> {
 
 /// Uma config salva, com as migrações e os widgets que surgiram depois dela.
 fn read(value: serde_json::Value) -> Result<Config, String> {
-    serde_json::from_value(migrate(value)).map(add_missing_widgets).err_str()
+    serde_json::from_value(migrate(value)).map(add_missing_widgets).map(normalize).err_str()
+}
+
+/// Uma config importada ou editada à mão pode trazer ids repetidos, fora da PokeAPI ou demais.
+fn normalize(mut config: Config) -> Config {
+    let mut seen = Vec::new();
+    for id in config.pokemon_pet_ids {
+        if (1..=crate::pokemon::MAX_ID).contains(&id) && !seen.contains(&id) && seen.len() < MAX_POKEMON {
+            seen.push(id);
+        }
+    }
+    if seen.is_empty() {
+        seen.push(25);
+    }
+    config.pokemon_pet_ids = seen;
+    config
 }
 
 /// Uma config importada de um arquivo. Os campos que faltam ganham o padrão, como no `load`, mas um
@@ -333,6 +351,7 @@ fn add_missing_widgets(mut config: Config) -> Config {
 /// - o widget "claude-usage" virou "ai-usage" quando ele passou a ler mais de uma IA, na lista de
 ///   widgets e na ordem da dock, e `claudePollMinutes` virou `aiPollMinutes`;
 /// - o widget "claude-agents" virou "ai-agents" quando passou a mostrar sessões de outros CLIs;
+/// - `pokemonPetId` virou a lista `pokemonPetIds` quando o widget Pokémon passou a aceitar vários;
 /// - o "theme" já aplicado é removido sem tocar no resto.
 fn migrate(mut value: serde_json::Value) -> serde_json::Value {
     let Some(obj) = value.as_object_mut() else { return value };
@@ -353,6 +372,12 @@ fn migrate(mut value: serde_json::Value) -> serde_json::Value {
     if !obj.contains_key("aiPollMinutes") {
         if let Some(minutes) = obj.remove("claudePollMinutes") {
             obj.insert("aiPollMinutes".into(), minutes);
+        }
+    }
+
+    if !obj.contains_key("pokemonPetIds") {
+        if let Some(id) = obj.remove("pokemonPetId") {
+            obj.insert("pokemonPetIds".into(), vec![id].into());
         }
     }
 
@@ -437,6 +462,7 @@ pub fn reset_config(app: AppHandle, state: State<ConfigState>) -> Result<(), Str
 /// Grava a config e aplica o que muda fora da página (idioma, dock, material, barra nativa); as
 /// janelas recebem a nova pelo `config-changed`.
 pub fn apply(app: &AppHandle, state: &ConfigState, config: Config) -> Result<(), String> {
+    let config = normalize(config);
     persist(&config)?;
     let (old_hide, old_language) = {
         let mut guard = state.0.lock().unwrap();
@@ -566,6 +592,7 @@ mod tests {
         assert_eq!(config.ai_provider, "auto");
         assert_eq!(config.agent_pet_mascot, "clawd");
         assert_eq!(config.agent_pokemon_id, 25);
+        assert_eq!(config.pokemon_pet_ids, vec![25]);
         assert!(!config.widgets.is_empty());
         assert!(config.dock_order.is_empty());
         assert!(config.show_start_button);
@@ -584,6 +611,21 @@ mod tests {
         assert_eq!((midnight.material.as_str(), midnight.accent.as_str()), ("solid", "lilac"));
         let paper = migrated(r#"{"theme":"paper","accent":"green"}"#);
         assert_eq!((paper.material.as_str(), paper.accent.as_str()), ("solid", "green"));
+    }
+
+    #[test]
+    fn single_pokemon_id_becomes_a_list() {
+        assert_eq!(migrated(r#"{"pokemonPetId":6}"#).pokemon_pet_ids, vec![6]);
+        assert_eq!(migrated(r#"{"pokemonPetId":6,"pokemonPetIds":[1,2]}"#).pokemon_pet_ids, vec![1, 2]);
+    }
+
+    #[test]
+    fn pokemon_ids_are_deduped_bounded_and_never_empty() {
+        let ids = |json: &str| normalize(serde_json::from_str(json).unwrap()).pokemon_pet_ids;
+        assert_eq!(ids(r#"{"pokemonPetIds":[6,25,6,0,810,150]}"#), vec![6, 25, 150]);
+        assert_eq!(ids(r#"{"pokemonPetIds":[]}"#), vec![25]);
+        let many = (1..=15).map(|n| n.to_string()).collect::<Vec<_>>().join(",");
+        assert_eq!(ids(&format!(r#"{{"pokemonPetIds":[{many}]}}"#)), (1..=10).collect::<Vec<u32>>());
     }
 
     #[test]

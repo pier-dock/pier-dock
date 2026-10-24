@@ -955,8 +955,13 @@ input[type="range"] {
   text-align: left;
 }
 
-.choice:is(:hover, [data-hover]) {
+.choice:is(:hover, [data-hover]):not(:disabled) {
   background: var(--fill-hover);
+}
+
+.choice:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .number-input {

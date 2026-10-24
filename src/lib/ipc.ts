@@ -100,12 +100,15 @@ export interface Config {
   claudePetEnabled: boolean;
   /** Mascote das sessões de IA que anda na dock: o Clawd ou um Pokémon. */
   agentPetMascot: AgentPetMascot;
-  /** Sprite do Pokémon do mascote, independente do `pokemonPetId`. */
+  /** Sprite do Pokémon do mascote, independente do `pokemonPetIds`. */
   agentPokemonId: number;
-  /** Pokémon que anda sobre a borda da dock, com o ícone de time da PokeAPI. */
+  /** Pokémon que andam sobre a borda da dock, com o ícone de time da PokeAPI; o primeiro também é o ícone do widget. */
   pokemonPetEnabled: boolean;
-  pokemonPetId: number;
+  pokemonPetIds: number[];
 }
+
+/** Quantos Pokémon o widget aceita; o mesmo limite vale no Rust (`config.rs`). */
+export const MAX_POKEMON = 10;
 
 export interface PokemonEntry {
   id: number;

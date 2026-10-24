@@ -79,7 +79,7 @@ test("agent pokemon and the decorative pokemon pet coexist", async ({ page }) =>
   await openMock(page, "view=dock", { get_agent_sessions: [{ provider: "claude", sessionId: "idle", status: "done", windowId: 1, project: "test", cwd: "/test", updatedAt: Date.now() }] });
   await page.evaluate(async () => {
     const { useConfig } = await import("/src/store/config.ts");
-    useConfig.setState({ config: { ...useConfig.getState().config, agentPetMascot: "pokemon", agentPokemonId: 25, pokemonPetEnabled: true, pokemonPetId: 6, widgets: [] } });
+    useConfig.setState({ config: { ...useConfig.getState().config, agentPetMascot: "pokemon", agentPokemonId: 25, pokemonPetEnabled: true, pokemonPetIds: [6], widgets: [] } });
   });
   await expectCall(page, "pokemon_sprite", { id: 25 });
   await expectCall(page, "pokemon_sprite", { id: 6 });
