@@ -18,7 +18,7 @@ import { buildDockApps, type DockApp } from "./apps";
 import { stableOpenApps } from "./runningOrder";
 import { PREVIEW_GAP, barRect, dockMetrics, isVertical, previewSpace } from "./layout";
 import { WindowPreview } from "./WindowPreview";
-import { ClawdPet } from "./ClawdPet";
+import { AgentPet } from "./AgentPet";
 import { PokemonPet } from "./PokemonPet";
 import { MagnifyCtx, MagnifyGeometry } from "./Magnify";
 import { resetDockHover } from "./hoverReset";
@@ -470,7 +470,17 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
           ))}
         </MagnifyCtx.Provider>
       </div>
-      {config.claudePetEnabled && <ClawdPet position={position} full={full} margin={metrics.margin} visible={visible} barRef={barRef} />}
+      {config.claudePetEnabled && (
+        <AgentPet
+          mascot={config.agentPetMascot}
+          pokemonId={config.agentPokemonId}
+          position={position}
+          full={full}
+          margin={metrics.margin}
+          visible={visible}
+          barRef={barRef}
+        />
+      )}
       {config.pokemonPetEnabled && <PokemonPet id={config.pokemonPetId} position={position} full={full} margin={metrics.margin} visible={visible} barRef={barRef} />}
       {previewApp && preview && (
         <WindowPreview app={previewApp} anchor={preview} position={position} onClose={() => setPreview(null)} onHoverChange={onPreviewHover} />

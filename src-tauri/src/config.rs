@@ -120,6 +120,11 @@ pub struct Config {
     /// Mascote decorativo que anda sobre a borda da dock, reagindo às sessões dos CLIs de IA (ver
     /// `agent_sessions.rs`). Puramente visual; sem hooks instalados fica só parado.
     pub claude_pet_enabled: bool,
+    /// Mascote das sessões de IA: "clawd" ou "pokemon". O Pokémon usa `agent_pokemon_id`,
+    /// independente do `pokemon_pet_id` do widget Pokémon.
+    pub agent_pet_mascot: String,
+    /// Sprite do Pokémon usado como mascote das sessões de IA.
+    pub agent_pokemon_id: u32,
     /// Pokémon que anda sobre a borda da dock, com o ícone de time da PokeAPI (ver `pokemon.rs`).
     pub pokemon_pet_enabled: bool,
     pub pokemon_pet_id: u32,
@@ -211,6 +216,8 @@ impl Default for Config {
             language: "system".into(),
             auto_update: true,
             claude_pet_enabled: false,
+            agent_pet_mascot: "clawd".into(),
+            agent_pokemon_id: 25,
             pokemon_pet_enabled: false,
             pokemon_pet_id: 25,
         }
@@ -428,6 +435,8 @@ mod tests {
         assert_eq!(config.dock_width, "fit");
         assert_eq!(config.dock_position, "bottom");
         assert_eq!(config.ai_provider, "auto");
+        assert_eq!(config.agent_pet_mascot, "clawd");
+        assert_eq!(config.agent_pokemon_id, 25);
         assert!(!config.widgets.is_empty());
         assert!(config.dock_order.is_empty());
         assert!(config.show_start_button);

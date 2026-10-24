@@ -56,6 +56,8 @@ export interface PomodoroConfig {
 /** Borda da tela onde a dock fica. Nas laterais a barra é vertical. */
 export type DockPosition = "bottom" | "top" | "left" | "right";
 
+export type AgentPetMascot = "clawd" | "pokemon";
+
 export interface Config {
   pinnedApps: AppEntry[];
   widgets: WidgetConfig[];
@@ -96,6 +98,10 @@ export interface Config {
   autoUpdate: boolean;
   /** Mascote decorativo que anda sobre a borda da dock, reagindo às sessões dos CLIs de IA. */
   claudePetEnabled: boolean;
+  /** Mascote das sessões de IA que anda na dock: o Clawd ou um Pokémon. */
+  agentPetMascot: AgentPetMascot;
+  /** Sprite do Pokémon do mascote, independente do `pokemonPetId`. */
+  agentPokemonId: number;
   /** Pokémon que anda sobre a borda da dock, com o ícone de time da PokeAPI. */
   pokemonPetEnabled: boolean;
   pokemonPetId: number;

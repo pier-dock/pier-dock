@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { ipc, type AgentSession, type DockPosition } from "../lib/ipc";
+import { ipc, type AgentPetMascot, type AgentSession, type DockPosition } from "../lib/ipc";
 import { useAgentSessions } from "../hooks/useAgentSessions";
+import { usePokemonSprite } from "../hooks/usePokemonSprite";
 import { useT } from "../i18n";
 import { leadStatus, openAgentSessions } from "../widgets/AgentSessionsWidget";
 import { barRect, isVertical } from "./layout";
@@ -11,9 +12,15 @@ import { ClaudeMascotIcon } from "./ClaudeMascotIcon";
 type Mood = "idle" | "walking" | "waiting";
 
 const SPEED = 46;
-/** A área clicável que o Rust recebe só é atualizada quando o Clawd anda isso, e sobra isso em
+/** A área clicável que o Rust recebe só é atualizada quando o mascote anda isso, e sobra isso em
  * volta dele: andando, ele nunca sai da área informada. */
 const HIT_STEP = 4;
+
+/** Caixa de clique de cada sprite, relativa à caixa de 26×26 do pet. O ícone de time tem 40×30,
+ * centrado na horizontal e apoiado 4px acima da base (ver `.pokemon-pet-sprite`); os 34px de
+ * altura incluem o margin-bottom de 4px, então a área cobre o vão sob o sprite. */
+const CLAWD_BOX = { left: 0, top: 0, width: PET, height: PET };
+const POKEMON_BOX = { left: 7, top: 8, width: 40, height: 34 };
 
 function moodOf(agents: AgentSession[]): Mood {
   if (agents.some((a) => a.status === "permission")) return "waiting";
@@ -22,6 +29,8 @@ function moodOf(agents: AgentSession[]): Mood {
 }
 
 interface Props {
+  mascot: AgentPetMascot;
+  pokemonId: number;
   position: DockPosition;
   full: boolean;
   margin: number;
@@ -30,18 +39,23 @@ interface Props {
 }
 
 /** Mascote que anda sobre a borda da dock, reagindo às sessões dos CLIs de IA (ver
- * `useAgentSessions`). Com alguma sessão, clicar nele faz o mesmo que o widget; como ele fica fora
- * da barra, informa a própria área ao Rust (`set_pet_rect`), senão o clique atravessa a janela. */
-export function ClawdPet({ position, full, margin, visible, barRef }: Props) {
+ * `useAgentSessions`). Pode ser o Clawd ou um Pokémon; com alguma sessão, clicar nele faz o mesmo
+ * que o widget. Como ele fica fora da barra, informa a própria área ao Rust (`set_pet_rect`),
+ * senão o clique atravessa a janela. */
+export function AgentPet({ mascot, pokemonId, position, full, margin, visible, barRef }: Props) {
   const agents = useAgentSessions();
   const vertical = isVertical(position);
   const mood = moodOf(agents);
   const lead = leadStatus(agents);
   const t = useT().agentSessions;
   const clickable = visible && agents.length > 0;
+  const sprite = usePokemonSprite(mascot === "pokemon" ? pokemonId : null);
+  const showPokemon = mascot === "pokemon" && !!sprite;
   const clickableRef = useRef(clickable);
   clickableRef.current = clickable;
   const reportedRef = useRef<{ x: number; y: number } | null>(null);
+  const boxRef = useRef(showPokemon ? POKEMON_BOX : CLAWD_BOX);
+  boxRef.current = showPokemon ? POKEMON_BOX : CLAWD_BOX;
 
   const outerRef = useRef<HTMLDivElement>(null);
   const posRef = useRef(0);
@@ -77,8 +91,16 @@ export function ClawdPet({ position, full, margin, visible, barRef }: Props) {
     const last = reportedRef.current;
     if (last && Math.abs(last.x - x) < HIT_STEP && Math.abs(last.y - y) < HIT_STEP) return;
     reportedRef.current = { x, y };
-    const size = PET + HIT_STEP * 2;
-    ipc.setPetRect({ x: x - HIT_STEP, y: y - HIT_STEP, width: size, height: size, radius: 0 }).catch(console.error);
+    const box = boxRef.current;
+    ipc
+      .setPetRect({
+        x: x - box.left - HIT_STEP,
+        y: y - box.top - HIT_STEP,
+        width: box.width + HIT_STEP * 2,
+        height: box.height + HIT_STEP * 2,
+        radius: 0,
+      })
+      .catch(console.error);
   };
 
   const apply = () => {
@@ -112,6 +134,14 @@ export function ClawdPet({ position, full, margin, visible, barRef }: Props) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clickable]);
+
+  // Trocar de mascote (ou o sprite terminar de carregar) muda a caixa clicável sem mover o pet;
+  // força um novo `set_pet_rect` com a geometria atual.
+  useEffect(() => {
+    reportedRef.current = null;
+    apply();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showPokemon]);
 
   useEffect(() => {
     if (!walking) return;
@@ -148,10 +178,11 @@ export function ClawdPet({ position, full, margin, visible, barRef }: Props) {
   }, [walking, position, full, margin, barSize, vertical]);
 
   const pose = petPose(position, { x: 0, y: 0, width: 0, height: 0 }, 0, direction);
+  const moodClass = walking ? "" : `claude-pet-${mood === "walking" ? "idle" : mood}`;
   return (
     <div
       ref={outerRef}
-      className={`claude-pet ${visible ? "" : "claude-pet-hidden"} ${clickable ? "clickable" : ""}`}
+      className={`claude-pet ${visible ? "" : "claude-pet-hidden"} ${clickable ? "clickable" : ""} ${showPokemon ? "agent-pet-pokemon" : ""}`}
       role={clickable ? "button" : undefined}
       tabIndex={clickable ? 0 : undefined}
       aria-label={clickable ? t.tile(agents.length, t.status[lead ?? "running"]) : undefined}
@@ -167,11 +198,17 @@ export function ClawdPet({ position, full, margin, visible, barRef }: Props) {
       onMouseLeave={() => setHovered(false)}
     >
       <div className="claude-pet-orientation" style={{ transform: `rotate(${pose.angle}deg)` }}>
-        <div className={`claude-pet-facing ${pose.mirror ? "facing-left" : "facing-right"}`}>
-          <span className={`claude-sprite claude-pet-sprite ${walking ? "walking" : `claude-pet-${mood === "walking" ? "idle" : mood}`} ${lead ? `claude-${lead}` : ""}`}>
-            <ClaudeMascotIcon size={18} />
+        {/* O ícone de time olha para a esquerda; o `mirror` da pose vale para o Clawd, que olha para a direita. */}
+        <div className={`claude-pet-facing ${showPokemon ? (pose.mirror ? "facing-right" : "facing-left") : (pose.mirror ? "facing-left" : "facing-right")}`}>
+          <span className={`claude-sprite claude-pet-sprite ${showPokemon ? moodClass : walking ? "walking" : moodClass} ${lead ? `claude-${lead}` : ""}`}>
+            {showPokemon && sprite ? (
+              <img className={`pokemon-pet-sprite agent-pet-sprite ${walking ? "walking" : ""}`} src={sprite} alt="" draggable={false} />
+            ) : (
+              <ClaudeMascotIcon size={18} />
+            )}
           </span>
         </div>
+        {showPokemon && lead && <span className={`agent-pet-status claude-dot claude-dot-${lead}`} aria-hidden />}
       </div>
     </div>
   );

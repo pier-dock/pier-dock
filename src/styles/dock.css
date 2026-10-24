@@ -495,7 +495,7 @@ html[data-reduced-effects="true"] .dock-bar {
   }
 }
 
-/* Clawd: mascote que anda sobre a borda da dock (ver `ClawdPet.tsx`). Só recebe clique quando há
+/* Mascote que anda sobre a borda da dock (ver `AgentPet.tsx`). Só recebe clique quando há
    sessões para abrir (`.clickable`). */
 .claude-pet {
   position: absolute;
@@ -510,7 +510,7 @@ html[data-reduced-effects="true"] .dock-bar {
 }
 
 /* Acompanha a barra quando ela sai da tela (`.dock-hidden`): `--pet-hide` é a espessura da barra
-   mais o próprio Clawd, calculada em `ClawdPet.tsx`. */
+   mais o próprio mascote, calculada em `AgentPet.tsx`. */
 .claude-pet.claude-pet-hidden {
   transform: translate(0, var(--pet-hide));
   opacity: 0;
@@ -554,8 +554,12 @@ html[data-reduced-effects="true"] .dock-bar {
 }
 
 
-.claude-pet-orientation { transition: none; }
+.claude-pet-orientation {
+  position: relative;
+  transition: none;
+}
 .claude-pet:focus-visible { outline: 2px solid var(--accent); border-radius: 6px; }
+.agent-pet-pokemon:focus-visible { outline-offset: 4px; border-radius: 10px; }
 
 /* Espelha o sprite no seu eixo local, depois de orientar os pés para a barra. */
 .claude-pet-facing.facing-left {
@@ -687,7 +691,8 @@ html[data-reduced-effects="true"] .dock-bar {
 
 /* A caixa do pet entra 6px na barra e o ícone tem 2px transparentes sob os pés: alinha pela base e
    sobe 4px para os pés ficarem na borda da dock. */
-.pokemon-pet .claude-pet-facing {
+.pokemon-pet .claude-pet-facing,
+.agent-pet-pokemon .claude-pet-facing {
   align-items: flex-end;
 }
 
@@ -700,6 +705,20 @@ html[data-reduced-effects="true"] .dock-bar {
   object-position: bottom;
   image-rendering: pixelated;
   user-select: none;
+}
+
+/* O sprite do mascote dos agentes passa da caixa de 26×26; o clique/hover acompanha o desenho. */
+.claude-pet.clickable .pokemon-pet-sprite {
+  pointer-events: auto;
+}
+
+/* Status do mascote Pokémon: um ponto na cor do status principal, girando junto com a borda. */
+.claude-pet .agent-pet-status {
+  position: absolute;
+  top: -2px;
+  right: -6px;
+  pointer-events: none;
+  box-shadow: 0 0 0 1.5px var(--surface-icon);
 }
 
 .pokemon-pet-sprite.walking {

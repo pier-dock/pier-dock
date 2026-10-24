@@ -3,9 +3,13 @@ import { ipc } from "../lib/ipc";
 
 const sprites = new Map<number, string>();
 
-export function usePokemonSprite(id: number): string | null {
-  const [src, setSrc] = useState<string | null>(sprites.get(id) ?? null);
+export function usePokemonSprite(id: number | null): string | null {
+  const [src, setSrc] = useState<string | null>(id === null ? null : (sprites.get(id) ?? null));
   useEffect(() => {
+    if (id === null) {
+      setSrc(null);
+      return;
+    }
     const cached = sprites.get(id);
     setSrc(cached ?? null);
     if (cached) return;

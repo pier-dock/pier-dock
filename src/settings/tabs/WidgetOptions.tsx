@@ -175,7 +175,7 @@ export function AgentSessionsOptions({ config, update }: OptionsProps) {
     refresh();
   }, []);
 
-  // "Só o Clawd" é o widget desligado com o Clawd ligado: os dois já funcionam separados, aqui só
+  // "Só o mascote" é o widget desligado com o mascote ligado: os dois já funcionam separados, aqui só
   // ficam numa escolha só.
   const iconShown = config.widgets.some((w) => w.kind === "ai-agents" && w.enabled);
   const display: AgentDisplay = config.claudePetEnabled ? (iconShown ? "both" : "pet") : "icon";
@@ -233,6 +233,20 @@ export function AgentSessionsOptions({ config, update }: OptionsProps) {
         <p className="field-hint" role="status">
           {status}
         </p>
+      )}
+      <Row label={t.agentMascotLabel} description={t.agentMascotHint}>
+        <Segmented
+          label={t.agentMascotLabel}
+          value={config.agentPetMascot}
+          onChange={(agentPetMascot) => update({ agentPetMascot })}
+          options={[
+            { value: "clawd", label: t.agentMascotClawd },
+            { value: "pokemon", label: t.agentMascotPokemon },
+          ]}
+        />
+      </Row>
+      {config.agentPetMascot === "pokemon" && (
+        <PokemonPicker id={config.agentPokemonId} label={t.agentPokemonChoose} onPick={(agentPokemonId) => update({ agentPokemonId })} />
       )}
       <Row label={t.agentDisplayLabel} description={t.petHint}>
         <Segmented
@@ -334,8 +348,7 @@ function PokemonChoice({ pokemon, onPick }: { pokemon: PokemonEntry; onPick: () 
   );
 }
 
-/** Ícone na dock, Pokémon andando, ou os dois; como o "Mostrar na dock" das sessões de IA. */
-export function PokemonOptions({ config, update }: OptionsProps) {
+function PokemonPicker({ id, label, onPick }: { id: number; label: string; onPick: (id: number) => void }) {
   const [list, setList] = useState<PokemonEntry[]>([]);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<string | null>(null);
@@ -345,20 +358,12 @@ export function PokemonOptions({ config, update }: OptionsProps) {
     ipc.pokemonList().then(setList).catch((e) => setStatus(common.error(String(e))));
   }, []);
 
-  const iconShown = config.widgets.some((w) => w.kind === "pokemon" && w.enabled);
-  const display: AgentDisplay = config.pokemonPetEnabled ? (iconShown ? "both" : "pet") : "icon";
-  const setDisplay = (next: AgentDisplay) =>
-    update((c) => ({
-      pokemonPetEnabled: next !== "icon",
-      widgets: c.widgets.map((w) => (w.kind === "pokemon" ? { ...w, enabled: next !== "pet" } : w)),
-    }));
-
-  const current = list.find((p) => p.id === config.pokemonPetId);
+  const current = list.find((p) => p.id === id);
   const results = matchPokemon(list, query);
 
   return (
     <>
-      <Row label={t.pokemonChoose} description={current ? `#${current.id} ${current.name}` : `#${config.pokemonPetId}`} />
+      <Row label={label} description={current ? `#${current.id} ${current.name}` : `#${id}`} />
       <div className="row row-stack">
         <form className="token-form" onSubmit={(e) => e.preventDefault()}>
           <label className="visually-hidden" htmlFor="pokemon">
@@ -376,7 +381,7 @@ export function PokemonOptions({ config, update }: OptionsProps) {
                 <PokemonChoice
                   pokemon={p}
                   onPick={() => {
-                    update({ pokemonPetId: p.id });
+                    onPick(p.id);
                     setQuery("");
                   }}
                 />
@@ -385,6 +390,25 @@ export function PokemonOptions({ config, update }: OptionsProps) {
           </ul>
         )}
       </div>
+    </>
+  );
+}
+
+/** Ícone na dock, Pokémon andando, ou os dois; como o "Mostrar na dock" das sessões de IA. */
+export function PokemonOptions({ config, update }: OptionsProps) {
+  const { widgetOptions: t } = useT();
+
+  const iconShown = config.widgets.some((w) => w.kind === "pokemon" && w.enabled);
+  const display: AgentDisplay = config.pokemonPetEnabled ? (iconShown ? "both" : "pet") : "icon";
+  const setDisplay = (next: AgentDisplay) =>
+    update((c) => ({
+      pokemonPetEnabled: next !== "icon",
+      widgets: c.widgets.map((w) => (w.kind === "pokemon" ? { ...w, enabled: next !== "pet" } : w)),
+    }));
+
+  return (
+    <>
+      <PokemonPicker id={config.pokemonPetId} label={t.pokemonChoose} onPick={(pokemonPetId) => update({ pokemonPetId })} />
       <Row label={t.agentDisplayLabel} description={t.pokemonHint}>
         <Segmented
           label={t.agentDisplayLabel}

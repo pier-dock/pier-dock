@@ -89,6 +89,8 @@ const config: Config = {
   language: "system",
   autoUpdate: true,
   claudePetEnabled: true,
+  agentPetMascot: "clawd",
+  agentPokemonId: 25,
   pokemonPetEnabled: false,
   pokemonPetId: 25,
 };

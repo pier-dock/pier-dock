@@ -917,6 +917,14 @@
   color: var(--text-secondary);
 }
 
+.agent-tile-sprite {
+  width: 24px;
+  height: 18px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  user-select: none;
+}
+
 .claude-sprite.walking {
   animation: claude-walk 0.9s ease-in-out infinite;
 }
