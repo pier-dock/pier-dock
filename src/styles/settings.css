@@ -807,6 +807,73 @@ input[type="range"] {
   align-items: center;
 }
 
+/* Aparência: a prévia e os três cards cabem na janela padrão; o rolar fica só de reserva. */
+.appearance {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 24px 16px;
+  overflow-y: auto;
+}
+
+.preview-stage.wide {
+  flex: none;
+  box-sizing: border-box;
+  height: 176px;
+  min-height: 0;
+  margin-top: 16px;
+  padding-bottom: 20px;
+}
+
+.preview-stage.wide .preview-window {
+  left: 50%;
+  top: 50%;
+  width: 300px;
+  height: 100px;
+  margin: -50px 0 0 -150px;
+}
+
+.preview-stage.wide.vertical .preview-bar .divider,
+.preview-stage.wide.vertical .preview-clock {
+  display: none;
+}
+
+.appearance-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.appearance-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-card);
+  background: var(--fill-header);
+}
+
+.appearance-card > .section-label {
+  padding: 0;
+}
+
+.appearance .segmented button {
+  padding: 7px 4px;
+  white-space: nowrap;
+}
+
+.appearance-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
 /* GitHub */
 .account-card,
 .version-card {
@@ -1327,20 +1394,204 @@ input[type="range"] {
   color: var(--text-danger);
 }
 
-.report-done {
-  align-items: flex-start;
+.report-dialog {
+  width: min(540px, calc(100vw - 48px));
+}
+
+.report-dialog .widget-dialog-content {
+  position: relative;
+}
+
+.report-warning {
+  margin: 0;
+  display: flex;
   gap: 10px;
-  padding: 24px 20px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--warning-fill);
+  border: 1px solid var(--warning-border);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-warning);
+}
+
+.report-warning svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--warning);
+}
+
+.report-spinner {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.25);
+  border-top-color: var(--text-on-accent);
+  animation: report-spin 0.7s linear infinite;
+}
+
+.report-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+}
+
+.report-done {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 44px 32px 28px;
+  text-align: center;
+}
+
+.report-done::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 10px;
+  width: 280px;
+  height: 160px;
+  margin-left: -140px;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--success) 22%, transparent), transparent);
+  pointer-events: none;
+}
+
+.report-done:has(.browser)::before {
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--warning) 18%, transparent), transparent);
+}
+
+.report-done-icon {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  border-radius: 30px;
+  display: grid;
+  place-items: center;
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success) 40%, transparent);
+  animation: report-pop 0.45s ease-out both;
+}
+
+.report-done-icon.browser {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+  border-color: color-mix(in srgb, var(--warning) 40%, transparent);
+}
+
+.report-done-icon path {
+  stroke-dasharray: 24;
+  animation: report-draw 0.4s 0.25s ease-out both;
 }
 
 .report-done-title {
+  position: relative;
+  margin: 6px 0 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.report-done-text {
+  position: relative;
   margin: 0;
+  max-width: 380px;
   font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.report-issue {
+  position: relative;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 14px;
+  border-radius: var(--radius-card);
+  background: var(--fill);
+  border: 1px solid var(--divider);
+  text-align: left;
+}
+
+.report-issue-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.report-issue-title {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.report-issue-meta {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.report-dialog .widget-dialog-footer {
+  justify-content: flex-end;
+}
+
+.report-dialog .widget-dialog-footer .btn {
+  margin-left: 0;
 }
 
 .report-dialog .widget-dialog-footer .field-hint {
   flex: 1;
   min-width: 0;
+}
+
+.report-dialog .widget-dialog-footer .report-again {
+  margin-right: auto;
+}
+
+@keyframes report-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes report-draw {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes report-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .report-done-icon,
+  .report-done-icon path,
+  .report-spinner {
+    animation: none;
+  }
 }
 
 /* Novidades: janela própria, aberta uma vez depois de atualizar (ver `whats-new/WhatsNew.tsx`). */

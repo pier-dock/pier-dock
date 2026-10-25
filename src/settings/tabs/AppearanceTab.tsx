@@ -6,7 +6,7 @@ import { useNow } from "../../hooks/useSystem";
 import { iconKeyForEntry } from "../../dock/apps";
 import { isVertical } from "../../dock/layout";
 import { ACCENTS } from "../../theme/accents";
-import { Card, Row, SectionLabel } from "../../ui/Card";
+import { SectionLabel } from "../../ui/Card";
 import { Segmented } from "../../ui/Segmented";
 import { Switch } from "../../ui/Switch";
 import type { TabProps } from "../shared";
@@ -45,10 +45,10 @@ function Slider({
   );
 }
 
-function PreviewIcon({ entry, size, active }: { entry: AppEntry; size: number; active: boolean }) {
+function PreviewIcon({ entry, size, active, scale }: { entry: AppEntry; size: number; active: boolean; scale: number }) {
   const src = useIcon(iconKeyForEntry(entry));
   return (
-    <span className="preview-app">
+    <span className="preview-app" style={scale > 1 ? { transform: `scale(${scale})` } : undefined}>
       {src ? <img src={src} alt="" style={{ width: size, height: size }} /> : <span className="preview-fallback" style={{ width: size, height: size }} />}
       <span className={`indicator on ${active ? "active" : ""}`} />
     </span>
@@ -57,12 +57,16 @@ function PreviewIcon({ entry, size, active }: { entry: AppEntry; size: number; a
 
 /** A dock em miniatura sobre um fundo colorido, com o material, a opacidade e o destaque atuais. */
 function LivePreview({ config }: { config: Config }) {
+  const t = useT().appearance;
   const now = useNow(30_000);
-  // Numa barra em pé cabem menos ícones antes de a prévia passar do espaço da tela.
+  // O palco é baixo: mostra só um terço da ampliação para o ícone não sair do quadro.
+  const magnified = 1 + (config.magnification - 1) / 3;
+  // Numa barra em pé cabem menos ícones antes de a prévia passar do espaço da tela (e o relógio sai).
   const vertical = isVertical(config.dockPosition);
-  const apps = config.pinnedApps.slice(0, vertical ? 3 : 5);
+  const apps = config.pinnedApps.slice(0, vertical ? 2 : 5);
   return (
-    <div className={`preview-stage ${vertical ? "vertical" : ""}`} data-pos={config.dockPosition} aria-hidden>
+    <div className={`preview-stage wide ${vertical ? "vertical" : ""}`} data-pos={config.dockPosition} aria-hidden>
+      <span className="preview-label">{t.preview}</span>
       <span className="preview-window">
         <span />
         <span />
@@ -70,7 +74,13 @@ function LivePreview({ config }: { config: Config }) {
       </span>
       <div className="preview-bar dock-like" data-glass>
         {apps.map((app, i) => (
-          <PreviewIcon key={app.id} entry={app} size={config.iconSize} active={i === Math.min(apps.length - 1, 3)} />
+          <PreviewIcon
+            key={app.id}
+            entry={app}
+            size={config.iconSize}
+            active={i === Math.min(apps.length - 1, 3)}
+            scale={i === 1 ? magnified : 1}
+          />
         ))}
         <span className="divider" />
         <span className="preview-clock">
@@ -78,6 +88,15 @@ function LivePreview({ config }: { config: Config }) {
           <span className="clock-date">{shortDate(now)}</span>
         </span>
       </div>
+    </div>
+  );
+}
+
+function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <div className="appearance-toggle">
+      <span>{label}</span>
+      <Switch checked={checked} onChange={onChange} label={label} />
     </div>
   );
 }
@@ -90,15 +109,11 @@ export function AppearanceTab({ config, update, platform }: TabProps) {
   const t = useT().appearance;
 
   return (
-    <div className="split">
-      <div className="split-list form">
-        <Card>
-          <Row label={t.reducedEffects} description={t.reducedEffectsHint}>
-            <Switch checked={config.reducedEffects} onChange={(reducedEffects) => update({ reducedEffects })} label={t.reducedEffects} />
-          </Row>
-        </Card>
-        <div className="field">
-          <SectionLabel>{t.material}</SectionLabel>
+    <div className="appearance form">
+      <LivePreview config={config} />
+      <div className="appearance-grid">
+        <section className="appearance-card" aria-label={t.style}>
+          <SectionLabel>{t.style}</SectionLabel>
           <Segmented
             label={t.material}
             value={glass ? "glass" : "solid"}
@@ -106,135 +121,126 @@ export function AppearanceTab({ config, update, platform }: TabProps) {
             options={glassAvailable ? [{ value: "glass", label: t.glass }, { value: "solid", label: t.solid }] : [{ value: "solid", label: t.solid }]}
           />
           {!glassAvailable && <p className="field-hint">{t.noGlass}</p>}
-        </div>
-        {glass && !config.reducedEffects && (
-          <Slider
-            id="opacity"
-            label={t.opacity}
-            value={Math.round(config.glassOpacity * 100)}
-            display={`${Math.round(config.glassOpacity * 100)}%`}
-            min={15}
-            max={90}
-            step={5}
-            onChange={(v) => update({ glassOpacity: v / 100 })}
-          />
-        )}
-        <Slider id="icon-size" label={t.iconSize} value={config.iconSize} display={`${config.iconSize} px`} min={32} max={72} step={2} onChange={(iconSize) => update({ iconSize })} />
-        <div className="field">
-          <span className="field-label" id="accent-label">
-            {t.accent}
-          </span>
-          <div className="swatches" role="radiogroup" aria-labelledby="accent-label">
-            {ACCENTS.map((a) => (
-              <button
-                key={a.key}
-                role="radio"
-                aria-checked={config.accent === a.key}
-                aria-label={t.accents[a.key]}
-                title={t.accents[a.key]}
-                className="swatch"
-                style={{ background: `var(--${a.key})` }}
-                onClick={() => update({ accent: a.key })}
-              />
-            ))}
-          </div>
-        </div>
-        <div className="field">
-          <span className="field-label">{t.autoHide}</span>
-          <Segmented
-            label={t.autoHide}
-            value={config.autoHide}
-            onChange={(autoHide) => update({ autoHide })}
-            options={[
-              { value: "smart", label: t.autoHideSmart },
-              { value: "always", label: t.autoHideAlways },
-              { value: "never", label: t.autoHideNever },
-            ]}
-          />
-          <p className="field-hint">
-            {config.autoHide === "never" ? labels().autoHideNever : t.autoHideHint}
-          </p>
-        </div>
-        <div className="field">
-          <span className="field-label">{t.dockPosition}</span>
-          <Segmented
-            label={t.dockPosition}
-            value={config.dockPosition}
-            onChange={(dockPosition) => update({ dockPosition })}
-            options={[
-              { value: "bottom", label: t.dockPositionBottom },
-              { value: "top", label: t.dockPositionTop },
-              { value: "left", label: t.dockPositionLeft },
-              { value: "right", label: t.dockPositionRight },
-            ]}
-          />
-          <p className="field-hint">{t.dockPositionHint}</p>
-        </div>
-        <div className="field">
-          <span className="field-label">{t.dockWidth}</span>
-          <Segmented
-            label={t.dockWidth}
-            value={config.dockWidth}
-            onChange={(dockWidth) => update({ dockWidth })}
-            options={[
-              { value: "fit", label: t.dockWidthFit },
-              { value: "full", label: t.dockWidthFull },
-            ]}
-          />
-          <p className="field-hint">{t.dockWidthHint}</p>
-        </div>
-        <div className="field">
-          <span className="field-label">{t.panelHeight}</span>
-          <Segmented
-            label={t.panelHeight}
-            value={customHeight ? "custom" : "auto"}
-            onChange={(mode) => update({ dockHeight: mode === "custom" ? config.iconSize + 32 : null })}
-            options={[
-              { value: "auto", label: t.panelAuto },
-              { value: "custom", label: t.panelCustom },
-            ]}
-          />
-          {customHeight && (
+          {glass && !config.reducedEffects && (
             <Slider
-              id="dock-height"
-              label={t.panelHeight}
-              value={config.dockHeight!}
-              display={`${config.dockHeight} px`}
-              min={config.iconSize + 16}
-              max={160}
-              step={2}
-              onChange={(dockHeight) => update({ dockHeight })}
+              id="opacity"
+              label={t.opacity}
+              value={Math.round(config.glassOpacity * 100)}
+              display={`${Math.round(config.glassOpacity * 100)}%`}
+              min={15}
+              max={90}
+              step={5}
+              onChange={(v) => update({ glassOpacity: v / 100 })}
             />
           )}
-          <p className="field-hint">{t.panelHeightHint}</p>
-        </div>
-        <Card>
-          <Row label={t.magnify}>
-            <Switch checked={magnify} label={t.magnify} onChange={(on) => update({ magnification: on ? DEFAULT_MAGNIFICATION : 1 })} />
-          </Row>
-          {magnify && (
-            <div className="row">
-              <Slider
-                id="magnification"
-                label={t.magnification}
-                value={config.magnification}
-                display={`${config.magnification.toFixed(1)}×`}
-                min={1.1}
-                max={2.2}
-                step={0.1}
-                onChange={(magnification) => update({ magnification })}
-              />
+          <Toggle label={t.reducedEffects} checked={config.reducedEffects} onChange={(reducedEffects) => update({ reducedEffects })} />
+          <Slider id="icon-size" label={t.iconSize} value={config.iconSize} display={`${config.iconSize} px`} min={32} max={72} step={2} onChange={(iconSize) => update({ iconSize })} />
+          <div className="field">
+            <span className="field-label" id="accent-label">
+              {t.accent}
+            </span>
+            <div className="swatches" role="radiogroup" aria-labelledby="accent-label">
+              {ACCENTS.map((a) => (
+                <button
+                  key={a.key}
+                  role="radio"
+                  aria-checked={config.accent === a.key}
+                  aria-label={t.accents[a.key]}
+                  title={t.accents[a.key]}
+                  className="swatch"
+                  style={{ background: `var(--${a.key})` }}
+                  onClick={() => update({ accent: a.key })}
+                />
+              ))}
             </div>
+          </div>
+        </section>
+
+        <section className="appearance-card" aria-label={t.dock}>
+          <SectionLabel>{t.dock}</SectionLabel>
+          <div className="field">
+            <span className="field-label">{t.dockPosition}</span>
+            <Segmented
+              label={t.dockPosition}
+              value={config.dockPosition}
+              onChange={(dockPosition) => update({ dockPosition })}
+              options={[
+                { value: "bottom", label: t.dockPositionBottom },
+                { value: "top", label: t.dockPositionTop },
+                { value: "left", label: t.dockPositionLeft },
+                { value: "right", label: t.dockPositionRight },
+              ]}
+            />
+          </div>
+          <div className="field">
+            <span className="field-label">{t.dockWidth}</span>
+            <Segmented
+              label={t.dockWidth}
+              value={config.dockWidth}
+              onChange={(dockWidth) => update({ dockWidth })}
+              options={[
+                { value: "fit", label: t.dockWidthFit },
+                { value: "full", label: t.dockWidthFull },
+              ]}
+            />
+          </div>
+          <div className="field">
+            <span className="field-label">{t.panelHeight}</span>
+            <Segmented
+              label={t.panelHeight}
+              value={customHeight ? "custom" : "auto"}
+              onChange={(mode) => update({ dockHeight: mode === "custom" ? config.iconSize + 32 : null })}
+              options={[
+                { value: "auto", label: t.panelAuto },
+                { value: "custom", label: t.panelCustom },
+              ]}
+            />
+            {customHeight && (
+              <Slider
+                id="dock-height"
+                label={t.panelHeight}
+                value={config.dockHeight!}
+                display={`${config.dockHeight} px`}
+                min={config.iconSize + 16}
+                max={160}
+                step={2}
+                onChange={(dockHeight) => update({ dockHeight })}
+              />
+            )}
+          </div>
+        </section>
+
+        <section className="appearance-card" aria-label={t.behavior}>
+          <SectionLabel>{t.behavior}</SectionLabel>
+          <div className="field">
+            <span className="field-label">{t.autoHide}</span>
+            <Segmented
+              label={t.autoHide}
+              value={config.autoHide}
+              onChange={(autoHide) => update({ autoHide })}
+              options={[
+                { value: "smart", label: t.autoHideSmart },
+                { value: "always", label: t.autoHideAlways },
+                { value: "never", label: t.autoHideNever },
+              ]}
+            />
+            {config.autoHide === "never" && <p className="field-hint">{labels().autoHideNever}</p>}
+          </div>
+          <Toggle label={t.magnify} checked={magnify} onChange={(on) => update({ magnification: on ? DEFAULT_MAGNIFICATION : 1 })} />
+          {magnify && (
+            <Slider
+              id="magnification"
+              label={t.magnification}
+              value={config.magnification}
+              display={`${config.magnification.toFixed(1)}×`}
+              min={1.1}
+              max={2.2}
+              step={0.1}
+              onChange={(magnification) => update({ magnification })}
+            />
           )}
-          <Row label={t.showRunning}>
-            <Switch checked={config.showRunningUnpinned} label={t.showRunning} onChange={(showRunningUnpinned) => update({ showRunningUnpinned })} />
-          </Row>
-        </Card>
-      </div>
-      <div className="split-detail">
-        <SectionLabel>{t.preview}</SectionLabel>
-        <LivePreview config={config} />
-        <p className="field-hint">{t.blurHint}</p>
+          <Toggle label={t.showRunning} checked={config.showRunningUnpinned} onChange={(showRunningUnpinned) => update({ showRunningUnpinned })} />
+        </section>
       </div>
     </div>
   );
