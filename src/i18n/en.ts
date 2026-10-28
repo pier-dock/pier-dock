@@ -281,6 +281,8 @@ export const en: Dict = {
     },
   },
   github: {
+    reviewShort: "Reviews",
+    mineShort: "PRs",
     checksPassed: "Checks passed",
     checksFailed: "Checks failed",
     checksRunning: "Checks running",

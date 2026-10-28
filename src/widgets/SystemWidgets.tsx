@@ -34,7 +34,8 @@ export function NetworkWidget({ status }: { status: SystemStatus | null }) {
   const t = useT().system;
   const bars = net?.signalBars ?? 4;
   const Icon = !net?.connected ? WifiOff : !net.wifi ? Globe : bars >= 4 ? Wifi : bars >= 2 ? WifiHigh : WifiLow;
-  const label = !net?.connected ? t.offline : `${net.name || t.connected}${net.internet ? "" : t.noInternet}`;
+  const state = !net?.connected ? t.offline : `${net.name || t.connected}${net.internet ? "" : t.noInternet}`;
+  const label = `${t.network} · ${state}`;
   return (
     <Tile kind="network" label={label} className="sys-tile">
       <Icon size={17} />

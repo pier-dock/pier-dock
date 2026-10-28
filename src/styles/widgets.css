@@ -34,6 +34,20 @@
   color: var(--text-secondary);
 }
 
+.github-count-tile {
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  padding: 0 8px;
+  line-height: 1.1;
+}
+
+.github-count-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
 .tile-badge {
   font-size: 12px;
   font-weight: 600;
@@ -65,6 +79,8 @@
 .status-dot.pending {
   background: var(--warning);
 }
+
+.github-count-tile .status-dot { top: 3px; left: auto; right: 3px; }
 
 .sys-tile {
   width: 34px;

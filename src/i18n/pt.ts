@@ -281,6 +281,8 @@ export const pt = {
     },
   },
   github: {
+    reviewShort: "Revisões",
+    mineShort: "PRs",
     checksPassed: "Checks passaram",
     checksFailed: "Checks falharam",
     checksRunning: "Checks rodando",

@@ -1,4 +1,3 @@
-import { GitCompare, GitPullRequest } from "lucide-react";
 import { GitCommitHorizontal } from "../ui/DockIcons";
 import type { GithubData, PullRequest, WidgetSize } from "../lib/ipc";
 import { Tile } from "./Tile";
@@ -21,9 +20,9 @@ export function GithubReviewWidget({ data }: { data: GithubData | null }) {
   const count = data?.reviewCount ?? 0;
   const t = useT().github;
   return (
-    <Tile kind="github-review" label={data?.error ?? t.reviewsTile(count)}>
-      <GitCompare size={18} strokeWidth={1.8} />
+    <Tile kind="github-review" label={data?.error ?? t.reviewsTile(count)} className="github-count-tile">
       <Count value={count} highlight />
+      <span className="github-count-label" aria-hidden>{t.reviewShort}</span>
       {data?.error && <span className="status-dot failure" />}
     </Tile>
   );
@@ -34,9 +33,9 @@ export function GithubMineWidget({ data }: { data: GithubData | null }) {
   const state = checksState(data?.myPrs ?? []);
   const t = useT().github;
   return (
-    <Tile kind="github-mine" label={t.mineTile(count)}>
-      <GitPullRequest size={18} strokeWidth={1.8} />
+    <Tile kind="github-mine" label={t.mineTile(count)} className="github-count-tile">
       <Count value={count} />
+      <span className="github-count-label" aria-hidden>{t.mineShort}</span>
       {state !== "none" && <span className={`status-dot ${state}`} />}
     </Tile>
   );
