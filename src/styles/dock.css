@@ -437,9 +437,10 @@ html[data-reduced-effects="true"] .dock-bar {
 
 .tooltip {
   --tooltip-center: translateX(-50%);
+  --tooltip-shift: 0px;
   position: absolute;
   bottom: calc(100% + 8px);
-  left: 50%;
+  left: calc(50% + var(--tooltip-shift));
   transform: var(--tooltip-center);
   display: flex;
   align-items: center;
@@ -469,7 +470,7 @@ html[data-reduced-effects="true"] .dock-bar {
   --tooltip-center: translateY(-50%);
   bottom: auto;
   left: calc(100% + 8px);
-  top: 50%;
+  top: calc(50% + var(--tooltip-shift));
 }
 
 .dock-root[data-pos="right"] .tooltip {
@@ -477,7 +478,7 @@ html[data-reduced-effects="true"] .dock-bar {
   bottom: auto;
   left: auto;
   right: calc(100% + 8px);
-  top: 50%;
+  top: calc(50% + var(--tooltip-shift));
 }
 
 .tooltip.with-keys {
@@ -487,6 +488,20 @@ html[data-reduced-effects="true"] .dock-bar {
 .tooltip-label {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Nomes de grupo podem ser longos: quebra em linhas em vez de cortar os membros. */
+.tooltip-wrap {
+  width: max-content;
+  max-width: min(320px, calc(100vw - 16px));
+  white-space: normal;
+}
+
+.tooltip-wrap .tooltip-label {
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 @keyframes fade-in {

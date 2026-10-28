@@ -13,14 +13,14 @@ import { Battery, Volume1, Volume2, VolumeX, Wifi } from "../ui/DockIcons";
 import { ipc, type BluetoothState, type KeyboardLayouts, type SystemStatus } from "../lib/ipc";
 import { useNow, useVolume } from "../hooks/useSystem";
 import { shortDate } from "../lib/format";
-import { Tile } from "./Tile";
+import { Tile, panelAnchor } from "./Tile";
 import { locale, useT } from "../i18n";
 
 export function TrayWidget() {
   const t = useT().system;
   const open = (el: HTMLElement) => {
-    const rect = el.getBoundingClientRect();
-    ipc.openTray(rect.left + rect.width / 2, rect.top + rect.height / 2).catch(console.error);
+    const anchor = panelAnchor(el);
+    ipc.openTray(anchor.x, anchor.y).catch(console.error);
   };
   return (
     <Tile kind="tray" label={t.trayShow} className="sys-tile" onClick={open}>

@@ -38,6 +38,12 @@ export interface WidgetConfig {
   size: WidgetSize;
 }
 
+/** Widgets agrupados no mesmo cartão 2x2 da dock; a ordem dos membros é a ordem exibida. */
+export interface WidgetGroup {
+  id: string;
+  members: WidgetKind[];
+}
+
 /** "count" só existe nas contribuições: o total do ano, sem o mapa. */
 export type WidgetSize = "small" | "wide" | "count";
 
@@ -85,8 +91,10 @@ export interface Config {
   aiPollMinutes: number;
   /** Qual IA o widget de uso lê: "auto" (a de leitura mais recente), "claude" ou "codex". */
   aiProvider: AiProviderChoice;
-  /** Ordem dos itens na dock: `start`, `app:<id>`, `widget:<kind>` e `divider:<id>`. */
+  /** Ordem dos itens na dock: `start`, `app:<id>`, `widget:<kind>`, `group:<id>` e `divider:<id>`. */
   dockOrder: string[];
+  /** Widgets agrupados; cada grupo ocupa um único lugar na dock. */
+  widgetGroups: WidgetGroup[];
   showStartButton: boolean;
   /** Botão do lançador de apps do próprio Pier (a lista de todos os instalados). */
   showLauncher: boolean;

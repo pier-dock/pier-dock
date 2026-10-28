@@ -2,6 +2,8 @@
 export interface ViewInfo {
   view: "dock" | "panel" | "settings" | "whats-new";
   kind: string;
+  /** Centro do cartão que abriu o painel, em px lógicos da dock (só para grupos). */
+  anchor?: { x: number; y: number };
 }
 
 declare global {

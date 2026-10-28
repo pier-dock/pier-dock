@@ -1566,3 +1566,157 @@
 .month-calendar .other-month { color: var(--text-tertiary); }
 .month-calendar [aria-current="date"] { background: var(--accent); color: var(--text-on-accent, white); }
 .month-today { display: flex; justify-content: center; padding: 10px; }
+
+/* Painel de um grupo: grade de widgets vivos, cada um com o botão de sair do grupo. */
+.group-panel-header {
+  height: 46px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.group-panel-header h1 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.group-panel-count {
+  display: block;
+  margin-top: 1px;
+  font-size: 10.5px;
+  color: var(--text-secondary);
+}
+
+.group-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.group-panel-ungroup {
+  padding: 4px 7px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.group-panel-ungroup:hover {
+  background: var(--fill-hover);
+  color: var(--text);
+}
+
+.group-panel-close,
+.group-panel-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+}
+
+.group-panel-close:hover,
+.group-panel-remove:hover {
+  background: var(--fill-hover);
+  color: var(--text);
+}
+
+.group-panel-close:focus-visible,
+.group-panel-remove:focus-visible,
+.group-panel-ungroup:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+.group-panel-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 4px 8px;
+  list-style: none;
+}
+
+.group-panel-item {
+  display: flex;
+  align-items: center;
+}
+
+.group-panel-row {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 4px 8px;
+  border-radius: var(--radius-control);
+  text-align: left;
+}
+
+.group-panel-row:is(:hover, [data-hover]) {
+  background: var(--fill-hover);
+}
+
+.group-panel-icon {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: var(--radius-control);
+  background: var(--fill-control);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.group-panel-icon .fit-scale {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  justify-content: center;
+}
+
+.group-panel-icon .tooltip {
+  display: none;
+}
+
+.group-panel-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.group-panel-remove {
+  flex-shrink: 0;
+  padding: 4px;
+  margin-right: 4px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.group-panel-remove:hover {
+  background: var(--fill-hover);
+  color: var(--text);
+}
+
+.group-panel-remove:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--accent);
+}
+
+.group-panel-item:is(:hover, :focus-within) .group-panel-remove {
+  opacity: 1;
+}

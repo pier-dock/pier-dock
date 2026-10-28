@@ -8,7 +8,7 @@
  */
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import type { AgentIntegration, AgentSession, AiUsage, AppEntry, BluetoothState, CalendarData, Config, GithubData, KeyboardLayouts, MediaState, PomodoroState, SystemUsage, WeatherData, WindowsSnapshot } from "../lib/ipc";
-import { PANEL_INSET, PANEL_SIZES } from "../popovers/sizes";
+import { PANEL_INSET, panelSize } from "../popovers/sizes";
 
 const insideTauri = "__TAURI_INTERNALS__" in window;
 const params = new URLSearchParams(location.search);
@@ -92,6 +92,7 @@ const config: Config = {
   aiPollMinutes: 1,
   aiProvider: "auto",
   dockOrder: [],
+  widgetGroups: params.has("groups") ? [{ id: "demo", members: ["volume", "clock", "network"] }] : [],
   showStartButton: true,
   showLauncher: false,
   launcherPinned: [...apps.slice(1, 3), installed[2]].map(({ id, name, target }) => ({ id, name, target })),
@@ -463,8 +464,8 @@ if (!insideTauri) {
       left: 50%;
       bottom: 40px;
       transform: translateX(-50%);
-      width: ${(PANEL_SIZES[kind]?.[0] ?? 380) + 2 * PANEL_INSET}px;
-      height: ${(PANEL_SIZES[kind]?.[1] ?? 420) + 2 * PANEL_INSET}px;
+      width: ${panelSize(kind)[0] + 2 * PANEL_INSET}px;
+      height: ${panelSize(kind)[1] + 2 * PANEL_INSET}px;
     }
     html[data-mock] [data-glass] {
       backdrop-filter: blur(var(--glass-blur)) saturate(180%);

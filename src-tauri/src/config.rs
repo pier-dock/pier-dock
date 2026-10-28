@@ -39,6 +39,15 @@ impl Default for WidgetConfig {
     }
 }
 
+/// Widgets agrupados no mesmo cartão da dock. `members` guarda a ordem exibida; um membro
+/// desligado continua no grupo para voltar ao ligar o widget.
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct WidgetGroup {
+    pub id: String,
+    pub members: Vec<String>,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct WeatherLocation {
@@ -107,9 +116,11 @@ pub struct Config {
     pub ai_poll_minutes: u32,
     /// Qual IA o widget de uso lê: "auto" (a de leitura mais recente), "claude" ou "codex".
     pub ai_provider: String,
-    /// Ordem dos itens na dock: `start`, `app:<id>`, `widget:<kind>` e `divider:<id>`. Vazia em
-    /// configs antigas; o frontend completa e limpa a lista.
+    /// Ordem dos itens na dock: `start`, `app:<id>`, `widget:<kind>`, `group:<id>` e
+    /// `divider:<id>`. Vazia em configs antigas; o frontend completa e limpa a lista.
     pub dock_order: Vec<String>,
+    /// Widgets agrupados; cada grupo ocupa um único lugar na dock.
+    pub widget_groups: Vec<WidgetGroup>,
     pub show_start_button: bool,
     /// Botão do lançador de apps do próprio Pier (a lista de todos os instalados).
     pub show_launcher: bool,
@@ -214,6 +225,7 @@ impl Default for Config {
             ai_poll_minutes: 1,
             ai_provider: "auto".into(),
             dock_order: Vec::new(),
+            widget_groups: Vec::new(),
             show_start_button: true,
             show_launcher: false,
             launcher_pinned: Vec::new(),
@@ -320,6 +332,33 @@ fn normalize(mut config: Config) -> Config {
         seen.push(25);
     }
     config.pokemon_pet_ids = seen;
+
+    // Grupos: ids vazios ou repetidos somem; cada widget fica em um grupo só e membros que não
+    // existem mais (widget removido de uma versão antiga) são descartados. Um grupo de um membro
+    // fica guardado: ao religar o outro membro ele volta a aparecer.
+    let known: Vec<String> = config.widgets.iter().map(|w| w.kind.clone()).collect();
+    let mut group_ids: Vec<String> = Vec::new();
+    let mut member_kinds: Vec<String> = Vec::new();
+    let mut groups = Vec::new();
+    for mut group in std::mem::take(&mut config.widget_groups) {
+        if group.id.is_empty() || group_ids.contains(&group.id) {
+            continue;
+        }
+        let mut members = Vec::new();
+        for kind in group.members {
+            if known.contains(&kind) && !member_kinds.contains(&kind) {
+                member_kinds.push(kind.clone());
+                members.push(kind);
+            }
+        }
+        if members.is_empty() {
+            continue;
+        }
+        group_ids.push(group.id.clone());
+        group.members = members;
+        groups.push(group);
+    }
+    config.widget_groups = groups;
     config
 }
 
@@ -567,6 +606,48 @@ mod tests {
     }
 
     #[test]
+    fn widget_groups_roundtrip() {
+        let config = Config {
+            widget_groups: vec![WidgetGroup { id: "g".into(), members: vec!["clock".into(), "volume".into()] }],
+            ..Config::default()
+        };
+        let json = serde_json::to_string(&config).unwrap();
+        assert_eq!(serde_json::from_str::<Config>(&json).unwrap(), config);
+    }
+
+    #[test]
+    fn widget_groups_are_deduped_and_unknown_members_dropped() {
+        let config = normalize(
+            serde_json::from_str(
+                r#"{
+                    "widgets": [
+                        { "kind": "clock", "enabled": true, "size": "small" },
+                        { "kind": "volume", "enabled": true, "size": "small" },
+                        { "kind": "network", "enabled": true, "size": "small" },
+                        { "kind": "battery", "enabled": false, "size": "small" }
+                    ],
+                    "widgetGroups": [
+                        { "id": "a", "members": ["clock", "volume", "clock", "ghost"] },
+                        { "id": "a", "members": ["network"] },
+                        { "id": "b", "members": ["volume", "battery"] },
+                        { "id": "", "members": ["clock"] },
+                        { "id": "c", "members": [] }
+                    ]
+                }"#,
+            )
+            .unwrap(),
+        );
+        assert_eq!(
+            config.widget_groups,
+            vec![
+                WidgetGroup { id: "a".into(), members: vec!["clock".into(), "volume".into()] },
+                // Um grupo de um membro sobrevive para o outro voltar ao ser religado.
+                WidgetGroup { id: "b".into(), members: vec!["battery".into()] },
+            ]
+        );
+    }
+
+    #[test]
     fn reduced_effects_override_material_without_losing_the_choice() {
         let old: Config = serde_json::from_str(r#"{"material":"glass"}"#).unwrap();
         assert!(!old.reduced_effects);
@@ -596,6 +677,7 @@ mod tests {
         assert_eq!(config.pokemon_pet_ids, vec![25]);
         assert!(!config.widgets.is_empty());
         assert!(config.dock_order.is_empty());
+        assert!(config.widget_groups.is_empty());
         assert!(config.show_start_button);
         assert!(config.launcher_pinned.is_empty());
     }

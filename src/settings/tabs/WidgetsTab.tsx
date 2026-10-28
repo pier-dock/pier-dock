@@ -1,8 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, Search, Settings, X } from "lucide-react";
-import type { BluetoothState, Config, KeyboardLayouts, WidgetConfig, WidgetKind, WidgetSize } from "../../lib/ipc";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { ArrowDown, ArrowUp, Plus, Search, Settings, X } from "lucide-react";
+import type { BluetoothState, Config, KeyboardLayouts, WidgetConfig, WidgetGroup, WidgetKind, WidgetSize } from "../../lib/ipc";
 import { os, widgetSupported } from "../../lib/platform";
-import { moveAmong, widgetKey } from "../../dock/order";
+import { activeGroups, moveAmong, widgetKey } from "../../dock/order";
+import { createGroupFromKinds, dissolveGroup, removeFromGroup } from "../../dock/groups";
 import { useGithub } from "../../hooks/useGithub";
 import { useMedia } from "../../hooks/useMedia";
 import { useBluetooth, useSystemStatus } from "../../hooks/useSystem";
@@ -10,6 +11,7 @@ import { useWeather } from "../../hooks/useWeather";
 import { useCalendar } from "../../hooks/useCalendar";
 import { useAiUsage } from "../../hooks/useAiUsage";
 import { RESIZABLE, WidgetView, formatsOf, type WidgetData } from "../../widgets/WidgetView";
+import { FitScale } from "../../widgets/FitScale";
 import { AgentSessionsOptions, AiUsageOptions, CalendarOptions, PokemonOptions, PomodoroOptions, WeatherOptions } from "./WidgetOptions";
 import { Card, Row } from "../../ui/Card";
 import { Segmented } from "../../ui/Segmented";
@@ -18,6 +20,10 @@ import type { TabProps } from "../shared";
 import { dict, useT, type Dict } from "../../i18n";
 
 type Group = keyof Dict["widgets"]["groups"];
+
+const groupOf = (config: Config, kind: WidgetKind) => (config.widgetGroups ?? []).find((group) => group.members.includes(kind));
+
+const groupTitle = (group: WidgetGroup, t: Dict["widgets"]) => group.members.map((kind) => t.info[kind].name).join(", ");
 
 /** Grupo e as duas cores de fundo do palco de cada widget; nome e textos vêm do dicionário. */
 const WIDGETS: Record<WidgetKind, { group: Group; tint: [string, string] }> = {
@@ -74,42 +80,6 @@ function available(kind: WidgetKind, data: WidgetData): boolean {
   if (kind === "battery") return data.system?.battery.present ?? true;
   if (kind === "bluetooth") return data.bluetooth?.available ?? true;
   return true;
-}
-
-/** Reduz o conteúdo para caber no espaço disponível, sem passar de `max`. */
-function FitScale({ max = 1, children }: { max?: number; children: ReactNode }) {
-  const outer = useRef<HTMLDivElement>(null);
-  const inner = useRef<HTMLDivElement>(null);
-  const [fit, setFit] = useState({ scale: 1, width: 0, height: 0 });
-  useLayoutEffect(() => {
-    const o = outer.current!;
-    const i = inner.current!;
-    const measure = () => {
-      // offsetWidth/Height ignoram o transform: é o tamanho natural do widget.
-      const width = i.offsetWidth;
-      const height = i.offsetHeight;
-      if (!width || !height) return;
-      const style = getComputedStyle(o);
-      const room = (size: number, a: string, b: string) => size - parseFloat(a) - parseFloat(b);
-      const roomX = room(o.clientWidth, style.paddingLeft, style.paddingRight);
-      const roomY = room(o.clientHeight, style.paddingTop, style.paddingBottom);
-      setFit({ scale: Math.min(max, roomX / width, roomY / height), width, height });
-    };
-    const observer = new ResizeObserver(measure);
-    observer.observe(o);
-    observer.observe(i);
-    measure();
-    return () => observer.disconnect();
-  }, [max]);
-  return (
-    <div ref={outer} className="fit-scale">
-      <div style={{ width: fit.width * fit.scale, height: fit.height * fit.scale }}>
-        <div ref={inner} className="fit-scale-content" style={{ transform: `scale(${fit.scale})` }}>
-          {children}
-        </div>
-      </div>
-    </div>
-  );
 }
 
 /** Palco com o widget de verdade, em vidro como na dock, mas inerte (não abre painel nem pega foco). */
@@ -176,13 +146,14 @@ function WidgetDialog({
   onClose,
 }: { widget: WidgetConfig; data: WidgetData; actions: WidgetActions; onClose: () => void } & Pick<TabProps, "config" | "update">) {
   const ref = useRef<HTMLDialogElement>(null);
-  const { widgets: t, common } = useT();
+  const { widgets: t, common, dock } = useT();
   const info = t.info[widget.kind];
+  const group = groupOf(config, widget.kind);
   useEffect(() => {
     if (!ref.current?.open) ref.current?.showModal();
   }, []);
 
-  const enabled = config.widgets.filter((w) => w.enabled && widgetSupported(w.kind));
+  const enabled = config.widgets.filter((w) => w.enabled && widgetSupported(w.kind) && !groupOf(config, w.kind));
   const position = enabled.findIndex((w) => w.kind === widget.kind) + 1;
   const move = (delta: -1 | 1) => {
     const patch = moveAmong(config, widgetKey(widget.kind), delta, isWidget);
@@ -234,7 +205,12 @@ function WidgetDialog({
             {widget.kind === "ai-usage" && <AiUsageOptions config={config} update={update} />}
             {widget.kind === "ai-agents" && <AgentSessionsOptions config={config} update={update} />}
             {widget.kind === "pokemon" && <PokemonOptions config={config} update={update} />}
-            {widget.enabled && (
+            {widget.enabled && group && (
+              <Row label={t.position} description={dock.groupInGroup(groupTitle(group, t))}>
+                <span className="row-value">{groupTitle(group, t)}</span>
+              </Row>
+            )}
+            {widget.enabled && !group && (
               <Row label={t.position} description={common.dragInDock}>
                 <span className="row-value">{common.positionOf(position, enabled.length)}</span>
                 <button className="icon-button bordered" aria-label={common.moveUp} disabled={position <= 1} onClick={() => move(-1)}>
@@ -265,10 +241,74 @@ function withFocused(f: (kind: WidgetKind) => void) {
   if (kind) f(kind as WidgetKind);
 }
 
+function CreateGroupDialog({ config, update, onClose }: Pick<TabProps, "config" | "update"> & { onClose: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const { widgets: t, dock } = useT();
+  const [selected, setSelected] = useState<WidgetKind[]>([]);
+  useEffect(() => {
+    if (!ref.current?.open) ref.current?.showModal();
+  }, []);
+
+  const candidates = config.widgets.filter((w) => w.enabled && widgetSupported(w.kind) && !groupOf(config, w.kind));
+  const toggle = (kind: WidgetKind) =>
+    setSelected((current) => (current.includes(kind) ? current.filter((item) => item !== kind) : [...current, kind]));
+  const create = () => {
+    if (selected.length < 2) return;
+    update((c) => createGroupFromKinds(c, selected) ?? {});
+    onClose();
+  };
+
+  return (
+    <dialog
+      ref={ref}
+      className="widget-dialog group-dialog"
+      aria-labelledby="group-dialog-title"
+      onClose={onClose}
+      onClick={(e) => e.target === ref.current && ref.current?.close()}
+    >
+      <div className="widget-dialog-content">
+        <header className="widget-dialog-header">
+          <span id="group-dialog-title" className="widget-dialog-name">
+            {dock.groupCreateTitle}
+          </span>
+          <button className="icon-button widget-dialog-close" aria-label={t.close} onClick={() => ref.current?.close()}>
+            <X size={16} />
+          </button>
+        </header>
+        <div className="widget-dialog-body group-dialog-body">
+          <p className="widget-dialog-description">{dock.groupCreateHint}</p>
+          {candidates.length ? (
+            <div className="group-dialog-options">
+              {candidates.map((w) => (
+                <label key={w.kind} className="group-dialog-option">
+                  <input type="checkbox" checked={selected.includes(w.kind)} onChange={() => toggle(w.kind)} />
+                  <span>{t.info[w.kind].name}</span>
+                </label>
+              ))}
+            </div>
+          ) : (
+            <p className="gallery-empty">{dock.groupHint}</p>
+          )}
+        </div>
+        <footer className="widget-dialog-footer">
+          <span>{dock.groupPanelCount(selected.length)}</span>
+          <button className="btn" onClick={() => ref.current?.close()}>
+            {t.close}
+          </button>
+          <button className="btn btn-primary" disabled={selected.length < 2} onClick={create}>
+            {dock.groupCreateConfirm}
+          </button>
+        </footer>
+      </div>
+    </dialog>
+  );
+}
+
 export function WidgetsTab({ config, update, setFooter }: TabProps) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<WidgetKind | null>(null);
-  const t = useT().widgets;
+  const [groupOpen, setGroupOpen] = useState(false);
+  const { widgets: t, dock } = useT();
 
   const enabled = (kind: WidgetKind) => config.widgets.some((w) => w.kind === kind && w.enabled);
   const [bluetooth] = useBluetooth(enabled("bluetooth"));
@@ -290,7 +330,12 @@ export function WidgetsTab({ config, update, setFooter }: TabProps) {
         const flag = PET_FLAGS[kind];
         const on = c.widgets.some((w) => w.kind === kind && inUse(c, w));
         const extra = flag && on ? { [flag]: false } : {};
-        if (on) return { widgets: c.widgets.map((w) => (w.kind === kind ? { ...w, enabled: false } : w)), ...extra };
+        if (on) {
+          const widgets = c.widgets.map((w) => (w.kind === kind ? { ...w, enabled: false } : w));
+          const group = groupOf(c, kind);
+          const remaining = group?.members.filter((member) => member !== kind && c.widgets.some((w) => w.kind === member && w.enabled)).length ?? 0;
+          return { ...(group && remaining < 2 ? dissolveGroup(c, group.id) : {}), widgets, ...extra };
+        }
         // O recém-ligado entra logo depois do último da dock, como na ordem dela (`resolveOrder`).
         const target = c.widgets.find((w) => w.kind === kind);
         if (!target) return {};
@@ -306,6 +351,9 @@ export function WidgetsTab({ config, update, setFooter }: TabProps) {
     .filter((w) => widgetSupported(w.kind))
     .sort((a, b) => Number(inUse(config, b)) - Number(inUse(config, a)));
   const active = supported.filter((w) => inUse(config, w)).length;
+  const groups = activeGroups(config).filter(
+    (group) => group.members.filter((kind) => config.widgets.some((w) => w.kind === kind && widgetSupported(w.kind))).length >= 2,
+  );
   const q = query.trim().toLowerCase();
   const visible = supported.filter((w) => {
     if (!q) return true;
@@ -344,6 +392,50 @@ export function WidgetsTab({ config, update, setFooter }: TabProps) {
         <span className="gallery-count">{t.inDock(active, supported.length)}</span>
         <span className="gallery-hint">{t.dragHint}</span>
       </div>
+      <section className="widget-groups" aria-label={dock.groupSection}>
+        <header className="widget-groups-head">
+          <h2>{dock.groupSection}</h2>
+          <button className="btn" onClick={() => setGroupOpen(true)}>
+            <Plus size={14} aria-hidden />
+            {dock.groupCreate}
+          </button>
+        </header>
+        {groups.length ? (
+          <div className="widget-groups-list">
+            {groups.map((group) => {
+              const members = group.members
+                .map((kind) => config.widgets.find((w) => w.kind === kind))
+                .filter((w): w is WidgetConfig => !!w && w.enabled && widgetSupported(w.kind));
+              return (
+                <article key={group.id} className="widget-group-row">
+                  <div className="widget-group-row-head">
+                    <span className="widget-group-row-name">{groupTitle(group, t)}</span>
+                    <button className="btn widget-group-row-action" onClick={() => update((c) => dissolveGroup(c, group.id))}>
+                      {dock.groupUngroup}
+                    </button>
+                  </div>
+                  <div className="widget-group-row-members">
+                    {members.map((w) => (
+                      <span key={w.kind} className="widget-group-chip">
+                        {t.info[w.kind].name}
+                        <button
+                          className="icon-button"
+                          aria-label={dock.groupRemove(t.info[w.kind].name)}
+                          onClick={() => update((c) => removeFromGroup(c, group.id, w.kind) ?? {})}
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="widget-groups-empty">{dock.groupHint}</p>
+        )}
+      </section>
       <div className="gallery-scroll">
         {visible.length ? (
           <div className="gallery-grid">
@@ -358,6 +450,7 @@ export function WidgetsTab({ config, update, setFooter }: TabProps) {
       {openWidget && (
         <WidgetDialog widget={openWidget} data={data} actions={actions} config={config} update={update} onClose={() => setOpen(null)} />
       )}
+      {groupOpen && <CreateGroupDialog config={config} update={update} onClose={() => setGroupOpen(false)} />}
     </div>
   );
 }

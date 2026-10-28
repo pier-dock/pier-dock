@@ -1115,6 +1115,96 @@ input[type="range"] {
   color: var(--text-secondary);
 }
 
+/* Grupos de widgets */
+.widget-groups {
+  padding: 0 24px 14px;
+}
+
+.widget-groups-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.widget-groups-head h2 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.widget-groups-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 190px;
+  overflow-y: auto;
+}
+
+.widget-group-row {
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: var(--fill);
+  border: 1px solid var(--border-subtle);
+}
+
+.widget-group-row-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.widget-group-row-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.widget-group-row-action {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.widget-group-row-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.widget-group-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 4px 0 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--fill-control);
+  border: 1px solid var(--border-subtle);
+}
+
+.widget-group-chip .icon-button {
+  width: 18px;
+  height: 18px;
+}
+
+.widget-groups-empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
 .widget-card {
   display: flex;
   flex-direction: column;
@@ -1329,6 +1419,47 @@ input[type="range"] {
 
 .confirm-dialog {
   width: min(440px, calc(100vw - 48px));
+}
+
+/* Diálogo de criação de grupo */
+.group-dialog {
+  width: min(460px, calc(100vw - 48px));
+}
+
+.group-dialog-body {
+  gap: 10px;
+  padding: 0 20px 16px;
+}
+
+.group-dialog-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+}
+
+.group-dialog-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--fill);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+}
+
+.group-dialog-option:has(input:checked) {
+  border-color: var(--accent);
+}
+
+.group-dialog .widget-dialog-footer > span:first-child {
+  margin-right: auto;
+  color: var(--text-secondary);
+}
+
+.group-dialog .widget-dialog-footer .btn {
+  margin-left: 0;
 }
 
 .confirm-dialog .widget-dialog-footer {

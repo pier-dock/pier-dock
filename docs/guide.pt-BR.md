@@ -7,6 +7,7 @@
 - **Apps:** apps fixados e abertos, com ampliação, reordenação por arrastar, lista de janelas e bolinhas de contagem.
 - **Barra personalizável:** coloque a dock em qualquer borda da tela, deixe-a no tamanho dos ícones ou de ponta a ponta e escolha o tamanho dos ícones, o material e a cor de destaque.
 - **Widgets:** player de mídia, GitHub (revisões, pull requests, commits, contribuições), sistema (rede, volume, Bluetooth, bateria, relógio, mostrar a área de trabalho, uso do sistema e, no Windows, layout do teclado e bandeja), clima, agenda, Pomodoro e uso de IA.
+- **Grupos de widgets:** arraste um widget sobre outro e segure até o contorno ficar sólido para juntar os dois num cartão 2×2. Clique no cartão para abrir todos os widgets num painel só, e gerencie os grupos em **Configurações** > **Widgets**.
 - **GitHub num relance:** as contagens de pull requests e revisões têm rótulos visíveis sem passar o mouse.
 - **Agentes de IA:** as sessões do Claude Code, Codex, opencode e Gemini CLI num relance, e um clique leva ao terminal ou à IDE que a iniciou. O Clawd ou um Pokémon podem andar pela dock enquanto uma sessão roda.
 - **E mais:** atalhos de teclado para os apps das posições 1 a 9, atualização com um clique e interface em português e inglês.
@@ -46,6 +47,7 @@ A atualização pelo app funciona com o instalador do Windows, com o app do macO
 - **Clique** num separador para abrir o menu de remoção; ele também pode ser acessado pelo teclado.
 - **Arraste** os apps fixados para reordená-los. Para fixar um app, solte-o na dock ou adicione-o em **Configurações** > **Apps**.
 - **Clique** num widget para abrir o painel. No volume, role para ajustar e clique com o botão direito para silenciar.
+- **Arraste** um widget sobre outro, ou sobre um cartão de grupo, e segure até o contorno ficar sólido para criar ou ampliar um grupo. Clique no cartão para abrir o grupo; use o X de cada widget para tirá-lo ou **Desagrupar** para desfazer.
 - No painel de som, **Saída padrão** escolhe a saída do sistema; **Áudio dos apps** mostra os controles de cada app. Nas plataformas compatíveis, cada app pode usar uma saída própria.
 - **Pressione** <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd>…<kbd>9</kbd> (<kbd>Control</kbd>+<kbd>Option</kbd>+<kbd>1</kbd>…<kbd>9</kbd> no macOS) para abrir ou focar o app dessa posição.
 

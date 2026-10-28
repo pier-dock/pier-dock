@@ -6,6 +6,10 @@ export const PREVIEW_HEIGHT = 118;
 export const PREVIEW_WIDTH = 208;
 /** Folga entre a barra e a faixa de prévias. */
 export const PREVIEW_GAP = 12;
+/** Espessura mínima da barra com um cartão de grupo 2×2 (duas células de 28px mais a moldura). */
+export const GROUP_MIN_THICKNESS = 64;
+/** Teto da célula do grupo: acima disso o cartão fica grande demais para a dock. */
+export const GROUP_CELL_MAX = 28;
 
 /** A barra fica na vertical (bordas laterais) em vez de horizontal. */
 export function isVertical(position: DockPosition): boolean {
@@ -30,6 +34,7 @@ export function dockMetrics(
   dockHeight: number | null = null,
   previewSpace = 0,
   position: DockPosition = "bottom",
+  hasGroups = false,
 ) {
   const vertical = isVertical(position);
   const padding = 8;
@@ -37,8 +42,10 @@ export function dockMetrics(
   // 64 com o ícone padrão de 40: botão de 56 e 4 de folga de cada lado.
   const autoThickness = iconSize + 24;
   // A espessura automática acompanha o ícone. A escolhida à mão nunca fica menor que o ícone mais
-  // a legenda do indicador de app aberto, senão os ícones saem da barra.
-  const barThickness = dockHeight == null ? autoThickness : Math.min(Math.max(dockHeight, iconSize + 16), 240);
+  // a legenda do indicador de app aberto, senão os ícones saem da barra. Com grupos, a barra também
+  // precisa caber o cartão 2×2: o tamanho personalizado é elevado ao mínimo em vez de espremer.
+  const minimumThickness = hasGroups ? Math.max(iconSize + 16, GROUP_MIN_THICKNESS) : iconSize + 16;
+  const barThickness = dockHeight == null ? Math.max(autoThickness, minimumThickness) : Math.min(Math.max(dockHeight, minimumThickness), 240);
   // De ponta a ponta a barra encosta na borda da tela, então o espaço reservado é a própria
   // espessura dela: as janelas maximizadas encostam na dock. Sem isso sobram as duas margens (16px)
   // entre a janela e a dock.
@@ -59,6 +66,8 @@ export function dockMetrics(
     padding,
     margin,
     barThickness,
+    // O cartão tem duas células, 2 de vão, 2 de respiro em cada lado e 1 de borda: 2·cell + 8.
+    groupCell: Math.min(GROUP_CELL_MAX, Math.max(22, Math.floor((barThickness - 8) / 2))),
     // Sobra da espessura escolhida sobre a automática. Metade dela vai para o lado de dentro da
     // barra, porque os ícones ficam presos à borda da tela: assim eles continuam centrados nela e
     // nivelados com os widgets.

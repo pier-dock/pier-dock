@@ -1,15 +1,23 @@
 import { useRef, useState, type ReactNode } from "react";
 import { ipc } from "../lib/ipc";
+import { currentView } from "../lib/view";
 import { Tooltip } from "../ui/Tooltip";
-import { PANEL_INSET, PANEL_SIZES } from "../popovers/sizes";
+import { PANEL_INSET, panelSize } from "../popovers/sizes";
 import { useDockHoverReset } from "../dock/hoverReset";
 
-/** Abre (ou fecha, se já estiver aberto) o painel do widget, centrado em `el` e encostado na dock. */
-export function togglePanel(kind: string, el: Element) {
+/** Centro em que o painel deve abrir: o cartão do grupo, se foi ele que abriu o painel atual. */
+export function panelAnchor(el: Element) {
   const rect = el.getBoundingClientRect();
-  const [w, h] = PANEL_SIZES[kind] ?? [380, 420];
+  if (currentView.view === "panel" && currentView.kind.startsWith("group:") && currentView.anchor) return currentView.anchor;
+  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+}
+
+/** Abre (ou fecha, se já estiver aberto) o painel do widget, ancorado em `el` e encostado na dock. */
+export function togglePanel(kind: string, el: Element, size?: [number, number]) {
+  const anchor = panelAnchor(el);
+  const [w, h] = size ?? panelSize(kind);
   ipc
-    .openPanel(kind, rect.left + rect.width / 2, rect.top + rect.height / 2, w + 2 * PANEL_INSET, h + 2 * PANEL_INSET)
+    .openPanel(kind, anchor.x, anchor.y, w + 2 * PANEL_INSET, h + 2 * PANEL_INSET)
     .catch(console.error);
 }
 
