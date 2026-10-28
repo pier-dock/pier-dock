@@ -2,6 +2,24 @@
 
 O que mudou em cada versão do Pier. O app mostra estas notas uma vez depois de se atualizar, então escreva para quem usa. Antes de criar a tag de uma release, adicione uma seção `## <versão>` aqui e no `CHANGELOG.md`.
 
+## 0.22.0
+
+### Grupos de widgets
+- **Dock:** arraste um widget sobre outro e segure até o contorno ficar sólido para criar um cartão de grupo. O cartão mostra até quatro widgets numa grade 2×2, com um selo **+N** quando há mais, e a dock cresce para caber.
+- **Painel do grupo:** clique no cartão para abrir todos os widgets do grupo de uma vez. Cada widget mantém os próprios controles, e o cabeçalho tem um botão para desagrupar.
+- **Configurações:** a aba **Widgets** lista os grupos, com botões para remover um widget, desagrupar e criar um grupo a partir dos widgets que já estão na dock.
+
+### Contadores do GitHub
+- **Widgets do GitHub:** os widgets de pull requests e de revisões têm uma nova escolha **Ícone** ou **Número** em **Formato na dock**. **Ícone** mostra o ícone ao lado do número e é o padrão. **Número** mostra o número com um texto ("PRs" ou "Revisões"). A dock vertical sempre mostra o ícone.
+
+### Correções
+- **Som:** o painel de som agora identifica a saída padrão e as saídas por app, e explica o roteamento por app quando o sistema oferece. Ele também ganhou mais espaço para os controles dos apps.
+- **Som:** os controles de volume por app ficaram mais fáceis de pegar, e as opções de saída e os selos de notificação ficaram maiores e mais legíveis.
+- **Som:** ao passar da lista de saídas de um app para a de outro, o próximo botão não sai mais de debaixo do cursor antes de o clique chegar.
+- **Dock:** o ponto que pede para concluir a configuração ou instalar uma atualização ficou mais fácil de acertar, e a ação aparece ao passar o cursor e ao focar com o teclado. O painel de som explica os gestos de rolar e clicar com o botão direito para ajustar o volume.
+- **Acessibilidade:** leitores de tela agora anunciam uma vez só cada controle dos widgets da dock, e cada divisor é um botão com nome que abre o menu de remoção.
+- **Widgets:** os contadores do GitHub mostram o que contam, e o widget de rede nomeia a sua função, não só a conexão.
+
 ## 0.21.0
 
 ### Widget de layout do teclado
