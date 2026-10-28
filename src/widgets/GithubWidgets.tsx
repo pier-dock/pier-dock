@@ -1,3 +1,4 @@
+import { GitCompare, GitPullRequest } from "lucide-react";
 import { GitCommitHorizontal } from "../ui/DockIcons";
 import type { GithubData, PullRequest, WidgetSize } from "../lib/ipc";
 import { Tile } from "./Tile";
@@ -16,26 +17,30 @@ function Count({ value, highlight = false }: { value: number; highlight?: boolea
   return <span className={highlight && value > 0 ? "tile-badge" : "tile-count"}>{text}</span>;
 }
 
-export function GithubReviewWidget({ data }: { data: GithubData | null }) {
+export function GithubReviewWidget({ data, size }: { data: GithubData | null; size: WidgetSize }) {
   const count = data?.reviewCount ?? 0;
   const t = useT().github;
+  const labeled = size === "count";
   return (
-    <Tile kind="github-review" label={data?.error ?? t.reviewsTile(count)} className="github-count-tile">
+    <Tile kind="github-review" label={data?.error ?? t.reviewsTile(count)} className={labeled ? "github-count-tile" : undefined}>
+      {!labeled && <GitCompare size={18} strokeWidth={1.8} />}
       <Count value={count} highlight />
-      <span className="github-count-label" aria-hidden>{t.reviewShort}</span>
+      {labeled && <span className="github-count-label" aria-hidden>{t.reviewShort}</span>}
       {data?.error && <span className="status-dot failure" />}
     </Tile>
   );
 }
 
-export function GithubMineWidget({ data }: { data: GithubData | null }) {
+export function GithubMineWidget({ data, size }: { data: GithubData | null; size: WidgetSize }) {
   const count = data?.myPrCount ?? 0;
   const state = checksState(data?.myPrs ?? []);
   const t = useT().github;
+  const labeled = size === "count";
   return (
-    <Tile kind="github-mine" label={t.mineTile(count)} className="github-count-tile">
+    <Tile kind="github-mine" label={t.mineTile(count)} className={labeled ? "github-count-tile" : undefined}>
+      {!labeled && <GitPullRequest size={18} strokeWidth={1.8} />}
       <Count value={count} />
-      <span className="github-count-label" aria-hidden>{t.mineShort}</span>
+      {labeled && <span className="github-count-label" aria-hidden>{t.mineShort}</span>}
       {state !== "none" && <span className={`status-dot ${state}`} />}
     </Tile>
   );

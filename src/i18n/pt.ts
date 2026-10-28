@@ -528,6 +528,7 @@ export const pt = {
     close: "Fechar",
     format: "Formato na dock",
     formats: { wide: "Largo", small: "Quadrado", count: "Número" },
+    counterFormats: { small: "Ícone", count: "Número" },
     done: "Concluído",
     toggleAction: "Ativar/desativar",
     configureAction: "Configurar",

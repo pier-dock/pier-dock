@@ -18,7 +18,7 @@ Pier is a free, open-source dock for Windows, macOS, and Linux. Bring your apps,
 
 - **Apps within reach:** Pin, reorder, and switch between apps. Use a keyboard shortcut to open or focus any of your first nine pinned apps. Dividers have a keyboard-accessible menu.
 - **Widgets for your day:** Control playback, check the weather and your next event, start a Pomodoro timer, and adjust system settings from the dock.
-- **GitHub without the tab switching:** Keep labeled open pull request and review counts, plus your contribution graph, in view.
+- **GitHub without the tab switching:** Keep open pull request and review counts, as an icon or a labeled number, plus your contribution graph, in view.
 - **Company while you work:** Track AI agent sessions, jump to their terminal or IDE, and let Clawd or your chosen Pokémon walk along the dock.
 
 ## Installation
