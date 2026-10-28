@@ -89,6 +89,7 @@ export function SoundPanel() {
         {audio?.apps && (
           <>
             <span className="eyebrow sound-eyebrow">{t.apps}</span>
+            {audio.canRouteApps && audio.apps.length > 0 && <p className="sound-scope-hint">{t.routingHint}</p>}
             {audio.appsNeedPermission && (
               <div className="sound-permission">
                 <span>{t.permission}</span>

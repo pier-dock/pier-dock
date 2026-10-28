@@ -15,6 +15,7 @@ export function OutputPicker({ label, placeholder, outputs, value, disabled, onC
   const id = useId();
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const pointerDown = useRef(false);
   const options = useRef(new Map<string, HTMLButtonElement>());
   const current = outputs.find((output) => output.id === value);
   const initialId = current?.id ?? outputs[0]?.id;
@@ -34,11 +35,30 @@ export function OutputPicker({ label, placeholder, outputs, value, disabled, onC
   }, [open, initialId]);
   useEffect(() => {
     if (!open) return;
+    const startPointer = () => { pointerDown.current = true; };
+    const endPointer = () => {
+      pointerDown.current = false;
+      // A cancelled or released drag may not produce a click. Wait until the
+      // current pointer event finishes before checking whether focus left.
+      window.setTimeout(() => {
+        if (root.current && !root.current.contains(document.activeElement)) setOpen(false);
+      }, 0);
+    };
     const outside = (event: MouseEvent) => {
       if (!root.current?.contains(event.target as Node)) setOpen(false);
     };
-    window.addEventListener("mousedown", outside);
-    return () => window.removeEventListener("mousedown", outside);
+    // Closing on mousedown can move another app's picker before its click lands.
+    window.addEventListener("pointerdown", startPointer, true);
+    window.addEventListener("pointerup", endPointer, true);
+    window.addEventListener("pointercancel", endPointer, true);
+    window.addEventListener("click", outside);
+    return () => {
+      window.removeEventListener("pointerdown", startPointer, true);
+      window.removeEventListener("pointerup", endPointer, true);
+      window.removeEventListener("pointercancel", endPointer, true);
+      window.removeEventListener("click", outside);
+      pointerDown.current = false;
+    };
   }, [open]);
 
   useEffect(() => {
@@ -65,7 +85,7 @@ export function OutputPicker({ label, placeholder, outputs, value, disabled, onC
 
   return (
     <div ref={root} className="sound-output-picker" onKeyDown={onKeyDown}
-      onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false); }}>
+      onBlur={(event) => { if (!pointerDown.current && !event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false); }}>
       <button ref={trigger} type="button" className="sound-app-output" aria-label={label} aria-describedby={`${id}-value`}
         aria-haspopup="listbox" aria-expanded={open} aria-controls={open ? id : undefined} disabled={disabled || !outputs.length}
         onClick={() => open ? close(false) : expand()}>

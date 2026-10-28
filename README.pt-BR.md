@@ -28,6 +28,7 @@ Baixe o Pier para **Windows**, **macOS** ou **Linux** na [versão mais recente](
 ## Documentação
 
 - [Recursos e uso](docs/guide.pt-BR.md)
+- [Saída padrão e áudio por app](docs/guide.pt-BR.md#uso)
 - [Particularidades de cada plataforma](docs/guide.pt-BR.md#particularidades-de-cada-plataforma)
 - [Configuração](docs/guide.pt-BR.md#configuração)
 - [Solução de problemas](docs/guide.pt-BR.md#solução-de-problemas)

@@ -28,6 +28,7 @@ Download Pier for **Windows**, **macOS**, or **Linux** from the [latest release]
 ## Documentation
 
 - [Features and usage](docs/guide.md)
+- [Default and per-app audio outputs](docs/guide.md#usage)
 - [Platform notes](docs/guide.md#platform-notes)
 - [Configuration](docs/guide.md#configuration)
 - [Troubleshooting](docs/guide.md#troubleshooting)

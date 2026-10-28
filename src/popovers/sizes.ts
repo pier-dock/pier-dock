@@ -17,7 +17,7 @@ export const PANEL_SIZES: Record<string, [number, number]> = {
   "ai-agents": [320, 280],
   bluetooth: [340, 340],
   launcher: [720, 500],
-  volume: [340, 420],
+  volume: [340, 500],
   network: [340, 400],
   battery: [340, 280],
   "keyboard-layout": [320, 300],

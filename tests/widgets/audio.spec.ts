@@ -93,7 +93,7 @@ test("device removal while open closes empty choices and disables routing", asyn
 });
 
 test("output choices fit inside the native panel dimensions", async ({ page }) => {
-  await page.setViewportSize({ width: 376, height: 456 });
+  await page.setViewportSize({ width: 376, height: 536 });
   await openMock(page, "view=panel&kind=volume");
   // The browser canvas normally offsets the panel from the screen edge; native windows do not.
   await page.addStyleTag({ content: 'html[data-mock][data-view="panel"] #root { position: static; transform: none; width: 100%; height: 100%; }' });
