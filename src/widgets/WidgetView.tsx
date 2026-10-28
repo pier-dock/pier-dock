@@ -14,11 +14,13 @@ import type { WidgetData } from "./widgetData";
 export type { WidgetData } from "./widgetData";
 
 /** Widgets com formato largo e compacto. */
-export const RESIZABLE = new Set<WidgetKind>(["media", "github-contrib", "weather", "pomodoro", "system-usage", "calendar", "ai-usage"]);
+export const RESIZABLE = new Set<WidgetKind>(["media", "github-review", "github-mine", "github-contrib", "weather", "pomodoro", "system-usage", "calendar", "ai-usage"]);
 
 /** Formatos de um widget redimensionável, na ordem do seletor. */
 export function formatsOf(kind: WidgetKind): WidgetSize[] {
-  return kind === "github-contrib" ? ["wide", "small", "count"] : ["wide", "small"];
+  if (kind === "github-contrib") return ["wide", "small", "count"];
+  if (kind === "github-review" || kind === "github-mine") return ["small", "count"];
+  return ["wide", "small"];
 }
 
 export function WidgetView({ kind, size, data }: { kind: WidgetKind; size: WidgetSize; data: WidgetData }) {
@@ -27,9 +29,9 @@ export function WidgetView({ kind, size, data }: { kind: WidgetKind; size: Widge
     case "media":
       return <MediaWidget media={data.media} wide={wide} />;
     case "github-review":
-      return <GithubReviewWidget data={data.github} />;
+      return <GithubReviewWidget data={data.github} size={size} />;
     case "github-mine":
-      return <GithubMineWidget data={data.github} />;
+      return <GithubMineWidget data={data.github} size={size} />;
     case "github-commits":
       return <GithubCommitsWidget data={data.github} />;
     case "github-contrib":

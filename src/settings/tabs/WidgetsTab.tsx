@@ -190,7 +190,10 @@ function WidgetDialog({
                   label={t.format}
                   value={widget.size}
                   onChange={(size) => actions.set(widget.kind, { size })}
-                  options={formatsOf(widget.kind).map((value) => ({ value, label: t.formats[value] }))}
+                  options={formatsOf(widget.kind).map((value) => ({
+                    value,
+                    label: widget.kind === "github-review" || widget.kind === "github-mine" ? t.counterFormats[value as "small" | "count"] : t.formats[value],
+                  }))}
                 />
               </Row>
             )}

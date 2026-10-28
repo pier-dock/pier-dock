@@ -528,6 +528,7 @@ export const en: Dict = {
     close: "Close",
     format: "Format in the dock",
     formats: { wide: "Wide", small: "Square", count: "Number" },
+    counterFormats: { small: "Icon", count: "Number" },
     done: "Done",
     toggleAction: "Turn on/off",
     configureAction: "Configure",

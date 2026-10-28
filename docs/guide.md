@@ -8,7 +8,7 @@
 - **Customizable bar:** Put the dock on any edge of the screen, fit it to the icons or stretch it along the edge, and pick the icon size, material, and accent color.
 - **Widgets:** Media player, GitHub (reviews, pull requests, commits, contributions), system (network, volume, Bluetooth, battery, clock, show desktop, system usage and, on Windows, keyboard layout and the tray), weather, calendar, Pomodoro, and AI usage.
 - **Widget groups:** drag one widget onto another and hold until the outline turns solid to put both in a 2×2 card. Click the card to open every widget in one panel, and manage groups in **Settings** > **Widgets**.
-- **GitHub at a glance:** The pull request and review counts include labels so their meanings are visible without hovering.
+- **GitHub at a glance:** The pull request and review counts can show an icon or a text label, so their meanings are visible without hovering.
 - **AI agents:** Sessions from Claude Code, Codex, opencode, and Gemini CLI at a glance, and a click jumps to the terminal or IDE that started one. Clawd or a Pokémon can walk along the dock while a session runs.
 - **And more:** Keyboard shortcuts for the apps in position 1 to 9, one-click updates, and an English and Portuguese interface.
 

@@ -44,7 +44,7 @@ export interface WidgetGroup {
   members: WidgetKind[];
 }
 
-/** "count" só existe nas contribuições: o total do ano, sem o mapa. */
+/** "count": nas contribuições é o total do ano sem o mapa; nos widgets de PR é a contagem com rótulo, sem ícone. */
 export type WidgetSize = "small" | "wide" | "count";
 
 export interface WeatherLocation {
