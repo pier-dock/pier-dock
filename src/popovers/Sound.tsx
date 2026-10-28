@@ -68,6 +68,7 @@ export function SoundPanel() {
           <MuteButton level={level} muted={muted} label={muted ? t.unmute : t.mute} onToggle={() => setVolume({ muted: !muted })} />
           <Slider value={muted ? 0 : level} label={t.master} disabled={!volume} onChange={(l) => setVolume({ level: l, muted: false })} />
         </div>
+        <p className="sound-gesture-hint">{t.dockGestures}</p>
 
         {!!audio?.outputs.length && (
           <>

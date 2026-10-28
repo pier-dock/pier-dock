@@ -25,6 +25,8 @@ Pier is a free, open-source dock for Windows, macOS, and Linux. Bring your apps,
 
 Download Pier for **Windows**, **macOS**, or **Linux** from the [latest release](https://github.com/pier-dock/pier-dock/releases/latest). See the [installation guide](docs/guide.md#installation) for supported versions, first-launch setup, and updates.
 
+The launcher shows a labeled setup action when attention is needed; the sound panel explains its dock shortcuts.
+
 ## Documentation
 
 - [Features and usage](docs/guide.md)

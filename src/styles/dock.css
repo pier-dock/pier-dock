@@ -366,17 +366,29 @@ html[data-reduced-effects="true"] .dock-bar {
   position: absolute;
   top: -2px;
   right: -2px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+}
+
+.attention-dot::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: 2px;
   width: 10px;
   height: 10px;
-  padding: 0;
   border-radius: 50%;
   background: var(--accent);
   box-shadow: 0 0 0 1.5px var(--surface-icon);
 }
 
-.attention-dot[data-tone="setup"] {
+.attention-dot[data-tone="setup"]::after {
   background: var(--warning);
 }
+
+.attention-dot:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 50%; }
 
 /* A área do separador é mais larga que a linha, para dar para arrastá-lo. */
 .divider-item {

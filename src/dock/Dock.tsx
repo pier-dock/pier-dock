@@ -28,6 +28,7 @@ import { SortableItem } from "./SortableItem";
 import { addDivider, applyOrder, isDivider, LAUNCHER_KEY, removeItem, resolveOrder, START_KEY, widgetKey } from "./order";
 import { DockWidget, DockWidgetsProvider } from "../widgets/DockWidgets";
 import { togglePanel } from "../widgets/Tile";
+import { Tooltip } from "../ui/Tooltip";
 
 /** Espera antes de fechar a faixa quando o cursor sai da dock (ver o efeito do `mouseleave`). */
 const PREVIEW_CLOSE_DELAY = 200;
@@ -56,6 +57,8 @@ const attentionMenuItems = (attention: Attention[]) => attention.map((a) => ({ i
 
 /** Ponto no canto do botão de apps com o aviso mais importante; o menu do botão lista todos. */
 function AttentionDot({ attention }: { attention: Attention }) {
+  const [hover, setHover] = useState(false);
+  const [focused, setFocused] = useState(false);
   return (
     <button
       className="attention-dot"
@@ -64,7 +67,13 @@ function AttentionDot({ attention }: { attention: Attention }) {
       title={attention.label}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={attention.open}
-    />
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+    >
+      {(hover || focused) && <Tooltip label={attention.label} />}
+    </button>
   );
 }
 

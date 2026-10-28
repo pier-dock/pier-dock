@@ -25,6 +25,8 @@ Baixe o instalador da sua plataforma na [versão mais recente](https://github.co
 
 Na primeira vez, o Pier abre as **Configurações** e pergunta se deve substituir a barra de tarefas, o Dash ou o Dock. A barra do sistema continua visível até você escolher. Se ainda faltar configurar algo (a extensão do GNOME ou a Acessibilidade do macOS), aparece um aviso nas **Configurações** e um ponto âmbar no lançador de apps.
 
+Passe o mouse ou foque no indicador para ver o que precisa de atenção e ative-o para abrir as Configurações. O painel de som também mostra os atalhos de rolagem e clique direito da dock.
+
 Os instaladores ainda não têm assinatura de código, então o sistema avisa na primeira vez que você abre o Pier.
 
 - **Windows:** quando o SmartScreen aparecer, clique em **Mais informações** e depois em **Executar assim mesmo**.

@@ -225,6 +225,7 @@ export const en: Dict = {
     openPermission: "Open Settings",
     volumeOf: (name) => `${name} volume`,
     settings: "Sound settings",
+    dockGestures: "On the dock: scroll to adjust, right-click to mute.",
   },
   wifi: {
     current: "Connected",

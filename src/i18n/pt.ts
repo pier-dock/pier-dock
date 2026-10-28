@@ -225,6 +225,7 @@ export const pt = {
     openPermission: "Abrir Ajustes",
     volumeOf: (name: string) => `Volume de ${name}`,
     settings: "Configurações de som",
+    dockGestures: "Na dock: role para ajustar, clique com o botão direito para silenciar.",
   },
   wifi: {
     current: "Conectado",

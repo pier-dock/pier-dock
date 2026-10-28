@@ -29,6 +29,8 @@ test("pending setup takes the dot and opens settings; the update stays in the me
   const dot = page.locator(".attention-dot");
   await expect(dot).toHaveAttribute("data-tone", "setup");
   await expect(dot).toHaveAccessibleName("Finish setting up Pier");
+  await dot.focus();
+  await expect(dot.locator(".tooltip")).toBeVisible();
   await dot.click();
   await expectCall(page, "open_settings");
 });

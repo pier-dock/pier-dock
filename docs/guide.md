@@ -25,6 +25,8 @@ Download the installer for your platform from the [latest release](https://githu
 
 On its first launch Pier opens **Settings** and asks whether it should replace your taskbar, Dash, or Dock. The system bar stays visible until you choose. If something still needs setting up (the GNOME extension or macOS Accessibility), a notice appears in **Settings** and an amber dot appears on the app launcher.
 
+Hover or focus that indicator to see what needs attention, then activate it to open Settings. The sound panel also shows the dock's scroll and right-click shortcuts.
+
 The installers aren't code-signed yet, so your system warns you the first time you open Pier.
 
 - **Windows:** When SmartScreen appears, select **More info**, and then select **Run anyway**.
