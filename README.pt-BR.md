@@ -33,6 +33,8 @@ Baixe o Pier para **Windows**, **macOS** ou **Linux** na [versão mais recente](
 - [Configuração](docs/guide.pt-BR.md#configuração)
 - [Solução de problemas](docs/guide.pt-BR.md#solução-de-problemas)
 
+Os controles de volume por app têm uma área maior para facilitar o ajuste.
+
 ## Contribuindo
 
 Quer ajudar a desenvolver o Pier? O [guia de contribuição](CONTRIBUTING.pt-BR.md) explica a configuração local, as prévias no navegador, os testes e os pull requests.

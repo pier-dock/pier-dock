@@ -33,6 +33,8 @@ Download Pier for **Windows**, **macOS**, or **Linux** from the [latest release]
 - [Configuration](docs/guide.md#configuration)
 - [Troubleshooting](docs/guide.md#troubleshooting)
 
+Per-app volume sliders have a larger target for easier adjustment.
+
 ## Contributing
 
 Want to help build Pier? The [contributing guide](CONTRIBUTING.md) covers local setup, browser previews, tests, and pull requests.

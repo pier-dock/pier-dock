@@ -1297,13 +1297,13 @@
 
 /* Choices stay in the panel's scrollable body, never in a separate native popup window. */
 .sound-output-picker { width: 100%; }
-.sound-app-output { display: flex; align-items: center; gap: 6px; width: 100%; max-width: 100%; padding: 5px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; font-size: 11px; text-align: left; }
+.sound-app-output { display: flex; align-items: center; gap: 6px; width: 100%; max-width: 100%; padding: 5px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; font-size: 12px; text-align: left; }
 .sound-app-output > span, .sound-output-option > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sound-app-output > svg, .sound-output-option > svg { flex-shrink: 0; }
 .sound-app-output[aria-expanded="true"] > svg { transform: rotate(180deg); }
 .sound-app-output:disabled { opacity: .5; }
 .sound-output-options { max-height: 144px; overflow-y: auto; margin-top: 4px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
-.sound-output-option { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 30px; padding: 6px; font-size: 11px; text-align: left; }
+.sound-output-option { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 30px; padding: 6px; font-size: 12px; text-align: left; }
 .sound-output-option[aria-selected="true"] { color: var(--accent); }
 .sound-output-option:is(:hover, [data-hover], :focus-visible) { background: var(--fill-hover); }
 .sound-app-output:focus-visible, .sound-output-option:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
@@ -1341,6 +1341,9 @@
   flex-direction: column;
   gap: 4px;
 }
+
+/* A flex-column child otherwise shrinks the interactive slider to its 4px track. */
+.sound-app-main .slider { flex: 0 0 24px; min-height: 24px; }
 
 .sound-app-name {
   font-size: 12px;
