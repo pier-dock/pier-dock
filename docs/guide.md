@@ -40,6 +40,7 @@ In-app updates work with the Windows installer, the macOS app, and the AppImage.
 
 - **Click** an app to open or focus it (clicking the active app minimizes it; with several windows, clicking cycles through them). **Shift+click** opens a new instance.
 - **Right-click** an app to see its windows, pin or unpin it, or close it. Right-click the dock background to open settings or quit.
+- **Click** a divider to open its removal menu; it can also be reached with the keyboard.
 - **Drag** pinned apps to reorder them. To pin an app, drop it on the dock or add it in **Settings** > **Apps**.
 - **Click** a widget to open its panel. On the volume widget, scroll to adjust the volume and right-click to mute.
 - **Press** <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd>…<kbd>9</kbd> (<kbd>Control</kbd>+<kbd>Option</kbd>+<kbd>1</kbd>…<kbd>9</kbd> on macOS) to open or focus the app in that position.

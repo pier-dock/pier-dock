@@ -11,14 +11,13 @@ interface Props {
 
 /** Item arrastável da dock que não é um app: botão de apps, widget ou separador. */
 export function SortableItem({ id, className, onContextMenu, children }: Props) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   return (
     <div
       ref={setNodeRef}
       className={`${className} ${isDragging ? "dragging" : ""}`}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       onContextMenu={onContextMenu}
-      {...attributes}
       {...listeners}
     >
       {children}

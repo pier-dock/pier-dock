@@ -16,7 +16,7 @@ O Pier é uma dock gratuita e de código aberto para Windows, macOS e Linux. Re�
 
 ## Num relance
 
-- **Apps à mão:** Fixe, reordene e alterne entre apps. Use um atalho para abrir ou focar qualquer um dos nove primeiros apps fixados.
+- **Apps à mão:** Fixe, reordene e alterne entre apps. Use um atalho para abrir ou focar qualquer um dos nove primeiros apps fixados. O menu dos separadores é acessível pelo teclado.
 - **Widgets para o seu dia:** Controle a música, confira o clima e o próximo compromisso, inicie um Pomodoro e ajuste as configurações do sistema pela dock.
 - **GitHub sem trocar de aba:** Acompanhe pull requests abertos, revisões pendentes e seu gráfico de contribuições.
 - **Companhia enquanto trabalha:** Acompanhe sessões de agentes de IA, abra o terminal ou a IDE delas e deixe o Clawd ou seus Pokémon escolhidos passearem pela dock.

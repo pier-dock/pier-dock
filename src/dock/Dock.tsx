@@ -112,15 +112,20 @@ function LauncherButton({ onRemove, attention }: { onRemove: () => void; attenti
 }
 
 function Divider({ id, onRemove }: { id: string; onRemove: () => void }) {
-  const onContextMenu = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const showMenu = async () => {
     const menu = await Menu.new({ items: [{ id: "remove", text: dict().dock.removeDivider, action: onRemove }] });
     await menu.popup();
   };
+  const onContextMenu = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    await showMenu();
+  };
   return (
     <SortableItem id={id} className="divider-item" onContextMenu={onContextMenu}>
-      <div className="divider" />
+      <button className="divider-action" aria-label={dict().apps.divider} onClick={showMenu}>
+        <span className="divider" />
+      </button>
     </SortableItem>
   );
 }
