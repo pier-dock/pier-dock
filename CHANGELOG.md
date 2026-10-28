@@ -2,13 +2,6 @@
 
 What changed in each version of Pier. The app shows these notes once after it updates, so write them for users. Add a `## <version>` section before tagging a release, in this file and in `CHANGELOG.pt-BR.md`.
 
-## Unreleased
-
-### Widget groups
-- **Dock:** drag one widget onto another and hold until the outline turns solid to create a group card. The card shows up to four widgets in a 2×2 grid, with a **+N** badge when there are more, and the dock grows to fit it.
-- **Group panel:** click the card to open every widget in the group at once. Each widget keeps its own controls, and the header has a button to ungroup.
-- **Settings:** the **Widgets** tab lists your groups, with buttons to remove a widget, ungroup, and create a group from widgets already on the dock.
-
 ## 0.21.0
 
 ### Keyboard layout widget

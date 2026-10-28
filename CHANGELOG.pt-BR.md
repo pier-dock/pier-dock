@@ -2,13 +2,6 @@
 
 O que mudou em cada versão do Pier. O app mostra estas notas uma vez depois de se atualizar, então escreva para quem usa. Antes de criar a tag de uma release, adicione uma seção `## <versão>` aqui e no `CHANGELOG.md`.
 
-## Não lançado
-
-### Grupos de widgets
-- **Dock:** arraste um widget sobre outro e segure até o contorno ficar sólido para criar um cartão de grupo. O cartão mostra até quatro widgets numa grade 2×2, com um selo **+N** quando há mais, e a dock cresce para caber.
-- **Painel do grupo:** clique no cartão para abrir todos os widgets do grupo de uma vez. Cada widget mantém os próprios controles, e o cabeçalho tem um botão para desagrupar.
-- **Configurações:** a aba **Widgets** lista os grupos, com botões para remover um widget, desagrupar e criar um grupo a partir dos widgets que já estão na dock.
-
 ## 0.21.0
 
 ### Widget de layout do teclado
