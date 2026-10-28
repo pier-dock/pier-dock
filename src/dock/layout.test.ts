@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { PREVIEW_GAP, PREVIEW_HEIGHT, PREVIEW_WIDTH, barRect, dockMetrics, previewAlong, previewSpace } from "./layout.ts";
+import { GROUP_CELL_MAX, GROUP_MIN_THICKNESS, PREVIEW_GAP, PREVIEW_HEIGHT, PREVIEW_WIDTH, barRect, dockMetrics, previewAlong, previewSpace } from "./layout.ts";
 
 test("a barra flutuante reserva a altura e as duas margens", () => {
   const metrics = dockMetrics(40, 1.6);
@@ -105,4 +105,18 @@ test("o retângulo da barra acompanha a borda escolhida", () => {
   assert.deepEqual(barRect("left", false, 8, vertical, window), { x: 8, y: 240, width: 64, height: 600 });
   assert.deepEqual(barRect("right", false, 8, vertical, window), { x: 1848, y: 240, width: 64, height: 600 });
   assert.deepEqual(barRect("right", true, 8, { width: 64, height: 1080 }, window), { x: 1856, y: 0, width: 64, height: 1080 });
+});
+
+test("com grupos a barra acomoda o cartão 2x2", () => {
+  assert.equal(dockMetrics(40, 1.6, false, null, 0, "bottom", true).barThickness, GROUP_MIN_THICKNESS);
+  assert.equal(dockMetrics(32, 1.6, false, null, 0, "bottom", true).barThickness, GROUP_MIN_THICKNESS);
+  assert.equal(dockMetrics(32, 1.6).barThickness, 56);
+  assert.equal(dockMetrics(40, 1.6, true, 20, 0, "bottom", true).barThickness, GROUP_MIN_THICKNESS);
+  assert.equal(dockMetrics(40, 1.6, true, 80, 0, "bottom", true).barThickness, 80);
+});
+
+test("a célula do grupo acompanha a espessura da barra", () => {
+  assert.equal(dockMetrics(40, 1.6, false, null, 0, "bottom", true).groupCell, 28);
+  assert.equal(dockMetrics(40, 1.6, true, 104, 0, "bottom", true).groupCell, 28);
+  assert.equal(dockMetrics(40, 1.6, true, 240, 0, "bottom", true).groupCell, GROUP_CELL_MAX);
 });

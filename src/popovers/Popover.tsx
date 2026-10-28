@@ -17,6 +17,8 @@ import { SoundPanel } from "./Sound";
 import { SystemUsage } from "./SystemUsage";
 import { Weather } from "./Weather";
 import { WifiPanel } from "./Wifi";
+import { WidgetGroupPanel } from "./WidgetGroupPanel";
+import { isGroupKey } from "../dock/order";
 import { useT } from "../i18n";
 
 function Content({ kind }: { kind: string }) {
@@ -71,6 +73,7 @@ export function Popover({ kind }: { kind: string }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+  if (isGroupKey(kind)) return <WidgetGroupPanel kind={kind} />;
   return (
     <section className={`popover popover-${kind}`} aria-label={t.popover.labels[kind]} data-glass>
       <Content kind={kind} />

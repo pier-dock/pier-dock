@@ -22,11 +22,12 @@ static OPEN_PANEL: Mutex<Option<(String, String)>> = Mutex::new(None);
 static PANEL_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 /// O frontend decide o que renderizar por esta variável global, injetada antes da página carregar.
-fn view_script(view: &str, kind: &str) -> String {
-    format!(
-        "window.__PIER_VIEW__ = {};",
-        serde_json::json!({ "view": view, "kind": kind })
-    )
+fn view_script(view: &str, kind: &str, anchor: Option<(f64, f64)>) -> String {
+    let mut info = serde_json::json!({ "view": view, "kind": kind });
+    if let Some((x, y)) = anchor {
+        info["anchor"] = serde_json::json!({ "x": x, "y": y });
+    }
+    format!("window.__PIER_VIEW__ = {};", info)
 }
 
 /// Avisa a dock qual painel está aberto (`None`: nenhum), para o Clawd parar enquanto o das sessões
@@ -81,7 +82,7 @@ pub async fn open_panel(app: AppHandle, kind: String, anchor_x: f64, anchor_y: f
 
     let label = format!("panel-{}", PANEL_COUNTER.fetch_add(1, Ordering::SeqCst));
     let builder = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
-        .initialization_script(view_script("panel", &kind))
+        .initialization_script(view_script("panel", &kind, Some((anchor_x, anchor_y))))
         .title("Pier")
         .decorations(false)
         .transparent(true)
@@ -219,7 +220,7 @@ fn app_window(app: &AppHandle, label: &str, kind: &str, title: &str, size: (f64,
         return Ok(window);
     }
     let builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
-        .initialization_script(view_script(label, kind))
+        .initialization_script(view_script(label, kind, None))
         .title(title)
         .inner_size(size.0, size.1)
         .min_inner_size(min_size.0, min_size.1)

@@ -7,6 +7,7 @@ const widget = (kind: string, enabled = true) => ({ kind, enabled, size: "small"
 
 const base = {
   dockOrder: [] as string[],
+  widgetGroups: [] as { id: string; members: string[] }[],
   pinnedApps: [app("finder"), app("safari")],
   widgets: [widget("media"), widget("clock"), widget("battery", false)],
   showStartButton: true,
@@ -110,4 +111,57 @@ test("moveAmong não passa das pontas", () => {
   const isWidget = (k: string) => k.startsWith("widget:");
   assert.equal(moveAmong({ ...base, dockOrder }, "widget:clock", 1, isWidget), null);
   assert.equal(moveAmong({ ...base, dockOrder }, "widget:media", -1, isWidget), null);
+});
+
+test("grupo ativo ocupa o lugar dos membros e eles somem da ordem", () => {
+  const config = {
+    ...base,
+    dockOrder: ["start", "group:g", "app:finder"],
+    widgetGroups: [{ id: "g", members: ["media", "clock"] }],
+  };
+  assert.deepEqual(resolveOrder(config), ["start", "group:g", "app:finder", "app:safari"]);
+  assert.deepEqual(resolveOrder({ ...config, showStartButton: false }), ["group:g", "app:finder", "app:safari"]);
+});
+
+test("na ordem antiga o grupo entra na categoria do primeiro membro", () => {
+  const config = {
+    ...base,
+    showStartButton: false,
+    pinnedApps: [],
+    widgets: [widget("media"), widget("clock"), widget("network")],
+    widgetGroups: [{ id: "g", members: ["clock", "network"] }],
+  };
+  assert.deepEqual(resolveOrder(config), ["widget:media", "divider:system", "group:g"]);
+});
+
+test("grupo com um membro ligado não aparece; o membro volta para a dock", () => {
+  const config = {
+    ...base,
+    showStartButton: false,
+    dockOrder: ["group:g", "widget:media"],
+    widgets: [widget("media"), widget("clock", false)],
+    widgetGroups: [{ id: "g", members: ["media", "clock"] }],
+  };
+  assert.deepEqual(resolveOrder(config), ["widget:media", "app:finder", "app:safari"]);
+});
+
+test("applyOrder deixa os widgets agrupados na posição do grupo", () => {
+  const config = {
+    ...base,
+    widgets: [widget("media"), widget("clock"), widget("battery")],
+    widgetGroups: [{ id: "g", members: ["media", "clock"] }],
+  };
+  const result = applyOrder(config, ["start", "widget:battery", "group:g", "app:finder", "app:safari"]);
+  assert.deepEqual(result.widgets.map((w) => w.kind), ["battery", "media", "clock"]);
+});
+
+test("removeItem apaga o grupo e os membros voltam à dock", () => {
+  const config = {
+    ...base,
+    dockOrder: ["start", "group:g", "app:finder"],
+    widgetGroups: [{ id: "g", members: ["media", "clock"] }],
+  };
+  const patch = removeItem(config, "group:g");
+  assert.deepEqual(patch.widgetGroups, []);
+  assert.deepEqual(patch.dockOrder, ["start", "app:finder", "app:safari"]);
 });

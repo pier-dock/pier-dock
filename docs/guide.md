@@ -7,6 +7,7 @@
 - **Apps:** Pinned and running apps with magnification, drag-to-reorder, window lists, and count badges.
 - **Customizable bar:** Put the dock on any edge of the screen, fit it to the icons or stretch it along the edge, and pick the icon size, material, and accent color.
 - **Widgets:** Media player, GitHub (reviews, pull requests, commits, contributions), system (network, volume, Bluetooth, battery, clock, show desktop, system usage and, on Windows, keyboard layout and the tray), weather, calendar, Pomodoro, and AI usage.
+- **Widget groups:** drag one widget onto another and hold until the outline turns solid to put both in a 2×2 card. Click the card to open every widget in one panel, and manage groups in **Settings** > **Widgets**.
 - **GitHub at a glance:** The pull request and review counts include labels so their meanings are visible without hovering.
 - **AI agents:** Sessions from Claude Code, Codex, opencode, and Gemini CLI at a glance, and a click jumps to the terminal or IDE that started one. Clawd or a Pokémon can walk along the dock while a session runs.
 - **And more:** Keyboard shortcuts for the apps in position 1 to 9, one-click updates, and an English and Portuguese interface.
@@ -46,6 +47,7 @@ In-app updates work with the Windows installer, the macOS app, and the AppImage.
 - **Click** a divider to open its removal menu; it can also be reached with the keyboard.
 - **Drag** pinned apps to reorder them. To pin an app, drop it on the dock or add it in **Settings** > **Apps**.
 - **Click** a widget to open its panel. On the volume widget, scroll to adjust the volume and right-click to mute.
+- **Drag** a widget onto another, or onto a group card, and hold until the outline turns solid to create or extend a group. Click the card to open the group; use each widget's X to remove it or **Ungroup** to undo the group.
 - In the sound panel, **Default output** selects the system output; **App audio** shows the controls for individual apps. On supported platforms, each app can use a separate output.
 - **Press** <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd>…<kbd>9</kbd> (<kbd>Control</kbd>+<kbd>Option</kbd>+<kbd>1</kbd>…<kbd>9</kbd> on macOS) to open or focus the app in that position.
 

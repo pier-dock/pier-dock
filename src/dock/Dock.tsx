@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMotionValue } from "framer-motion";
 import { LayoutGrid, Search } from "lucide-react";
-import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
 import { arrayMove, horizontalListSortingStrategy, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
@@ -25,13 +25,17 @@ import { MagnifyCtx, MagnifyGeometry } from "./Magnify";
 import { resetDockHover } from "./hoverReset";
 import { AppIcon } from "./AppIcon";
 import { SortableItem } from "./SortableItem";
-import { addDivider, applyOrder, isDivider, LAUNCHER_KEY, removeItem, resolveOrder, START_KEY, widgetKey } from "./order";
+import { WidgetGroupSlot } from "./WidgetGroupSlot";
+import { createGroup } from "./groups";
+import { activeGroups, addDivider, applyOrder, groupKey, groupIdOf, isDivider, isGroupKey, LAUNCHER_KEY, removeItem, resolveOrder, START_KEY, widgetKey } from "./order";
 import { DockWidget, DockWidgetsProvider } from "../widgets/DockWidgets";
 import { togglePanel } from "../widgets/Tile";
 import { Tooltip } from "../ui/Tooltip";
 
 /** Espera antes de fechar a faixa quando o cursor sai da dock (ver o efeito do `mouseleave`). */
 const PREVIEW_CLOSE_DELAY = 200;
+/** Tempo segurando um widget sobre outro para criar o grupo, em vez de só reordenar. */
+const GROUP_MERGE_DELAY = 350;
 
 /** Algo que pede o usuário: configuração pendente do sistema ou versão nova. */
 interface Attention {
@@ -158,6 +162,7 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
   const position = config.dockPosition;
   const vertical = isVertical(position);
   const full = config.dockWidth === "full";
+  const groupsList = useMemo(() => activeGroups(config), [config]);
   // O cursor na direção da barra: x nas bordas de cima e de baixo, y nas laterais.
   const mouse = useMotionValue(Infinity);
   const magnifyContext = useMemo(() => ({ mouse, base: config.iconSize, scale: Math.max(1, config.magnification), position }),
@@ -183,6 +188,7 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
     config.dockHeight,
     previewSpace(position, !!preview),
     position,
+    groupsList.length > 0,
   );
   const previousApps = useRef<DockApp[]>([]);
   const apps = useMemo(
@@ -333,13 +339,78 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
   const sensorOptions = useMemo(() => ({ activationConstraint: { distance: 8 } }), []);
   const sensors = useSensors(useSensor(PointerSensor, sensorOptions));
   const order = useMemo(() => resolveOrder(config), [config]);
+  const groups = useMemo(() => new Map(groupsList.map((group) => [groupKey(group.id), group])), [groupsList]);
+
+  const [merge, setMerge] = useState<{ key: string; ready: boolean } | null>(null);
+  const mergeRef = useRef<{ key: string; ready: boolean } | null>(null);
+  const mergeTimer = useRef<number | null>(null);
+  const clearMerge = useCallback(() => {
+    if (mergeTimer.current !== null) {
+      window.clearTimeout(mergeTimer.current);
+      mergeTimer.current = null;
+    }
+    mergeRef.current = null;
+    setMerge(null);
+  }, []);
+  useEffect(() => () => {
+    if (mergeTimer.current !== null) window.clearTimeout(mergeTimer.current);
+  }, []);
+
+  const onDragStart = () => {
+    clearMerge();
+    mouse.set(Infinity);
+  };
+
+  const onDragOver = ({ active, over }: DragOverEvent) => {
+    const from = String(active.id);
+    const kind = from.startsWith("widget:") ? from.slice("widget:".length) : null;
+    if (!kind || !over) {
+      clearMerge();
+      return;
+    }
+    const target = String(over.id);
+    if (target === from) {
+      clearMerge();
+      return;
+    }
+    if (isGroupKey(target)) {
+      const group = groupsList.find((g) => g.id === groupIdOf(target));
+      if (!group || group.members.some((member) => member === kind)) {
+        clearMerge();
+        return;
+      }
+    } else if (!target.startsWith("widget:")) {
+      clearMerge();
+      return;
+    }
+    if (mergeRef.current?.key === target) return;
+    if (mergeTimer.current !== null) window.clearTimeout(mergeTimer.current);
+    const pending = { key: target, ready: false };
+    mergeRef.current = pending;
+    setMerge(pending);
+    mergeTimer.current = window.setTimeout(() => {
+      if (mergeRef.current?.key !== target) return;
+      const ready = { key: target, ready: true };
+      mergeRef.current = ready;
+      setMerge(ready);
+      mergeTimer.current = null;
+    }, GROUP_MERGE_DELAY);
+  };
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
+    const pending = mergeRef.current;
+    clearMerge();
     if (!over || active.id === over.id) return;
+    const activeKey = String(active.id);
+    const overKey = String(over.id);
+    if (pending?.ready && pending.key === overKey) {
+      update((c) => createGroup(c, activeKey, overKey) ?? {});
+      return;
+    }
     update((c) => {
       const keys = resolveOrder(c);
-      const from = keys.indexOf(String(active.id));
-      const to = keys.indexOf(String(over.id));
+      const from = keys.indexOf(activeKey);
+      const to = keys.indexOf(overKey);
       if (from < 0 || to < 0) return {};
       return applyOrder(c, arrayMove(keys, from, to));
     });
@@ -419,6 +490,18 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
     if (key === START_KEY) return <StartButton key={key} onRemove={() => remove(key)} attention={attentionHost === key ? attention : []} />;
     if (key === LAUNCHER_KEY) return <LauncherButton key={key} onRemove={() => remove(key)} attention={attentionHost === key ? attention : []} />;
     if (isDivider(key)) return <Divider key={key} id={key} onRemove={() => remove(key)} />;
+    const group = groups.get(key);
+    if (group) {
+      return (
+        <WidgetGroupSlot
+          key={key}
+          group={group}
+          widgets={config.widgets}
+          vertical={vertical}
+          merge={merge?.key === key ? (merge.ready ? "ready" : "pending") : undefined}
+        />
+      );
+    }
     const app = pinnedApps.get(key);
     if (app)
       return (
@@ -435,7 +518,7 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
     const widget = widgets.get(key);
     if (widget) {
       return (
-        <SortableItem key={key} id={key} className="widget-slot">
+        <SortableItem key={key} id={key} className={`widget-slot${merge?.key === key ? (merge.ready ? " merge-ready" : " merge-pending") : ""}`}>
           {renderWidget(widget)}
         </SortableItem>
       );
@@ -453,6 +536,7 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
   const barStyle: React.CSSProperties = {
     ["--dock-thickness" as string]: `${metrics.barThickness}px`,
     ["--dock-item-offset" as string]: `${metrics.itemOffset}px`,
+    ["--group-cell" as string]: `${metrics.groupCell}px`,
   };
   if (vertical) {
     barStyle[position === "left" ? "left" : "right"] = full ? 0 : metrics.margin;
@@ -485,7 +569,7 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
         onContextMenu={onBackgroundMenu}
       >
         <MagnifyCtx.Provider value={magnifyContext}>
-          <DndContext sensors={sensors} onDragStart={() => mouse.set(Infinity)} onDragEnd={onDragEnd}>
+          <DndContext sensors={sensors} onDragStart={onDragStart} onDragOver={onDragOver} onDragCancel={clearMerge} onDragEnd={onDragEnd}>
             <SortableContext items={order} strategy={vertical ? verticalListSortingStrategy : horizontalListSortingStrategy}>
               {order.map(renderItem)}
             </SortableContext>

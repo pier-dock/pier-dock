@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+﻿import { expect, test } from "@playwright/test";
 import { expectCall, openMock } from "./fixtures";
 
 test("sortable widgets expose one control and dividers have a name", async ({ page }) => {
@@ -13,6 +13,7 @@ test("sortable widgets expose one control and dividers have a name", async ({ pa
 
 test("a named divider remains draggable with the pointer", async ({ page }) => {
   await openMock(page, "view=dock");
+  await page.waitForTimeout(600);
   const divider = page.getByRole("button", { name: "Divider", exact: true }).first();
   const target = page.locator(".app-button").nth(1);
   const from = (await divider.boundingBox())!;
@@ -30,3 +31,4 @@ test("a divider opens its menu from the keyboard", async ({ page }) => {
   await page.keyboard.press("Enter");
   await expectCall(page, "plugin:menu|popup");
 });
+

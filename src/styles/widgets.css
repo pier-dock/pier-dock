@@ -1040,3 +1040,85 @@
   image-rendering: pixelated;
   pointer-events: none;
 }
+
+/* Cartão 2×2 de um grupo de widgets: o tamanho da célula vem da espessura da barra. */
+.widget-group {
+  position: relative;
+  display: block;
+  padding: 2px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  transition: background 0.08s ease, border-color 0.08s ease;
+}
+
+.widget-group:is(:hover, [data-hover]) {
+  background: var(--fill-hover);
+  border-color: var(--border-subtle);
+}
+
+.widget-group:active {
+  background: var(--fill-active);
+}
+
+.widget-group:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.widget-group-grid {
+  display: grid;
+  grid-template-columns: repeat(2, var(--group-cell, 44px));
+  grid-template-rows: repeat(2, var(--group-cell, 44px));
+  gap: 2px;
+  pointer-events: none;
+}
+
+.widget-group-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 4px;
+  background: transparent;
+}
+
+.widget-group-cell.empty {
+  border: 0;
+  background: transparent;
+}
+
+.widget-group-cell > .fit-scale {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+}
+
+.widget-group-cell .tile {
+  height: auto;
+  padding: 0 1px;
+  gap: 2px;
+}
+
+.widget-group-more {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--fill-control);
+}
+
+/* Alvo do arrasto que vira grupo: primeiro o contorno pontilhado, depois o pronto para soltar. */
+.widget-slot.merge-pending {
+  outline: 1px dashed var(--accent);
+  outline-offset: 2px;
+  border-radius: 12px;
+}
+
+.widget-slot.merge-ready {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 12px;
+  background: var(--fill-selected);
+}

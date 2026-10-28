@@ -22,3 +22,19 @@ export const PANEL_SIZES: Record<string, [number, number]> = {
   battery: [340, 280],
   "keyboard-layout": [320, 300],
 };
+
+/** Tamanho do painel de um grupo; a altura cresce com a lista de widgets. */
+export const GROUP_PANEL_WIDTH = 344;
+const GROUP_PANEL_HEADER = 46;
+const GROUP_PANEL_ROW = 40;
+const GROUP_PANEL_GAP = 2;
+const GROUP_PANEL_PADDING = 4;
+const GROUP_PANEL_MAX_HEIGHT = 480;
+
+export const groupPanelSize = (members: number): [number, number] => {
+  const rows = Math.max(1, members);
+  const height = GROUP_PANEL_HEADER + rows * GROUP_PANEL_ROW + (rows - 1) * GROUP_PANEL_GAP + 2 * GROUP_PANEL_PADDING;
+  return [GROUP_PANEL_WIDTH, Math.min(GROUP_PANEL_MAX_HEIGHT, height)];
+};
+
+export const panelSize = (kind: string): [number, number] => (kind.startsWith("group:") ? groupPanelSize(3) : PANEL_SIZES[kind] ?? [380, 420]);
