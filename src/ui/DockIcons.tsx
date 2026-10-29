@@ -59,6 +59,10 @@ export function Video(props: IconProps) {
   return <Outline {...props}><path d="m16 13 5.2 3.5a.5.5 0 0 0 .8-.4V7.9a.5.5 0 0 0-.8-.4L16 11" /><rect x={2} y={6} width={14} height={12} rx={2} /></Outline>;
 }
 
+export function GitPullRequest({ size = 18, ...props }: IconProps) {
+  return <svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor" aria-hidden {...props}><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z" /></svg>;
+}
+
 export function GitCommitHorizontal({ size = 18, ...props }: IconProps) {
   return <Outline size={size} {...props}><circle cx={12} cy={12} r={3} /><path d="M3 12h6M15 12h6" /></Outline>;
 }
