@@ -2,7 +2,9 @@
 //! Cada janela extra carrega o mesmo frontend da dock principal, é posicionada no monitor
 //! escolhido e registra sua própria AppBar. Visibilidade e layout são herdados da janela principal.
 
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+#[cfg(windows)]
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicU32, Ordering};
 #[cfg(windows)]
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -198,7 +200,3 @@ pub fn reregister_all(app: &AppHandle) {
     drop(entries);
     apply_all_layouts(app);
 }
-
-// Stub para sistemas não-Windows.
-#[cfg(not(windows))]
-pub fn reregister_all(_app: &AppHandle) {}
