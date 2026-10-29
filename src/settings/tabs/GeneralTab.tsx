@@ -103,12 +103,13 @@ export function GeneralTab({ config, update, platform }: TabProps) {
     return () => window.removeEventListener("focus", refreshSystem);
   }, [refreshSystem]);
 
-  const fixedMonitor = config.dockMonitor !== "primary" && config.dockMonitor !== "cursor";
+  const fixedMonitor = config.dockMonitor !== "primary" && config.dockMonitor !== "cursor" && config.dockMonitor !== "all";
   const chosenMissing = fixedMonitor && !monitors.some((m) => m.id === config.dockMonitor);
   const monitorOptions = [
     { value: "primary", label: t.primaryMonitor },
     ...monitors.filter((m) => !m.primary).map((m) => ({ value: m.id, label: m.id })),
     ...(platform?.followCursor || config.dockMonitor === "cursor" ? [{ value: "cursor", label: t.followCursor }] : []),
+    ...(monitors.length > 1 || config.dockMonitor === "all" ? [{ value: "all", label: t.allMonitors }] : []),
     ...(chosenMissing ? [{ value: config.dockMonitor, label: t.disconnected(config.dockMonitor) }] : []),
   ];
   const updateExtension = () =>

@@ -660,6 +660,7 @@ export const en: Dict = {
     followCursor: "Follow the cursor",
     disconnected: (name) => `${name} (disconnected)`,
     monitorFallback: "While it's disconnected, the dock stays on the main display.",
+    allMonitors: "All displays",
     gnomeReserve: "With this version of the GNOME extension, the space maximized windows leave free stays on the main display.",
     updateExtension: "Update the extension",
     extensionUpdated: "Extension updated. Log out and back in for it to take effect.",

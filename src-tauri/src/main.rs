@@ -8,6 +8,7 @@ mod calendar;
 mod agent_sessions;
 mod config;
 mod dock_window;
+mod extra_dock;
 mod github;
 mod i18n;
 mod icons;
@@ -301,7 +302,10 @@ fn main() {
             #[cfg(windows)]
             {
                 let restart_handle = handle.clone();
-                taskbar::start_watchdog(move || dock_window::reregister(&restart_handle));
+                taskbar::start_watchdog(move || {
+                    dock_window::reregister(&restart_handle);
+                    extra_dock::reregister_all(&restart_handle);
+                });
             }
 
             if let Some(dock) = app.get_webview_window(dock_window::DOCK_LABEL) {
@@ -311,6 +315,7 @@ fn main() {
                 let _ = panels::open_settings_window(&handle);
             }
             dock_window::start_monitor_watch(handle.clone());
+            extra_dock::sync_from_setting(&handle, &dock_monitor);
             // O painel não recebe foco no macOS (o app nunca fica ativo), então "perder o foco" não
             // serve para fechá-lo.
             #[cfg(target_os = "macos")]
