@@ -396,6 +396,7 @@ fn move_dock(app: &AppHandle) {
         backend::apply_layout(&window);
         std::thread::sleep(SETTLE);
         arrive(&window);
+        let _ = window.eval("location.reload()");
     });
 }
 
