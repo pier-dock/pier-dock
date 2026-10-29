@@ -2,6 +2,24 @@
 
 What changed in each version of Pier. The app shows these notes once after it updates, so write them for users. Add a `## <version>` section before tagging a release, in this file and in `CHANGELOG.pt-BR.md`.
 
+## 0.22.0
+
+### Widget groups
+- **Dock:** drag one widget onto another and hold until the outline turns solid to create a group card. The card shows up to four widgets in a 2×2 grid, with a **+N** badge when there are more, and the dock grows to fit it.
+- **Group panel:** click the card to open every widget in the group at once. Each widget keeps its own controls, and the header has a button to ungroup.
+- **Settings:** the **Widgets** tab lists your groups, with buttons to remove a widget, ungroup, and create a group from widgets already on the dock.
+
+### GitHub counters
+- **GitHub widgets:** the pull request and review widgets have a new **Icon** or **Number** choice in **Format in the dock**. **Icon** shows the icon next to the count and is the default. **Number** shows the count with a text label ("PRs" or "Reviews"). The vertical dock always shows the icon.
+
+### Fixes
+- **Sound:** the sound panel now labels the default output and the per-app outputs, and explains per-app routing when your system supports it. It also has more room for the app controls.
+- **Sound:** the per-app volume sliders are easier to grab, and the output choices and notification badges are larger and easier to read.
+- **Sound:** switching from one app's output list to another no longer moves the next button out from under the cursor before the click lands.
+- **Dock:** the dot that asks you to finish setup or install an update is easier to hit, and its action shows on hover and keyboard focus. The sound panel explains the scroll and right-click volume gestures.
+- **Accessibility:** screen readers now announce each dock widget control once, and each divider is a named button that opens its removal menu.
+- **Widgets:** the GitHub counters show what they count, and the network widget names its function, not only the connection.
+
 ## 0.21.0
 
 ### Keyboard layout widget
