@@ -1,5 +1,5 @@
-import { GitCompare, GitPullRequest } from "lucide-react";
-import { GitCommitHorizontal } from "../ui/DockIcons";
+import { GitCompare } from "lucide-react";
+import { GitCommitHorizontal, GitPullRequest } from "../ui/DockIcons";
 import type { GithubData, PullRequest, WidgetSize } from "../lib/ipc";
 import { Tile } from "./Tile";
 import { locale, useT } from "../i18n";
@@ -38,7 +38,7 @@ export function GithubMineWidget({ data, size }: { data: GithubData | null; size
   const labeled = size === "count";
   return (
     <Tile kind="github-mine" label={t.mineTile(count)} className={labeled ? "github-count-tile" : undefined}>
-      {!labeled && <GitPullRequest size={18} strokeWidth={1.8} />}
+      {!labeled && <GitPullRequest size={18} />}
       <Count value={count} />
       {labeled && <span className="github-count-label" aria-hidden>{t.mineShort}</span>}
       {state !== "none" && <span className={`status-dot ${state}`} />}

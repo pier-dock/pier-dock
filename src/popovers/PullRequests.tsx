@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { CheckCircle2, CircleDashed, GitPullRequest, XCircle } from "lucide-react";
+import { CheckCircle2, CircleDashed, XCircle } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { ipc, type GithubData, type PullRequest } from "../lib/ipc";
 import { useGithub } from "../hooks/useGithub";
 import { timeAgo } from "../lib/format";
 import { keys } from "../lib/platform";
 import { ActionFooter } from "../ui/ActionFooter";
+import { GitPullRequest } from "../ui/DockIcons";
 import { Segmented } from "../ui/Segmented";
 import { dict, useT } from "../i18n";
 
@@ -28,7 +29,7 @@ export function EmptyState({ title, sub }: { title: string; sub: string }) {
   return (
     <div className="popover-empty">
       <span className="empty-icon">
-        <GitPullRequest size={22} strokeWidth={1.8} />
+        <GitPullRequest size={22} />
       </span>
       <span className="empty-title">{title}</span>
       <span className="empty-sub">{sub}</span>
