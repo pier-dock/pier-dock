@@ -115,11 +115,12 @@
   --glass-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
   --solid-opacity: 0.94;
 
-  /* A opacidade da dock vem das configurações (o App sobrescreve). */
+  /* A opacidade da dock vem das configurações (o App sobrescreve); popovers e janelas acompanham
+     com a mesma folga sobre a dock que têm no padrão (0.4 → 0.55 → 0.72), para manter a leitura. */
   --dock-opacity: 0.4;
   --dock-blur: 28px;
 
-  --popover-opacity: 0.55;
+  --popover-opacity: min(var(--solid-opacity), calc(var(--dock-opacity) + 0.15));
   --popover-blur: 30px;
   --popover-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.2);
   /* Tem que caber na margem transparente da janela do popover (--panel-inset): uma sombra maior
@@ -128,7 +129,7 @@
 
   /* Janela de configurações: mais opaca, pela legibilidade. */
   --window-tint: 24 24 28;
-  --window-opacity: 0.72;
+  --window-opacity: min(var(--solid-opacity), calc(var(--dock-opacity) + 0.32));
   --window-blur: 40px;
   --window-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
