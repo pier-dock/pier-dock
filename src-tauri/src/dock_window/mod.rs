@@ -4,6 +4,7 @@
 //! O estado (medidas vindas do frontend, borda da tela, modo de ocultar, visibilidade) é comum;
 //! cada sistema tem um backend com `init`, `apply_layout` e `hit_rect_changed`.
 
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -18,7 +19,7 @@ mod backend;
 
 pub use backend::init;
 #[cfg(windows)]
-pub use backend::{remove_appbar, reregister};
+pub use backend::{remove_appbar, reregister, init_extra, apply_layout_extra};
 
 pub const DOCK_LABEL: &str = "dock";
 
@@ -94,6 +95,7 @@ pub fn set_position(app: &AppHandle, position: &str) {
         if let Some(window) = app.get_webview_window(DOCK_LABEL) {
             backend::apply_layout(&window);
         }
+        crate::extra_dock::apply_all_layouts(app);
     }
 }
 
@@ -104,6 +106,7 @@ static CURSOR_MONITOR: Mutex<Option<String>> = Mutex::new(None);
 
 const PRIMARY: &str = "primary";
 const CURSOR: &str = "cursor";
+pub(crate) const ALL: &str = "all";
 /// Seguindo o cursor, a dock só troca de monitor depois que ele fica um tempo no outro: passar de
 /// raspão por uma tela no caminho não a arrasta junto.
 const FOLLOW_TICK: Duration = Duration::from_millis(200);
@@ -118,6 +121,8 @@ pub fn set_monitor(app: &AppHandle, monitor: &str) {
     let changed = std::mem::replace(&mut *MONITOR.lock().unwrap(), monitor.to_string()) != monitor;
     if changed {
         move_dock(app);
+        // sync_from_setting é chamado dentro de move_dock, após arrive(), para garantir que as
+        // janelas extras só sejam criadas quando a dock já está estável e visível.
     }
 }
 
@@ -151,6 +156,10 @@ fn target_monitor(window: &WebviewWindow) -> Option<Monitor> {
     let mut wanted = MONITOR.lock().unwrap().clone();
     if wanted == CURSOR {
         wanted = CURSOR_MONITOR.lock().unwrap().clone().unwrap_or_default();
+    }
+    // "all": a janela principal fica no monitor primário; as extras cuidam dos outros.
+    if wanted == ALL {
+        wanted = PRIMARY.to_string();
     }
     if !wanted.is_empty() && wanted != PRIMARY {
         if let Ok(monitors) = window.available_monitors() {
@@ -241,8 +250,10 @@ pub fn start_monitor_watch(app: AppHandle) {
         }
 
         let mut pending = None;
+        let mut last_monitor_count = 0usize;
         loop {
-            let following = *MONITOR.lock().unwrap() == CURSOR;
+            let monitor_setting = MONITOR.lock().unwrap().clone();
+            let following = monitor_setting == CURSOR;
             std::thread::sleep(if following { FOLLOW_TICK } else { Duration::from_secs(1) });
             // Uma troca em andamento já vai posicionar a dock no monitor-alvo mais recente.
             if MOVING.load(Ordering::SeqCst) {
@@ -251,6 +262,18 @@ pub fn start_monitor_watch(app: AppHandle) {
             let Some(window) = app.get_webview_window(DOCK_LABEL) else { continue };
             if following {
                 follow_cursor(&app, &window, &mut pending);
+            }
+            // "all": se um monitor foi plugado/desplugado, sincroniza as janelas extras.
+            if monitor_setting == ALL {
+                if let Ok(monitors) = window.available_monitors() {
+                    let count = monitors.len();
+                    if count != last_monitor_count {
+                        last_monitor_count = count;
+                        crate::extra_dock::sync_from_setting(&app, ALL);
+                    }
+                }
+            } else {
+                last_monitor_count = 0;
             }
             let Some(monitor) = target_monitor(&window) else { continue };
             // Compara com onde a dock foi posicionada de fato: uma troca pedida pelas configurações
@@ -320,15 +343,23 @@ pub struct Reserved {
 }
 
 static LAYOUT: Mutex<Layout> = Mutex::new(Layout { reserved: 72.0, window_size: 170.0, hover_headroom: 80.0 });
-static HIT: Mutex<HitRect> = Mutex::new(HitRect { x: 0.0, y: 0.0, width: 0.0, height: 0.0, radius: 0.0 });
+/// Geometria da barra medida pelo frontend, por janela (rótulo): cada dock (principal e extras)
+/// mede a própria barra, e o tamanho/centro dependem do monitor em que ela está.
+static HITS: Mutex<Option<HashMap<String, HitRect>>> = Mutex::new(None);
 static PET: Mutex<Option<HitRect>> = Mutex::new(None);
 
 fn layout() -> Layout {
     *LAYOUT.lock().unwrap()
 }
 
+/// A barra da janela `label`, ou um `HitRect` zerado se ela ainda não mediu.
+fn hit_rect_for(label: &str) -> HitRect {
+    HITS.lock().unwrap().as_ref().and_then(|m| m.get(label).copied()).unwrap_or_default()
+}
+
+/// A barra da dock principal — a maioria dos chamadores do backend trabalha com ela.
 fn hit_rect() -> HitRect {
-    *HIT.lock().unwrap()
+    hit_rect_for(DOCK_LABEL)
 }
 
 fn auto_hide() -> u8 {
@@ -352,13 +383,14 @@ fn want_visible(hovering: bool, app_focused: impl FnOnce() -> bool) -> bool {
 }
 
 /// Atualiza a visibilidade e avisa o frontend, que anima a dock para dentro/fora da tela; o vidro
-/// nativo acompanha.
+/// nativo acompanha. As janelas extras são notificadas junto.
 #[allow(dead_code)]
 fn set_visible(window: &WebviewWindow, visible: bool) {
     use tauri::Emitter;
     if VISIBLE.swap(visible, Ordering::SeqCst) != visible {
-        let _ = window.emit("dock-visibility", visible);
+        let _ = window.emit_to(window.label(), "dock-visibility", visible);
         crate::backdrop::set_hidden(window, !visible);
+        crate::extra_dock::on_visibility_changed(window.app_handle(), visible);
     }
 }
 
@@ -396,6 +428,9 @@ fn move_dock(app: &AppHandle) {
         backend::apply_layout(&window);
         std::thread::sleep(SETTLE);
         arrive(&window);
+        // Sincronizar janelas extras após a dock estar estável e visível.
+        let monitor_setting = MONITOR.lock().unwrap().clone();
+        crate::extra_dock::sync_from_setting(&app, &monitor_setting);
         let _ = window.eval("location.reload()");
     });
 }
@@ -416,6 +451,7 @@ pub fn set_auto_hide(app: &AppHandle, mode: &str) {
         if let Some(window) = app.get_webview_window(DOCK_LABEL) {
             backend::apply_layout(&window);
         }
+        crate::extra_dock::apply_all_layouts(app);
     }
 }
 
@@ -434,6 +470,7 @@ pub fn set_dock_layout(window: WebviewWindow, layout: Layout) {
     if let Some(dock) = window.app_handle().get_webview_window(DOCK_LABEL) {
         backend::apply_layout(&dock);
     }
+    crate::extra_dock::apply_all_layouts(window.app_handle());
 }
 
 /// O mouse entrou ou saiu da área clicável da dock. Só o Linux usa: lá o click-through é feito
@@ -443,21 +480,30 @@ pub fn set_dock_hover(hovering: bool) {
     backend::set_hover(hovering);
 }
 
-/// A barra mudou de tamanho (itens, magnificação): atualiza a área clicável e o vidro.
+/// A barra mudou de tamanho (itens, magnificação): atualiza a área clicável e o vidro. Cada janela
+/// (a principal e as extras) manda a medida da própria barra; a geometria é guardada pelo rótulo
+/// dela e o vidro é posicionado na janela que mediu.
 #[tauri::command]
-pub fn set_hit_rect(app: AppHandle, rect: HitRect) {
+pub fn set_hit_rect(window: WebviewWindow, rect: HitRect) {
+    let label = window.label().to_string();
     {
-        let mut hit = HIT.lock().unwrap();
-        if *hit == rect {
+        let mut hits = HITS.lock().unwrap();
+        let hits = hits.get_or_insert_with(HashMap::new);
+        if hits.get(&label) == Some(&rect) {
             return;
         }
-        *hit = rect;
+        hits.insert(label, rect);
     }
-    if let Some(window) = app.get_webview_window(DOCK_LABEL) {
-        let glass = crate::backdrop::Rect { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
-        crate::backdrop::set_frame(&window, glass, rect.radius);
+    let glass = crate::backdrop::Rect { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    crate::backdrop::set_frame(&window, glass, rect.radius);
+    backend::hit_rect_changed(window.app_handle());
+}
+
+/// Esquece a geometria da barra de uma janela destruída.
+pub fn forget_hit_rect(label: &str) {
+    if let Some(m) = HITS.lock().unwrap().as_mut() {
+        m.remove(label);
     }
-    backend::hit_rect_changed(&app);
 }
 
 /// O Clawd (mascote das sessões do Claude Code) anda logo para fora da barra, então a área dele
@@ -550,7 +596,11 @@ pub fn reveal_strip(thickness: f64, window: (f64, f64)) -> (f64, f64, f64, f64) 
 /// Área clicável da dock na janela. `headroom` é a folga do hover, que só vale enquanto o cursor
 /// está na dock; ela fica presa aos limites da janela.
 pub fn clickable_area(window: (f64, f64), headroom: f64) -> (f64, f64, f64, f64) {
-    let hit = hit_rect();
+    clickable_area_with(hit_rect(), window, headroom)
+}
+
+/// Como `clickable_area`, mas com a barra de uma janela específica (cada dock mede a própria).
+pub fn clickable_area_with(hit: HitRect, window: (f64, f64), headroom: f64) -> (f64, f64, f64, f64) {
     let hit = if hit.width <= 0.0 { reserved_hit(layout(), window) } else { hit };
     let (x0, y0, x1, y1) = clickable(hit, headroom, window);
     (x0.max(0.0), y0.max(0.0), x1.min(window.0), y1.min(window.1))
@@ -574,7 +624,7 @@ pub fn at_dock_edge(cx: f64, cy: f64, window: Band, scale: f64) -> bool {
 #[derive(Clone, Copy, Debug)]
 // O macOS não reserva área de trabalho, então só posiciona a janela; o Windows usa só a faixa.
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
-struct Placement {
+pub(crate) struct Placement {
     x: i32,
     y: i32,
     width: u32,
@@ -586,13 +636,11 @@ struct Placement {
     monitor: Band,
 }
 
-/// Posiciona a janela na borda escolhida do monitor da dock, encostada na tela.
-fn place_window(window: &WebviewWindow) -> Option<Placement> {
+/// Posiciona a janela no monitor dado, encostada na borda escolhida. Não grava em `PLACED`.
+pub(crate) fn place_window_with(window: &WebviewWindow, monitor: Monitor) -> Option<Placement> {
     #[cfg(not(target_os = "macos"))]
     use tauri::{PhysicalPosition, PhysicalSize};
     let layout = layout();
-    let monitor = target_monitor(window)?;
-    *PLACED.lock().unwrap() = Some(monitor_key(&monitor));
     let scale = monitor.scale_factor();
     let pos = monitor.position();
     let size = monitor.size();
@@ -620,6 +668,22 @@ fn place_window(window: &WebviewWindow) -> Option<Placement> {
         let _ = window.set_position(PhysicalPosition::new(x, y));
     }
     Some(Placement { x, y, width, height, band: reserved_band(bounds, reserved), monitor: bounds })
+}
+
+/// Posiciona a janela na borda escolhida do monitor da dock, encostada na tela.
+fn place_window(window: &WebviewWindow) -> Option<Placement> {
+    let monitor = target_monitor(window)?;
+    *PLACED.lock().unwrap() = Some(monitor_key(&monitor));
+    place_window_with(window, monitor)
+}
+
+/// Resolve o monitor pelo id e posiciona a janela nele. Não grava em `PLACED`.
+/// Retorna `None` quando o monitor não está conectado.
+pub(crate) fn place_window_on(window: &WebviewWindow, monitor_id: &str) -> Option<Placement> {
+    let monitors = window.available_monitors().ok()?;
+    let i = ids_of(&monitors).iter().position(|id| id == monitor_id)?;
+    let monitor = monitors.into_iter().nth(i)?;
+    place_window_with(window, monitor)
 }
 
 #[cfg(test)]
@@ -668,10 +732,10 @@ mod tests {
     fn without_a_measured_bar_the_whole_reserved_band_is_clickable() {
         let previous = layout();
         *LAYOUT.lock().unwrap() = Layout { reserved: 72.0, window_size: 170.0, hover_headroom: 80.0 };
-        *HIT.lock().unwrap() = HitRect::default();
+        let no_bar = HitRect::default();
         let window = (1920.0, 1080.0);
-        assert_eq!(with_position("right", || clickable_area(window, 0.0)), (1848.0, 0.0, 1920.0, 1080.0));
-        assert_eq!(with_position("bottom", || clickable_area(window, 30.0)), (0.0, 978.0, 1920.0, 1080.0));
+        assert_eq!(with_position("right", || clickable_area_with(no_bar, window, 0.0)), (1848.0, 0.0, 1920.0, 1080.0));
+        assert_eq!(with_position("bottom", || clickable_area_with(no_bar, window, 30.0)), (0.0, 978.0, 1920.0, 1080.0));
         *LAYOUT.lock().unwrap() = previous;
     }
 

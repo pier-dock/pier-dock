@@ -135,7 +135,7 @@ fn start_pointer_thread(window: WebviewWindow) {
                 ignoring = !over_dock;
                 let _ = window.set_ignore_cursor_events(ignoring);
                 if ignoring {
-                    let _ = window.emit("dock-pointer-left", ());
+                    let _ = window.emit_to(window.label(), "dock-pointer-left", ());
                 }
             }
         }

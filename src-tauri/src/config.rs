@@ -107,7 +107,7 @@ pub struct Config {
     pub dock_width: String,
     /// Borda da tela onde a dock fica: "bottom", "top", "left" ou "right".
     pub dock_position: String,
-    /// Monitor da dock: "primary" ou o id de um monitor (`dock_window::list_monitors`).
+    /// Monitor da dock: "primary", "cursor", "all" ou o id de um monitor (`dock_window::list_monitors`).
     pub dock_monitor: String,
     /// Altura da barra em pixels; `None` acompanha o tamanho do ícone (`iconSize + 24`).
     pub dock_height: Option<u32>,

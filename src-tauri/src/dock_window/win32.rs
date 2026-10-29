@@ -2,7 +2,7 @@
 //! acompanha o cursor), ocultação automática e ocultação quando um app está em tela cheia.
 
 use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
@@ -21,8 +21,8 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use super::{
-    at_dock_edge, auto_hide, clickable_area, hit_rect, layout, place_window, position, set_visible, want_visible, Band, AUTO_HIDE_NEVER, BOTTOM,
-    DOCK_LABEL, FULLSCREEN_ACTIVE, HOVER_GRACE_MS, LEFT, RIGHT, TOP,
+    at_dock_edge, auto_hide, clickable_area, clickable_area_with, hit_rect, hit_rect_for, layout, place_window, position,
+    set_visible, want_visible, Band, AUTO_HIDE_NEVER, BOTTOM, DOCK_LABEL, FULLSCREEN_ACTIVE, HOVER_GRACE_MS, LEFT, RIGHT, TOP,
 };
 use crate::util::wide_to_string;
 
@@ -129,10 +129,10 @@ fn appbar_edge() -> u32 {
     }
 }
 
-fn appbar_data(rect: RECT) -> APPBARDATA {
+fn appbar_data_for(hwnd: HWND, rect: RECT) -> APPBARDATA {
     APPBARDATA {
         cbSize: std::mem::size_of::<APPBARDATA>() as u32,
-        hWnd: dock_hwnd(),
+        hWnd: hwnd,
         uCallbackMessage: WM_USER + 0x4D,
         uEdge: appbar_edge(),
         rc: rect,
@@ -142,17 +142,17 @@ fn appbar_data(rect: RECT) -> APPBARDATA {
 
 /// Registra a faixa reservada como AppBar. O shell pode encolher a faixa ao responder
 /// `ABM_QUERYPOS`; a espessura escolhida volta no `ABM_SETPOS`, encostada na borda da dock.
-fn register_appbar(band: Band) {
-    if dock_hwnd().is_invalid() {
+fn register_appbar_for(hwnd: HWND, band: Band, registered: &AtomicBool) {
+    if hwnd.is_invalid() {
         return;
     }
     let thickness = match position() {
         TOP | BOTTOM => band.height(),
         _ => band.width(),
     };
-    let mut abd = appbar_data(RECT { left: band.left, top: band.top, right: band.right, bottom: band.bottom });
+    let mut abd = appbar_data_for(hwnd, RECT { left: band.left, top: band.top, right: band.right, bottom: band.bottom });
     unsafe {
-        if !APPBAR_REGISTERED.swap(true, Ordering::SeqCst) {
+        if !registered.swap(true, Ordering::SeqCst) {
             SHAppBarMessage(ABM_NEW, &mut abd);
         }
         SHAppBarMessage(ABM_QUERYPOS, &mut abd);
@@ -166,13 +166,134 @@ fn register_appbar(band: Band) {
     }
 }
 
-pub fn remove_appbar() {
-    if APPBAR_REGISTERED.swap(false, Ordering::SeqCst) {
-        let mut abd = appbar_data(RECT::default());
+fn remove_appbar_for(hwnd: HWND, registered: &AtomicBool) {
+    if registered.swap(false, Ordering::SeqCst) {
+        let mut abd = appbar_data_for(hwnd, RECT::default());
         unsafe {
             SHAppBarMessage(ABM_REMOVE, &mut abd);
         }
     }
+}
+
+fn register_appbar(band: Band) {
+    register_appbar_for(dock_hwnd(), band, &APPBAR_REGISTERED);
+}
+
+pub fn remove_appbar() {
+    remove_appbar_for(dock_hwnd(), &APPBAR_REGISTERED);
+}
+
+/// Converte o HWND do Tauri (crate windows 0.62) para o HWND local (crate windows 0.58).
+/// Ambos têm o mesmo layout: `pub struct HWND(pub *mut c_void)`.
+fn local_hwnd(window: &WebviewWindow) -> Option<HWND> {
+    window.hwnd().ok().map(|h| HWND(h.0 as *mut _))
+}
+
+/// Posiciona uma janela extra no monitor dado e gerencia seu AppBar independente.
+pub fn apply_layout_extra(
+    window: &WebviewWindow,
+    monitor_id: &str,
+    appbar_registered: &AtomicBool,
+    appbar_monitor: &Mutex<Option<super::Band>>,
+) {
+    let Some(p) = super::place_window_on(window, monitor_id) else { return };
+    if appbar_monitor.lock().unwrap().replace(p.monitor) != Some(p.monitor) {
+        if let Some(h) = local_hwnd(window) {
+            remove_appbar_for(h, appbar_registered);
+        }
+    }
+    if let Some(h) = local_hwnd(window) {
+        if auto_hide() == AUTO_HIDE_NEVER {
+            register_appbar_for(h, p.band, appbar_registered);
+        } else {
+            remove_appbar_for(h, appbar_registered);
+        }
+    }
+}
+
+/// Inicializa uma janela extra: posiciona, aplica estilos Win32 e inicia a thread de ponteiro
+/// simplificada (sem fullscreen detection, sem cursor-follow).
+pub fn init_extra(
+    window: &WebviewWindow,
+    monitor_id: &str,
+    appbar_registered: &AtomicBool,
+    appbar_monitor: &Mutex<Option<super::Band>>,
+    stop: Arc<AtomicBool>,
+) {
+    apply_layout_extra(window, monitor_id, appbar_registered, appbar_monitor);
+    let _ = window.set_ignore_cursor_events(true);
+    let _ = window.show();
+    if let Some(h) = local_hwnd(window) {
+        ensure_ex_style(h, true);
+    }
+    start_pointer_thread_extra(window.clone(), stop);
+}
+
+/// Thread de ponteiro para janelas extras: gerencia click-through e espelha a visibilidade
+/// da janela principal, com hover detection próprio. Sem fullscreen detection nem cursor-follow.
+/// Encerra quando `stop` é marcado (janela destruída).
+fn start_pointer_thread_extra(window: WebviewWindow, stop: Arc<AtomicBool>) {
+    let label = window.label().to_string();
+    std::thread::spawn(move || {
+        let mut ignoring = true;
+        let mut last_visible: Option<bool> = None;
+        loop {
+            std::thread::sleep(Duration::from_millis(if ignoring { 30 } else { 16 }));
+            if stop.load(Ordering::SeqCst) {
+                return;
+            }
+            let hwnd = match local_hwnd(&window) {
+                Some(h) => h,
+                // HWND ainda não pronto (logo após build): retentar em vez de encerrar a thread.
+                None => continue,
+            };
+            ensure_ex_style(hwnd, ignoring);
+
+            let mut cursor = POINT::default();
+            let mut win = RECT::default();
+            unsafe {
+                if GetCursorPos(&mut cursor).is_err() || GetWindowRect(hwnd, &mut win).is_err() {
+                    continue;
+                }
+            }
+            let scale = unsafe { GetDpiForWindow(hwnd) } as f64 / 96.0;
+            // A barra desta janela extra: o centro e o tamanho dependem do monitor em que ela está,
+            // então o hit da dock principal não serve (a área clicável sairia do lugar).
+            let hit = hit_rect_for(&label);
+            let (cx, cy) = (cursor.x as f64, cursor.y as f64);
+
+            // Verificar se o cursor está sobre a área interativa desta janela extra.
+            // Isso serve tanto para o click-through quanto para o hover detection próprio.
+            let cursor_over_dock = if hit.width > 0.0 {
+                let wb = Band::new(win.left, win.top, win.right, win.bottom);
+                let size = (wb.width() as f64 / scale, wb.height() as f64 / scale);
+                let headroom = if ignoring { 0.0 } else { layout().hover_headroom };
+                let (x0, y0, x1, y1) = clickable_area_with(hit, size, headroom);
+                let (left, top) = (win.left as f64 + x0 * scale, win.top as f64 + y0 * scale);
+                let (right, bottom) = (win.left as f64 + x1 * scale, win.top as f64 + y1 * scale);
+                cx >= left && cx <= right && cy >= top && cy <= bottom
+            } else {
+                false
+            };
+
+            // Visibilidade: dock principal visível OU cursor sobre esta janela extra (hover próprio).
+            // Sem isso, ao mover o cursor para a segunda tela o smart-autohide da dock principal
+            // esconde tudo e o click-through fica sempre ativo nesta janela.
+            let visible = super::dock_visible() || cursor_over_dock;
+            if last_visible != Some(visible) {
+                last_visible = Some(visible);
+                use tauri::Emitter;
+                let _ = window.emit_to(window.label(), "dock-visibility", visible);
+                crate::backdrop::set_hidden(&window, !visible);
+            }
+
+            let interactive = visible && cursor_over_dock;
+            if interactive == ignoring {
+                ignoring = !interactive;
+                ensure_ex_style(hwnd, ignoring);
+            }
+        }
+    });
 }
 
 /// Chamado quando o explorer.exe reinicia: o registro da AppBar se perdeu com o explorer antigo.
@@ -260,7 +381,7 @@ fn start_pointer_thread(window: WebviewWindow) {
                 ignoring = !interactive;
                 ensure_ex_style(hwnd, ignoring);
                 if ignoring {
-                    let _ = window.emit("dock-pointer-left", ());
+                    let _ = window.emit_to(window.label(), "dock-pointer-left", ());
                 }
             }
 

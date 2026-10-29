@@ -85,7 +85,7 @@ export interface Config {
   dockHeight: number | null;
   /** Borda da tela onde a dock fica. */
   dockPosition: DockPosition;
-  /** `primary` ou o id de um monitor (`MonitorInfo.id`). */
+  /** `primary`, `cursor`, `all` ou o id de um monitor (`MonitorInfo.id`). */
   dockMonitor: string;
   githubPollMinutes: number;
   aiPollMinutes: number;

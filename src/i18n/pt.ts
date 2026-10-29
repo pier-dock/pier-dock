@@ -660,6 +660,7 @@ export const pt = {
     followCursor: "Seguir o cursor",
     disconnected: (name: string) => `${name} (desconectado)`,
     monitorFallback: "Enquanto ele estiver desconectado, a dock fica no monitor principal.",
+    allMonitors: "Todas as telas",
     gnomeReserve: "Com esta versão da extensão do GNOME, a área que as janelas maximizadas não ocupam continua no monitor principal.",
     updateExtension: "Atualizar a extensão",
     extensionUpdated: "Extensão atualizada. Entre de novo na sessão para ela valer.",
