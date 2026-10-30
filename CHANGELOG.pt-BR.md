@@ -2,6 +2,15 @@
 
 O que mudou em cada versão do Pier. O app mostra estas notas uma vez depois de se atualizar, então escreva para quem usa. Antes de criar a tag de uma release, adicione uma seção `## <versão>` aqui e no `CHANGELOG.md`.
 
+## 0.23.0
+
+### Todas as telas
+- **Windows:** a escolha de **Mostrar a dock em** em **Configurações > Geral** ganhou a opção **Todas as telas**, que coloca uma dock em cada tela conectada. Cada uma reserva o próprio espaço na tela, e ligar ou desligar uma tela adiciona ou remove a dock dela sozinho. A opção só aparece quando há mais de uma tela conectada.
+
+### Correções
+- **Aparência:** o controle de opacidade do vidro agora também muda os popovers e as janelas de configurações e de novidades, não só a dock. Eles mantêm a diferença de sempre em relação à dock, então o texto continua legível, e nada muda na opacidade padrão.
+- **Widgets:** o widget **Pull requests** e o popover dele usam o ícone de pull request do GitHub.
+
 ## 0.22.0
 
 ### Grupos de widgets
