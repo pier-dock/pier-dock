@@ -2,6 +2,12 @@
 
 O que mudou em cada versão do Pier. O app mostra estas notas uma vez depois de se atualizar, então escreva para quem usa. Antes de criar a tag de uma release, adicione uma seção `## <versão>` aqui e no `CHANGELOG.md`.
 
+## 0.24.0
+
+### Widget de mercado
+- **Novo widget:** o widget **Mercado** acompanha ações, FIIs e criptomoedas da brapi.dev na dock. O formato quadrado mostra o primeiro ativo, o largo mostra até três, e o clique abre a lista completa com a faixa do dia, de 52 semanas, o volume e o valor de mercado.
+- **Configurações:** escolha até 12 ativos no total. Sem chave, o plano gratuito da brapi só responde PETR4, VALE3, MGLU3 e ITUB4. A chave opcional fica no cofre do sistema e libera os outros ativos e as criptomoedas.
+
 ## 0.23.0
 
 ### Todas as telas

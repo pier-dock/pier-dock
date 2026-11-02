@@ -9,6 +9,22 @@ use tauri_plugin_dialog::DialogExt;
 use crate::util::{data_dir, write_atomic, ErrStr};
 
 const MAX_POKEMON: usize = 10;
+const MAX_MARKET_ASSETS: usize = 12;
+
+fn normalize_market_symbols(values: Vec<String>, slots: &mut usize) -> Vec<String> {
+    let mut seen = Vec::new();
+    for value in values {
+        let symbol = value.trim().to_uppercase();
+        if !symbol.is_empty() && !seen.contains(&symbol) && seen.len() < *slots {
+            seen.push(symbol);
+        }
+    }
+    *slots -= seen.len();
+    seen
+}
+
+/// Ações e FIIs que a brapi responde sem chave; o widget usa estas por padrão.
+pub const FREE_MARKET_TICKERS: [&str; 4] = ["PETR4", "VALE3", "MGLU3", "ITUB4"];
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
@@ -127,6 +143,12 @@ pub struct Config {
     /// Apps fixados no topo do lançador, em galeria. Independe dos fixados na dock.
     pub launcher_pinned: Vec<AppEntry>,
     pub weather_location: Option<WeatherLocation>,
+    /// Ações e FIIs acompanhados pelo widget de mercado (ver `market.rs`).
+    pub market_tickers: Vec<String>,
+    /// Criptomoedas acompanhadas pelo widget de mercado, na moeda BRL.
+    pub market_coins: Vec<String>,
+    /// De quantos em quantos minutos as cotações do mercado são relidas.
+    pub market_poll_minutes: u32,
     pub pomodoro: PomodoroConfig,
     /// Idioma da interface: "system", "pt" ou "en".
     pub language: String,
@@ -207,6 +229,7 @@ impl Default for Config {
                 disabled("pokemon", "small"),
                 disabled("show-desktop", "small"),
                 disabled("keyboard-layout", "small"),
+                disabled("market", "wide"),
             ],
             material: "glass".into(),
             reduced_effects: false,
@@ -230,6 +253,9 @@ impl Default for Config {
             show_launcher: false,
             launcher_pinned: Vec::new(),
             weather_location: None,
+            market_tickers: FREE_MARKET_TICKERS.iter().map(|t| t.to_string()).collect(),
+            market_coins: Vec::new(),
+            market_poll_minutes: 5,
             pomodoro: PomodoroConfig::default(),
             language: "system".into(),
             auto_update: true,
@@ -322,6 +348,12 @@ fn read(value: serde_json::Value) -> Result<Config, String> {
 
 /// Uma config importada ou editada à mão pode trazer ids repetidos, fora da PokeAPI ou demais.
 fn normalize(mut config: Config) -> Config {
+    // Símbolos do mercado: maiúsculos, sem vazios nem repetidos, com um teto compartilhado entre
+    // ações e moedas para não estourar o limite de tickers por chamada da brapi.
+    let mut market_slots = MAX_MARKET_ASSETS;
+    config.market_tickers = normalize_market_symbols(config.market_tickers, &mut market_slots);
+    config.market_coins = normalize_market_symbols(config.market_coins, &mut market_slots);
+
     let mut seen = Vec::new();
     for id in config.pokemon_pet_ids {
         if (1..=crate::pokemon::MAX_ID).contains(&id) && !seen.contains(&id) && seen.len() < MAX_POKEMON {
@@ -709,6 +741,43 @@ mod tests {
         assert_eq!(ids(r#"{"pokemonPetIds":[]}"#), vec![25]);
         let many = (1..=15).map(|n| n.to_string()).collect::<Vec<_>>().join(",");
         assert_eq!(ids(&format!(r#"{{"pokemonPetIds":[{many}]}}"#)), (1..=10).collect::<Vec<u32>>());
+    }
+
+    #[test]
+    fn market_symbols_are_uppercased_deduped_and_bounded() {
+        let config = normalize(
+            serde_json::from_str(
+                r#"{
+                    "marketTickers": [" petr4 ", "PETR4", "", "vale3"],
+                    "marketCoins": ["btc", "ETH", "btc"]
+                }"#,
+            )
+            .unwrap(),
+        );
+        assert_eq!(config.market_tickers, vec!["PETR4", "VALE3"]);
+        assert_eq!(config.market_coins, vec!["BTC", "ETH"]);
+
+        let many = (1..=15).map(|n| format!(r#""A{n}""#)).collect::<Vec<_>>().join(",");
+        let config = normalize(serde_json::from_str(&format!(r#"{{"marketTickers":[{many}]}}"#)).unwrap());
+        assert_eq!(config.market_tickers.len(), MAX_MARKET_ASSETS);
+
+        // O limite é compartilhado: as moedas só ocupam o que sobrou das ações.
+        let config = normalize(
+            serde_json::from_str(
+                r#"{"marketTickers":["A","B","C","D","E","F","G","H","I","J"],"marketCoins":["BTC","ETH","SOL"]}"#,
+            )
+            .unwrap(),
+        );
+        assert_eq!(config.market_tickers.len(), 10);
+        assert_eq!(config.market_coins, vec!["BTC", "ETH"]);
+    }
+
+    #[test]
+    fn market_defaults_use_the_free_brapi_tickers() {
+        let config: Config = serde_json::from_str(r#"{"iconSize":40}"#).unwrap();
+        assert_eq!(config.market_tickers, FREE_MARKET_TICKERS);
+        assert!(config.market_coins.is_empty());
+        assert_eq!(config.market_poll_minutes, 5);
     }
 
     #[test]

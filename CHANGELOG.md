@@ -2,6 +2,12 @@
 
 What changed in each version of Pier. The app shows these notes once after it updates, so write them for users. Add a `## <version>` section before tagging a release, in this file and in `CHANGELOG.pt-BR.md`.
 
+## 0.24.0
+
+### Market widget
+- **New widget:** the **Market** widget follows stocks, REITs and cryptocurrencies from brapi.dev on the dock. The square format shows the first asset, the wide one shows up to three, and clicking opens the full list with the day and 52-week ranges, volume and market cap.
+- **Settings:** pick up to 12 assets in total. Without a key, the free brapi tier only answers PETR4, VALE3, MGLU3 and ITUB4. The optional key is stored in the system keychain and unlocks the other assets and cryptocurrencies.
+
 ## 0.23.0
 
 ### All displays

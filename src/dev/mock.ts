@@ -7,7 +7,7 @@
  * chama `listen` ao ser carregado. Dentro do Tauri ele não faz nada.
  */
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
-import type { AgentIntegration, AgentSession, AiUsage, AppEntry, BluetoothState, CalendarData, Config, GithubData, KeyboardLayouts, MediaState, PomodoroState, SystemUsage, WeatherData, WindowsSnapshot } from "../lib/ipc";
+import type { AgentIntegration, AgentSession, AiUsage, AppEntry, BluetoothState, CalendarData, Config, GithubData, KeyboardLayouts, MarketData, MediaState, PomodoroState, SystemUsage, WeatherData, WindowsSnapshot } from "../lib/ipc";
 import { PANEL_INSET, panelSize } from "../popovers/sizes";
 
 const insideTauri = "__TAURI_INTERNALS__" in window;
@@ -71,6 +71,7 @@ const config: Config = {
     { kind: "system-usage", enabled: params.has("new"), size: "wide" },
     { kind: "calendar", enabled: params.has("new"), size: "wide" },
     { kind: "ai-usage", enabled: params.has("new"), size: "wide" },
+    { kind: "market", enabled: params.has("new"), size: "wide" },
     { kind: "show-desktop", enabled: params.has("new"), size: "small" },
     { kind: "keyboard-layout", enabled: params.has("new"), size: "small" },
     { kind: "pokemon", enabled: false, size: "small" },
@@ -97,6 +98,9 @@ const config: Config = {
   showLauncher: false,
   launcherPinned: [...apps.slice(1, 3), installed[2]].map(({ id, name, target }) => ({ id, name, target })),
   weatherLocation: { name: "Campinas", admin: "São Paulo, Brasil", latitude: -22.9, longitude: -47.06 },
+  marketTickers: ["PETR4", "VALE3", "MGLU3", "ITUB4"],
+  marketCoins: ["BTC"],
+  marketPollMinutes: 5,
   pomodoro: { preset: "25-5", focusMinutes: 25, breakMinutes: 5 },
   language: "system",
   autoUpdate: true,
@@ -208,6 +212,84 @@ const weather: WeatherData = {
   ].map(([code, min, max], i) => ({ date: dayIso(i), code, min, max })),
   fetchedAt: Date.now() - 3 * MINUTE,
 };
+
+const market: MarketData = {
+  assets: [
+    {
+      symbol: "PETR4",
+      name: "Petroleo Brasileiro SA Pfd",
+      kind: "ticker",
+      price: 52.71,
+      change: 0.51,
+      changePercent: 0.98,
+      currency: "BRL",
+      logoUrl: null,
+      dayLow: 52.36,
+      dayHigh: 53.66,
+      weekLow: 29.53,
+      weekHigh: 59.79,
+      volume: 61_743_200,
+      marketCap: 726_564_863_632,
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      symbol: "VALE3",
+      name: "Vale SA",
+      kind: "ticker",
+      price: 61.42,
+      change: -0.22,
+      changePercent: -0.36,
+      currency: "BRL",
+      logoUrl: null,
+      dayLow: 60.9,
+      dayHigh: 62.1,
+      weekLow: 52.1,
+      weekHigh: 68.4,
+      volume: 34_120_000,
+      marketCap: 275_400_000_000,
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      symbol: "MGLU3",
+      name: "Magazine Luiza SA",
+      kind: "ticker",
+      price: 8.9,
+      change: 0.11,
+      changePercent: 1.25,
+      currency: "BRL",
+      logoUrl: null,
+      dayLow: 8.7,
+      dayHigh: 9.02,
+      weekLow: 5.8,
+      weekHigh: 12.4,
+      volume: 18_400_000,
+      marketCap: 6_100_000_000,
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      symbol: "BTC",
+      name: "Bitcoin",
+      kind: "crypto",
+      price: 380_000,
+      change: -2_000,
+      changePercent: -0.52,
+      currency: "BRL",
+      logoUrl: null,
+      dayLow: 375_000,
+      dayHigh: 385_000,
+      weekLow: null,
+      weekHigh: null,
+      volume: 1_200,
+      marketCap: null,
+      updatedAt: new Date().toISOString(),
+    },
+  ],
+  unavailable: [],
+  missing: [],
+  fetchedAt: Date.now() - 2 * MINUTE,
+};
+
+let marketToken = false;
 
 let pomodoro: PomodoroState = {
   phase: "focus",
@@ -402,6 +484,13 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   weather_cached: () => weather,
   weather_fetch: () => weather,
   weather_search: () => [config.weatherLocation, { name: "Campinas", admin: "Mato Grosso do Sul, Brasil", latitude: -20.4, longitude: -54.6 }],
+  market_cached: () => market,
+  market_fetch: () => market,
+  market_token_status: () => marketToken,
+  market_set_token: (args) => {
+    marketToken = !!args.token;
+    return null;
+  },
   pomodoro_state: () => pomodoro,
   pomodoro_control: (args) => {
     if (args.action === "toggle") {

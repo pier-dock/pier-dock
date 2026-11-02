@@ -606,6 +606,146 @@
   background: var(--amber);
 }
 
+/* Mercado */
+.market-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 16px 16px 6px;
+}
+
+.market-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0;
+  padding: 2px 8px 8px;
+  list-style: none;
+}
+
+.market-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: var(--radius-control);
+}
+
+.market-row:is(:hover, [data-hover]) {
+  background: var(--fill-hover);
+}
+
+.market-logo {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--fill);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.market-logo img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.market-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.market-row-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.market-row-symbol {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.market-row-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.market-row-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.market-row-values {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.market-row-price {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.market-row-change {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.market-row-change.up {
+  color: var(--success);
+}
+
+.market-row-change.down {
+  color: var(--danger);
+}
+
+.market-row-change.flat {
+  color: var(--text-tertiary);
+}
+
+.market-note {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 12px 6px;
+  padding: 8px 10px;
+  border-radius: var(--radius-control);
+  background: var(--fill-subtle);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.market-source {
+  margin: 2px 14px 8px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
 /* Pomodoro */
 .pomo-dial {
   position: relative;

@@ -9,6 +9,7 @@ import { Commits } from "./Commits";
 import { Contributions } from "./Contributions";
 import { KeyboardLayoutPanel } from "./KeyboardLayout";
 import { Launcher } from "./Launcher";
+import { Market } from "./Market";
 import { NowPlaying } from "./NowPlaying";
 import { PowerPanel } from "./Power";
 import { Pomodoro } from "./Pomodoro";
@@ -38,6 +39,8 @@ function Content({ kind }: { kind: string }) {
       return <Contributions />;
     case "weather":
       return <Weather />;
+    case "market":
+      return <Market />;
     case "pomodoro":
       return <Pomodoro />;
     case "battery":

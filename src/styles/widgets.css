@@ -358,7 +358,8 @@
 .pomo-tile.wide,
 .usage-tile.wide,
 .cal-tile.wide,
-.ai-tile.wide {
+.ai-tile.wide,
+.market-tile.wide {
   width: 176px;
   height: 48px;
   border-radius: var(--radius-card);
@@ -368,7 +369,8 @@
 .pomo-tile.small,
 .usage-tile.small,
 .cal-tile.small,
-.ai-tile.small {
+.ai-tile.small,
+.market-tile.small {
   width: 48px;
   height: 48px;
   padding: 0;
@@ -454,6 +456,94 @@
 .wx-icon.wx-rain,
 .wx-icon.wx-drizzle {
   color: var(--blue);
+}
+
+/* Mercado */
+.market-tile.wide {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  padding: 0 9px;
+}
+
+.market-tile.small {
+  padding: 0 3px;
+}
+
+.market-tile.idle {
+  color: var(--text-tertiary);
+}
+
+.market-idle-text {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.market-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  text-align: left;
+  animation: market-cell-in 320ms ease-out;
+}
+
+@keyframes market-cell-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .market-cell {
+    animation: none;
+  }
+}
+
+.market-tile.small .market-cell {
+  align-items: center;
+}
+
+.market-symbol {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.market-quote {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.market-tile.small .market-quote {
+  font-size: 10px;
+}
+
+.market-change {
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.market-change.up {
+  color: var(--success);
+}
+
+.market-change.down {
+  color: var(--danger);
+}
+
+.market-change.flat {
+  color: var(--text-tertiary);
 }
 
 /* Anel de progresso (Pomodoro) */
