@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { ipc, MAX_POKEMON, type AgentIntegration, type AgentProviderId, type AiProvider, type PokemonEntry, type WeatherLocation } from "../../lib/ipc";
+import { ipc, MAX_MARKET_ASSETS, MAX_POKEMON, type AgentIntegration, type AgentProviderId, type AiProvider, type PokemonEntry, type WeatherLocation } from "../../lib/ipc";
+import { parseSymbols } from "../../lib/market";
 import { usePokemonSprite } from "../../hooks/usePokemonSprite";
 import { AI_PROVIDERS, providerName } from "../../lib/aiUsage";
 import { labels } from "../../lib/platform";
@@ -71,6 +72,149 @@ export function WeatherOptions({ config, update }: OptionsProps) {
             ))}
           </ul>
         )}
+      </div>
+    </>
+  );
+}
+
+const MARKET_INTERVALS = [1, 3, 5, 15, 30];
+
+/** Lista de símbolos digitada à mão; só grava ao sair do campo ou apertar Enter. */
+function SymbolsInput({ label, placeholder, value, onCommit }: { label: string; placeholder: string; value: string[]; onCommit: (symbols: string[]) => void }) {
+  const serialized = value.join(", ");
+  const [draft, setDraft] = useState(serialized);
+  useEffect(() => setDraft(serialized), [serialized]);
+  const commit = () => {
+    const symbols = parseSymbols(draft);
+    setDraft(symbols.join(", "));
+    if (symbols.join(",") !== value.join(",")) onCommit(symbols);
+  };
+  return (
+    <input
+      className="text-input"
+      placeholder={placeholder}
+      aria-label={label}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        commit();
+      }}
+    />
+  );
+}
+
+/**
+ * Ativos do widget de mercado. Sem chave, a brapi só responde a lista gratuita, então as ações
+ * fora dela e as criptomoedas aparecem no aviso do painel em vez de sumirem sem explicação.
+ */
+export function MarketOptions({ config, update }: OptionsProps) {
+  const [hasKey, setHasKey] = useState<boolean | null>(null);
+  const [key, setKey] = useState("");
+  const [status, setStatus] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const { widgetOptions: t, common } = useT();
+
+  const refreshKey = () => ipc.marketTokenStatus().then(setHasKey).catch(() => setHasKey(false));
+  useEffect(() => {
+    refreshKey();
+  }, []);
+
+  const saveKey = async () => {
+    setBusy(true);
+    try {
+      await ipc.marketSetToken(key);
+      setKey("");
+      await refreshKey();
+      setStatus(t.marketKeyStatusSaved);
+    } catch (e) {
+      setStatus(common.error(String(e)));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const removeKey = async () => {
+    setBusy(true);
+    try {
+      await ipc.marketSetToken(null);
+      await refreshKey();
+      setStatus(t.marketKeyStatusMissing);
+    } catch (e) {
+      setStatus(common.error(String(e)));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const tickers = config.marketTickers;
+  const coins = config.marketCoins;
+  const count = tickers.length + coins.length;
+  const intervals = MARKET_INTERVALS.includes(config.marketPollMinutes)
+    ? MARKET_INTERVALS
+    : [...MARKET_INTERVALS, config.marketPollMinutes].sort((a, b) => a - b);
+
+  return (
+    <>
+      <Row label={t.marketTickers} description={t.marketTickersHint} />
+      <div className="row row-stack">
+        <SymbolsInput
+          label={t.marketTickers}
+          placeholder={t.marketTickersPlaceholder}
+          value={tickers}
+          onCommit={(symbols) => update({ marketTickers: symbols.slice(0, MAX_MARKET_ASSETS - coins.length) })}
+        />
+      </div>
+      <Row label={t.marketCoins} description={t.marketCoinsHint} />
+      <div className="row row-stack">
+        <SymbolsInput
+          label={t.marketCoins}
+          placeholder={t.marketCoinsPlaceholder}
+          value={coins}
+          onCommit={(symbols) => update({ marketCoins: symbols.slice(0, MAX_MARKET_ASSETS - tickers.length) })}
+        />
+      </div>
+      <Row label={t.marketPoll} description={t.marketPollHint}>
+        <Segmented
+          label={t.marketPoll}
+          value={String(config.marketPollMinutes)}
+          onChange={(v) => update({ marketPollMinutes: Number(v) })}
+          options={intervals.map((minutes) => ({ value: String(minutes), label: `${minutes} min` }))}
+        />
+      </Row>
+      <Row label={t.marketKey} description={hasKey ? t.marketKeyStatusSaved : t.marketKeyStatusMissing} />
+      <div className="row row-stack">
+        <form
+          className="token-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (key.trim()) saveKey();
+          }}
+        >
+          <input
+            className="text-input"
+            type="password"
+            aria-label={t.marketKey}
+            placeholder={t.marketKeyPlaceholder}
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+          />
+          <button className="btn btn-primary" type="submit" disabled={!key.trim() || busy}>
+            {common.save}
+          </button>
+          {hasKey && (
+            <button className="btn" type="button" disabled={busy} onClick={removeKey}>
+              {t.marketKeyRemove}
+            </button>
+          )}
+          <p className="field-hint" role="status">
+            {status ?? t.marketKeyHint(labels().keychain)}
+          </p>
+        </form>
+        <p className="field-hint">
+          {t.marketLimit(MAX_MARKET_ASSETS)} ({count}/{MAX_MARKET_ASSETS})
+        </p>
       </div>
     </>
   );

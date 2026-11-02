@@ -10,6 +10,7 @@ export const PANEL_SIZES: Record<string, [number, number]> = {
   "github-commits": [440, 400],
   "github-contrib": [500, 228],
   weather: [360, 426],
+  market: [360, 480],
   pomodoro: [360, 406],
   "system-usage": [360, 460],
   calendar: [360, 420],

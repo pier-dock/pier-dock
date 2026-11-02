@@ -25,3 +25,11 @@ test("weather configuration changes update weather but not other widgets", () =>
   assert.equal(selectWidgetData("weather", after).weatherConfigured, true);
   assert.ok(shallow(selectWidgetData("battery", EMPTY_WIDGET_DATA), selectWidgetData("battery", after)));
 });
+
+test("market quotes update only the market widget", () => {
+  const after = { ...EMPTY_WIDGET_DATA, market: { assets: [], unavailable: [], missing: [], fetchedAt: 1 } };
+  assert.equal(selectWidgetData("market", after).market, after.market);
+  for (const kind of ["weather", "calendar", "system-usage"] as const) {
+    assert.ok(shallow(selectWidgetData(kind, EMPTY_WIDGET_DATA), selectWidgetData(kind, after)));
+  }
+});

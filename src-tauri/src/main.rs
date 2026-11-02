@@ -13,6 +13,7 @@ mod github;
 mod i18n;
 mod icons;
 mod keyboard;
+mod market;
 mod media;
 #[cfg(windows)]
 mod notifications;
@@ -246,6 +247,10 @@ fn main() {
             weather::weather_fetch,
             weather::weather_cached,
             weather::weather_search,
+            market::market_fetch,
+            market::market_cached,
+            market::market_token_status,
+            market::market_set_token,
             pomodoro::pomodoro_state,
             pomodoro::pomodoro_control,
             usage::system_usage,

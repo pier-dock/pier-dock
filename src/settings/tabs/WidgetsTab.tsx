@@ -10,9 +10,10 @@ import { useBluetooth, useSystemStatus } from "../../hooks/useSystem";
 import { useWeather } from "../../hooks/useWeather";
 import { useCalendar } from "../../hooks/useCalendar";
 import { useAiUsage } from "../../hooks/useAiUsage";
+import { useMarket } from "../../hooks/useMarket";
 import { RESIZABLE, WidgetView, formatsOf, type WidgetData } from "../../widgets/WidgetView";
 import { FitScale } from "../../widgets/FitScale";
-import { AgentSessionsOptions, AiUsageOptions, CalendarOptions, PokemonOptions, PomodoroOptions, WeatherOptions } from "./WidgetOptions";
+import { AgentSessionsOptions, AiUsageOptions, CalendarOptions, MarketOptions, PokemonOptions, PomodoroOptions, WeatherOptions } from "./WidgetOptions";
 import { Card, Row } from "../../ui/Card";
 import { Segmented } from "../../ui/Segmented";
 import { Switch } from "../../ui/Switch";
@@ -44,6 +45,7 @@ const WIDGETS: Record<WidgetKind, { group: Group; tint: [string, string] }> = {
   pomodoro: { group: "productivity", tint: ["#6A1E22", "#3A1A2A"] },
   "system-usage": { group: "system", tint: ["#3A1E6A", "#1E2A4A"] },
   calendar: { group: "productivity", tint: ["#1E2A6A", "#2A1E5A"] },
+  market: { group: "productivity", tint: ["#123A2A", "#1E2A4A"] },
   "ai-usage": { group: "productivity", tint: ["#5A2E1E", "#20242C"] },
   "ai-agents": { group: "productivity", tint: ["#3A2E1E", "#20242C"] },
   pokemon: { group: "fun", tint: ["#3A3A12", "#1E2A4A"] },
@@ -203,6 +205,7 @@ function WidgetDialog({
               </Row>
             )}
             {widget.kind === "weather" && <WeatherOptions config={config} update={update} />}
+            {widget.kind === "market" && <MarketOptions config={config} update={update} />}
             {widget.kind === "pomodoro" && <PomodoroOptions config={config} update={update} />}
             {widget.kind === "calendar" && <CalendarOptions />}
             {widget.kind === "ai-usage" && <AiUsageOptions config={config} update={update} />}
@@ -325,6 +328,7 @@ export function WidgetsTab({ config, update, setFooter }: TabProps) {
     weatherConfigured: !!config.weatherLocation,
     calendar: useCalendar(),
     ai: useAiUsage(),
+    market: useMarket(),
   };
 
   const actions: WidgetActions = {

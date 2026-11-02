@@ -9,6 +9,7 @@ import { useBluetooth, useKeyboardLayouts, useSystemStatus } from "../hooks/useS
 import { useWeather } from "../hooks/useWeather";
 import { useCalendar } from "../hooks/useCalendar";
 import { useAiUsage } from "../hooks/useAiUsage";
+import { useMarket } from "../hooks/useMarket";
 import { WidgetView } from "./WidgetView";
 import { EMPTY_WIDGET_DATA, selectWidgetData, type WidgetData } from "./widgetData";
 
@@ -27,10 +28,12 @@ export function DockWidgetsProvider({ config, children }: { config: Config; chil
   const [bluetooth] = useBluetooth(enabled("bluetooth"));
   const { keyboard } = useKeyboardLayouts(enabled("keyboard-layout"));
   const ai = useAiUsage(enabled("ai-usage") ? config.aiPollMinutes : undefined, config.aiProvider);
+  const marketSymbols = `${config.marketTickers.join(",")}|${config.marketCoins.join(",")}`;
+  const market = useMarket(enabled("market") ? config.marketPollMinutes : undefined, marketSymbols);
   const weatherConfigured = !!place;
   useLayoutEffect(() => {
-    store.setState({ media, github, system, weather, calendar, bluetooth, keyboard, ai, weatherConfigured });
-  }, [store, media, github, system, weather, calendar, bluetooth, keyboard, ai, weatherConfigured]);
+    store.setState({ media, github, system, weather, calendar, bluetooth, keyboard, ai, market, weatherConfigured });
+  }, [store, media, github, system, weather, calendar, bluetooth, keyboard, ai, market, weatherConfigured]);
   return <WidgetStore.Provider value={store}>{children}</WidgetStore.Provider>;
 }
 

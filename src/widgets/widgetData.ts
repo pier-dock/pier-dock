@@ -1,4 +1,4 @@
-import type { AiUsage, BluetoothState, CalendarData, GithubData, KeyboardLayouts, MediaState, SystemStatus, WeatherData, WidgetKind } from "../lib/ipc";
+import type { AiUsage, BluetoothState, CalendarData, GithubData, KeyboardLayouts, MarketData, MediaState, SystemStatus, WeatherData, WidgetKind } from "../lib/ipc";
 
 export interface WidgetData {
   media: MediaState;
@@ -10,11 +10,12 @@ export interface WidgetData {
   weatherConfigured: boolean;
   calendar: CalendarData | null;
   ai: AiUsage | null;
+  market: MarketData | null;
 }
 
 export const EMPTY_WIDGET_DATA: WidgetData = {
   media: { sessions: [] }, github: null, system: null, bluetooth: null, keyboard: null,
-  weather: null, weatherConfigured: false, calendar: null, ai: null,
+  weather: null, weatherConfigured: false, calendar: null, ai: null, market: null,
 };
 
 /** Select only the data consumed by this widget. All other references stay constant. */
@@ -29,6 +30,7 @@ export function selectWidgetData(kind: WidgetKind, data: WidgetData): WidgetData
     case "weather": return { ...EMPTY_WIDGET_DATA, weather: data.weather, weatherConfigured: data.weatherConfigured };
     case "calendar": return { ...EMPTY_WIDGET_DATA, calendar: data.calendar };
     case "ai-usage": return { ...EMPTY_WIDGET_DATA, ai: data.ai };
+    case "market": return { ...EMPTY_WIDGET_DATA, market: data.market };
     default: return EMPTY_WIDGET_DATA;
   }
 }

@@ -30,6 +30,7 @@ export type WidgetKind =
   | "calendar"
   | "ai-usage"
   | "ai-agents"
+  | "market"
   | "pokemon";
 
 export interface WidgetConfig {
@@ -101,6 +102,12 @@ export interface Config {
   /** Apps fixados no topo do lançador, em galeria. Independe dos fixados na dock. */
   launcherPinned: AppEntry[];
   weatherLocation: WeatherLocation | null;
+  /** Ações e FIIs acompanhados pelo widget de mercado. */
+  marketTickers: string[];
+  /** Criptomoedas acompanhadas pelo widget de mercado, cotadas em BRL. */
+  marketCoins: string[];
+  /** De quantos em quantos minutos o widget de mercado relê as cotações. */
+  marketPollMinutes: number;
   pomodoro: PomodoroConfig;
   language: LanguageSetting;
   /** Instala sozinho a atualização encontrada logo depois de abrir. */
@@ -118,6 +125,9 @@ export interface Config {
 
 /** Quantos Pokémon o widget aceita; o mesmo limite vale no Rust (`config.rs`). */
 export const MAX_POKEMON = 10;
+
+/** Quantos ativos o widget de mercado aceita no total (tickers + moedas); o mesmo limite vale no Rust. */
+export const MAX_MARKET_ASSETS = 12;
 
 export interface PokemonEntry {
   id: number;
@@ -238,6 +248,36 @@ export interface WeatherData {
   /** A hora atual e as 5 seguintes, no horário da cidade (`2026-10-16T16:00`). */
   hourly: { time: string; temperature: number; code: number; precipitationProbability: number; isDay: boolean }[];
   daily: { date: string; code: number; min: number; max: number }[];
+  fetchedAt: number;
+  error?: string | null;
+}
+
+export interface MarketAsset {
+  symbol: string;
+  name: string;
+  /** "ticker" (ação ou FII) ou "crypto". */
+  kind: "ticker" | "crypto";
+  price: number;
+  change: number;
+  changePercent: number;
+  currency: string;
+  logoUrl?: string | null;
+  dayLow?: number | null;
+  dayHigh?: number | null;
+  weekLow?: number | null;
+  weekHigh?: number | null;
+  volume?: number | null;
+  marketCap?: number | null;
+  /** Horário da cotação, em ISO 8601. */
+  updatedAt: string;
+}
+
+export interface MarketData {
+  assets: MarketAsset[];
+  /** Símbolos ignorados por falta de chave (fora da lista gratuita da brapi). */
+  unavailable: string[];
+  /** Símbolos pedidos que a brapi não devolveu. */
+  missing: string[];
   fetchedAt: number;
   error?: string | null;
 }
@@ -527,6 +567,11 @@ export const ipc = {
   weatherFetch: () => invoke<WeatherData>("weather_fetch"),
   weatherCached: () => invoke<WeatherData | null>("weather_cached"),
   weatherSearch: (query: string) => invoke<WeatherLocation[]>("weather_search", { query }),
+
+  marketFetch: () => invoke<MarketData>("market_fetch"),
+  marketCached: () => invoke<MarketData | null>("market_cached"),
+  marketTokenStatus: () => invoke<boolean>("market_token_status"),
+  marketSetToken: (token: string | null) => invoke<void>("market_set_token", { token }),
 
   pomodoroState: () => invoke<PomodoroState>("pomodoro_state"),
   pomodoroControl: (action: "toggle" | "skip" | "reset") => invoke<PomodoroState>("pomodoro_control", { action }),
