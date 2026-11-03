@@ -25,7 +25,7 @@ type Group = keyof Dict["widgets"]["groups"];
 
 const groupOf = (config: Config, kind: WidgetKind) => (config.widgetGroups ?? []).find((group) => group.members.includes(kind));
 
-const groupTitle = (group: WidgetGroup, t: Dict["widgets"]) => group.members.map((kind) => t.info[kind].name).join(", ");
+const groupTitle = (group: WidgetGroup, t: Dict["widgets"]) => group.members.filter(widgetSupported).map((kind) => t.info[kind].name).join(", ");
 
 /** Grupo e as duas cores de fundo do palco de cada widget; nome e textos vêm do dicionário. */
 const WIDGETS: Record<WidgetKind, { group: Group; tint: [string, string] }> = {

@@ -9,7 +9,11 @@ export const os: Os = detectOs(navigator.userAgent);
 
 /** A bandeja (ícones ocultos) e a troca de layout do teclado só existem no Windows. */
 const WINDOWS_ONLY = new Set(["tray", "keyboard-layout"]);
-export const widgetSupported = (kind: string) => !WINDOWS_ONLY.has(kind) || os === "windows";
+
+/** A config pode trazer widgets de uma versão mais nova do app: ficam guardados, mas não aparecem. */
+const widgetKnown = (kind: string) => Object.prototype.hasOwnProperty.call(dict().widgets.info, kind);
+
+export const widgetSupported = (kind: string) => widgetKnown(kind) && (!WINDOWS_ONLY.has(kind) || os === "windows");
 
 /** Teclas dos atalhos como aparecem nos chips (`Kbd`), com os símbolos do Mac no macOS. */
 export const keys = {

@@ -13,6 +13,7 @@ export const pt = {
     positionOf: (position: number, total: number) => `${position} de ${total}`,
     error: (message: string) => `Erro: ${message}`,
     loadFailed: "Não foi possível carregar as configurações do Pier.",
+    sectionFailed: "Não foi possível mostrar esta seção.",
     tryAgain: "Tentar de novo",
     updatedAgo: (ago: string) => `Atualizado ${ago}`,
     play: "Tocar",

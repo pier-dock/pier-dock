@@ -28,3 +28,23 @@ test("a failed save puts the previous value back", async ({ page }) => {
   await expectCall(page, "save_config", { config: expect.objectContaining({ autoUpdate: false }) });
   await expect(autoUpdate).toHaveAttribute("aria-checked", "true");
 });
+
+test("a tab that fails to render leaves the other tabs reachable", async ({ page }) => {
+  // Sem `battery`, a prévia do widget de bateria lança ao renderizar.
+  await page.addInitScript(() => {
+    Object.assign(window, { __PIER_TEST_CALLS__: [], __PIER_TEST_RESPONSES__: { system_status: {} }, __PIER_TEST_ERRORS__: {} });
+  });
+  await page.goto("/?view=settings");
+  await page.getByRole("tab", { name: "Widgets", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("This section couldn't be shown.");
+
+  await page.getByRole("tab", { name: "Appearance", exact: true }).click();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+
+  await page.getByRole("tab", { name: "Widgets", exact: true }).click();
+  await expect(page.getByRole("alert")).toBeVisible();
+  await page.evaluate(() => { (window as unknown as { __PIER_TEST_RESPONSES__: object }).__PIER_TEST_RESPONSES__ = {}; });
+  await page.getByRole("button", { name: "Try again", exact: true }).click();
+  await expect(page.locator(".widget-card").first()).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});
