@@ -2,6 +2,20 @@
 
 O que mudou em cada versão do Pier. O app mostra estas notas uma vez depois de se atualizar, então escreva para quem usa. Antes de criar a tag de uma release, adicione uma seção `## <versão>` aqui e no `CHANGELOG.md`.
 
+## 0.24.0
+
+### Widget de mercado
+- **Novo widget:** o widget **Mercado** acompanha ações, FIIs e criptomoedas da brapi.dev na dock. O formato quadrado mostra um ativo por vez, o largo mostra até três, e o clique abre a lista completa com a faixa do dia, de 52 semanas, o volume e o valor de mercado.
+- **Configurações:** escolha até 12 ativos no total. Sem chave, o plano gratuito da brapi só responde PETR4, VALE3, MGLU3 e ITUB4. A chave opcional fica no cofre do sistema e libera os outros ativos e as criptomoedas.
+
+### Widget de lembretes
+- **Novo widget:** o widget **Lembretes** mostra post-its curtos na dock e alterna entre eles quando há mais de um. Clique nele para criar, editar, mudar a cor e apagar.
+- **Seus arquivos:** cada lembrete é um arquivo `.md` em `Documentos/Pier/Lembretes`, então dá para editá-lo também fora do Pier.
+
+### Correções
+- **macOS:** clicar num app aberto sem janelas, como o Finder, agora abre uma janela, como na Dock nativa. Sem a permissão de Acessibilidade, clicar no app em primeiro plano continua escondendo ele.
+- **Configurações:** a janela não fica mais em branco quando as suas configurações listam um widget de uma versão mais nova do Pier. Esse widget continua salvo e, se uma aba falhar ao carregar, as outras continuam funcionando.
+
 ## 0.23.0
 
 ### Todas as telas
