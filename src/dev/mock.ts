@@ -494,7 +494,8 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   notes_save: (args) => {
     const id = (args.id as string | null) ?? `lembrete-${Date.now()}`;
     const note = { id, text: String(args.text).slice(0, 280), color: args.color as Note["color"], modifiedAt: Date.now() };
-    notes = [note, ...notes.filter((n) => n.id !== id)];
+    // Como no Rust, salvar não muda a posição; só um lembrete novo entra no topo.
+    notes = notes.some((n) => n.id === id) ? notes.map((n) => (n.id === id ? note : n)) : [note, ...notes];
     return notes;
   },
   notes_delete: (args) => (notes = notes.filter((n) => n.id !== args.id)),

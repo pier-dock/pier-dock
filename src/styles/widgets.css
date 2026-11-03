@@ -551,8 +551,20 @@
 /* Lembretes (post-it) */
 .notes-tile {
   --note-bg: #f7e27a;
-  background: var(--note-bg);
   color: #2b2410;
+}
+
+/* O post-it mantém a cor no hover; o `--fill-hover` do `.tile` o deixaria escuro e ilegível. */
+.notes-tile:not(.idle) {
+  background: var(--note-bg);
+}
+
+.notes-tile:not(.idle):is(:hover, [data-hover]) {
+  background: color-mix(in srgb, var(--note-bg) 80%, white);
+}
+
+.notes-tile:not(.idle):active {
+  background: color-mix(in srgb, var(--note-bg) 88%, black);
 }
 
 .notes-tile.pink {
@@ -577,7 +589,6 @@
 }
 
 .notes-tile.idle {
-  background: transparent;
   color: var(--text-tertiary);
 }
 
