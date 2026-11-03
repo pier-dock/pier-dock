@@ -17,6 +17,7 @@ export const en: Dict = {
     positionOf: (position, total) => `${position} of ${total}`,
     error: (message) => `Error: ${message}`,
     loadFailed: "Couldn't load Pier's settings.",
+    sectionFailed: "This section couldn't be shown.",
     tryAgain: "Try again",
     updatedAgo: (ago) => `Updated ${ago}`,
     play: "Play",

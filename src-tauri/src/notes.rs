@@ -94,7 +94,9 @@ fn list_in(dir: &Path) -> Vec<Note> {
         })
         .filter(|n| !n.text.is_empty())
         .collect();
-    notes.sort_by(|a, b| b.modified_at.total_cmp(&a.modified_at).then_with(|| a.id.cmp(&b.id)));
+    // Pelo id (`lembrete-<timestamp>`), do mais novo para o mais antigo. A data de modificação não
+    // serve: cada edição regrava o arquivo e faria o lembrete trocar de lugar.
+    notes.sort_by(|a, b| b.id.cmp(&a.id));
     notes.truncate(MAX_NOTES);
     notes
 }
@@ -184,6 +186,20 @@ mod tests {
         delete_in(&dir, &id).unwrap();
         assert!(list_in(&dir).is_empty());
         delete_in(&dir, &id).unwrap();
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn saving_a_note_keeps_its_position() {
+        let dir = temp_dir("order");
+        let older = save_in(&dir, None, "primeiro", "yellow").unwrap();
+        let newer = save_in(&dir, None, "segundo", "yellow").unwrap();
+        let ids = |dir: &Path| list_in(dir).into_iter().map(|n| n.id).collect::<Vec<_>>();
+        assert_eq!(ids(&dir), [newer.clone(), older.clone()]);
+        save_in(&dir, Some(&older), "primeiro", "pink").unwrap();
+        assert_eq!(ids(&dir), [newer.clone(), older.clone()]);
+        save_in(&dir, Some(&older), "primeiro, editado", "pink").unwrap();
+        assert_eq!(ids(&dir), [newer, older]);
         let _ = fs::remove_dir_all(&dir);
     }
 

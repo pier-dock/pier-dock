@@ -6,6 +6,7 @@ import { currentView } from "../lib/view";
 import { keys, labels, os } from "../lib/platform";
 import { useConfig } from "../store/config";
 import { ActionFooter, type Action } from "../ui/ActionFooter";
+import { ErrorBoundary } from "../ui/ErrorBoundary";
 import { Logo } from "../ui/Logo";
 import { PlatformNotice } from "./PlatformNotice";
 import { Welcome } from "./Welcome";
@@ -109,7 +110,9 @@ export function Settings() {
       <PlatformNotice platform={platform} refresh={refreshPlatform} />
       {firstRun && <Welcome platform={platform} update={props.update} done={() => setFirstRun(false)} />}
       <main className="settings-main" id="settings-panel" role="tabpanel" aria-labelledby={`tab-${tab}`}>
-        <Content {...props} />
+        <ErrorBoundary key={tab}>
+          <Content {...props} />
+        </ErrorBoundary>
       </main>
       <ActionFooter keyboard context={footer?.context ?? `Pier · ${OS_NAMES[os]}`} actions={footer?.actions ?? actions[tab]} />
     </div>
