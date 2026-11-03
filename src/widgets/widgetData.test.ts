@@ -33,3 +33,9 @@ test("market quotes update only the market widget", () => {
     assert.ok(shallow(selectWidgetData(kind, EMPTY_WIDGET_DATA), selectWidgetData(kind, after)));
   }
 });
+
+test("notes update only the notes widget", () => {
+  const after = { ...EMPTY_WIDGET_DATA, notes: [{ id: "a", text: "x", color: "yellow" as const, modifiedAt: 1 }] };
+  assert.equal(selectWidgetData("notes", after).notes, after.notes);
+  assert.equal(selectWidgetData("clock", after).notes, EMPTY_WIDGET_DATA.notes);
+});

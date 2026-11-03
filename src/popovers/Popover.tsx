@@ -10,6 +10,7 @@ import { Contributions } from "./Contributions";
 import { KeyboardLayoutPanel } from "./KeyboardLayout";
 import { Launcher } from "./Launcher";
 import { Market } from "./Market";
+import { Notes } from "./Notes";
 import { NowPlaying } from "./NowPlaying";
 import { PowerPanel } from "./Power";
 import { Pomodoro } from "./Pomodoro";
@@ -41,6 +42,8 @@ function Content({ kind }: { kind: string }) {
       return <Weather />;
     case "market":
       return <Market />;
+    case "notes":
+      return <Notes />;
     case "pomodoro":
       return <Pomodoro />;
     case "battery":

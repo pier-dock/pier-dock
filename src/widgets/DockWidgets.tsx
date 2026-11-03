@@ -10,6 +10,7 @@ import { useWeather } from "../hooks/useWeather";
 import { useCalendar } from "../hooks/useCalendar";
 import { useAiUsage } from "../hooks/useAiUsage";
 import { useMarket } from "../hooks/useMarket";
+import { useNotes } from "../hooks/useNotes";
 import { WidgetView } from "./WidgetView";
 import { EMPTY_WIDGET_DATA, selectWidgetData, type WidgetData } from "./widgetData";
 
@@ -30,10 +31,11 @@ export function DockWidgetsProvider({ config, children }: { config: Config; chil
   const ai = useAiUsage(enabled("ai-usage") ? config.aiPollMinutes : undefined, config.aiProvider);
   const marketSymbols = `${config.marketTickers.join(",")}|${config.marketCoins.join(",")}`;
   const market = useMarket(enabled("market") ? config.marketPollMinutes : undefined, marketSymbols);
+  const notes = useNotes(enabled("notes"));
   const weatherConfigured = !!place;
   useLayoutEffect(() => {
-    store.setState({ media, github, system, weather, calendar, bluetooth, keyboard, ai, market, weatherConfigured });
-  }, [store, media, github, system, weather, calendar, bluetooth, keyboard, ai, market, weatherConfigured]);
+    store.setState({ media, github, system, weather, calendar, bluetooth, keyboard, ai, market, notes, weatherConfigured });
+  }, [store, media, github, system, weather, calendar, bluetooth, keyboard, ai, market, notes, weatherConfigured]);
   return <WidgetStore.Provider value={store}>{children}</WidgetStore.Provider>;
 }
 
