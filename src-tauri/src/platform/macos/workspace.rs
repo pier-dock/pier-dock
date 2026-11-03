@@ -4,6 +4,8 @@ use objc2::rc::Retained;
 use objc2_app_kit::{NSApplicationActivationOptions, NSApplicationActivationPolicy, NSRunningApplication, NSWorkspace};
 use objc2_foundation::NSString;
 
+use crate::util::spawn_detached;
+
 #[derive(Clone, Debug)]
 pub struct RunningApp {
     pub pid: i32,
@@ -64,6 +66,15 @@ pub fn activate(pid: i32) {
         // ativo pedir; aqui é o usuário quem pediu, clicando na dock.
         #[allow(deprecated)]
         app.activateWithOptions(NSApplicationActivationOptions::ActivateIgnoringOtherApps);
+    }
+}
+
+/// Ativa o app e manda o evento de reopen, como o clique no Dock nativo: é o que faz um app aberto
+/// sem janelas (o Finder, por exemplo) abrir uma. Quem já tem janelas só vem para a frente.
+pub fn reopen(pid: i32) {
+    activate(pid);
+    if let Some(path) = by_pid(pid).and_then(|app| describe(&app).path) {
+        let _ = spawn_detached("/usr/bin/open", &[&path]);
     }
 }
 

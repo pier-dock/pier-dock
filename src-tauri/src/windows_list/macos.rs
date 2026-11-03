@@ -1,7 +1,7 @@
 //! Apps e janelas no macOS, no modelo do Dock nativo: todo app regular aberto aparece, com ou sem
 //! janelas. Com a permissão de Acessibilidade cada janela vira uma entrada (id = CGWindowID). Um
 //! app sem janelas, ou qualquer app sem a permissão, vira uma entrada só com id = -pid, e as ações
-//! nela valem para o app inteiro (mostrar, esconder com ⌘H, encerrar).
+//! nela valem para o app inteiro (mostrar ou abrir uma janela, esconder com ⌘H, encerrar).
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
@@ -150,14 +150,15 @@ pub fn foreground() -> i64 {
 
 pub fn is_minimized(id: i64) -> bool {
     if id < 0 {
-        return workspace::is_hidden(-id as i32);
+        // Com a permissão, o placeholder é um app sem janelas: o clique precisa abrir uma, não esconder o app.
+        return ax::is_trusted() || workspace::is_hidden(-id as i32);
     }
     cached(id).is_some_and(|w| w.bool(kAXMinimizedAttribute) || w.pid().is_some_and(workspace::is_hidden))
 }
 
 pub fn activate(id: i64) {
     if id < 0 {
-        workspace::activate(-id as i32);
+        workspace::reopen(-id as i32);
     } else if let Some(window) = cached(id) {
         window.set_bool(kAXMinimizedAttribute, false);
         if let Some(pid) = window.pid() {
