@@ -7,7 +7,7 @@
  * chama `listen` ao ser carregado. Dentro do Tauri ele não faz nada.
  */
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
-import type { AgentIntegration, AgentSession, AiUsage, AppEntry, BluetoothState, CalendarData, Config, GithubData, KeyboardLayouts, MarketData, MediaState, PomodoroState, SystemUsage, WeatherData, WindowsSnapshot } from "../lib/ipc";
+import type { AgentIntegration, AgentSession, AiUsage, AppEntry, BluetoothState, CalendarData, Config, GithubData, KeyboardLayouts, MarketData, MediaState, Note, PomodoroState, SystemUsage, WeatherData, WindowsSnapshot } from "../lib/ipc";
 import { PANEL_INSET, panelSize } from "../popovers/sizes";
 
 const insideTauri = "__TAURI_INTERNALS__" in window;
@@ -72,6 +72,7 @@ const config: Config = {
     { kind: "calendar", enabled: params.has("new"), size: "wide" },
     { kind: "ai-usage", enabled: params.has("new"), size: "wide" },
     { kind: "market", enabled: params.has("new"), size: "wide" },
+    { kind: "notes", enabled: params.has("new"), size: "wide" },
     { kind: "show-desktop", enabled: params.has("new"), size: "small" },
     { kind: "keyboard-layout", enabled: params.has("new"), size: "small" },
     { kind: "pokemon", enabled: false, size: "small" },
@@ -291,6 +292,11 @@ const market: MarketData = {
 
 let marketToken = false;
 
+let notes: Note[] = [
+  { id: "lembrete-1", text: "Ligar para o contador antes das 17h", color: "yellow", modifiedAt: Date.now() - 5 * MINUTE },
+  { id: "lembrete-2", text: "Comprar presente da Ana", color: "pink", modifiedAt: Date.now() - 20 * MINUTE },
+];
+
 let pomodoro: PomodoroState = {
   phase: "focus",
   running: params.get("pomodoro") !== "paused",
@@ -484,6 +490,14 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   weather_cached: () => weather,
   weather_fetch: () => weather,
   weather_search: () => [config.weatherLocation, { name: "Campinas", admin: "Mato Grosso do Sul, Brasil", latitude: -20.4, longitude: -54.6 }],
+  notes_list: () => notes,
+  notes_save: (args) => {
+    const id = (args.id as string | null) ?? `lembrete-${Date.now()}`;
+    const note = { id, text: String(args.text).slice(0, 280), color: args.color as Note["color"], modifiedAt: Date.now() };
+    notes = [note, ...notes.filter((n) => n.id !== id)];
+    return notes;
+  },
+  notes_delete: (args) => (notes = notes.filter((n) => n.id !== args.id)),
   market_cached: () => market,
   market_fetch: () => market,
   market_token_status: () => marketToken,

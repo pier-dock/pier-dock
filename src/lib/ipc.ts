@@ -31,6 +31,7 @@ export type WidgetKind =
   | "ai-usage"
   | "ai-agents"
   | "market"
+  | "notes"
   | "pokemon";
 
 export interface WidgetConfig {
@@ -270,6 +271,17 @@ export interface MarketAsset {
   marketCap?: number | null;
   /** Horário da cotação, em ISO 8601. */
   updatedAt: string;
+}
+
+/** Limite de caracteres de um lembrete; espelha `MAX_NOTE_CHARS` em `notes.rs`. */
+export const MAX_NOTE_CHARS = 280;
+export const NOTE_COLORS = ["yellow", "pink", "blue", "green"] as const;
+export type NoteColor = (typeof NOTE_COLORS)[number];
+export interface Note {
+  id: string;
+  text: string;
+  color: NoteColor;
+  modifiedAt: number;
 }
 
 export interface MarketData {
@@ -570,6 +582,9 @@ export const ipc = {
 
   marketFetch: () => invoke<MarketData>("market_fetch"),
   marketCached: () => invoke<MarketData | null>("market_cached"),
+  notesList: () => invoke<Note[]>("notes_list"),
+  notesSave: (id: string | null, text: string, color: NoteColor) => invoke<Note[]>("notes_save", { id, text, color }),
+  notesDelete: (id: string) => invoke<Note[]>("notes_delete", { id }),
   marketTokenStatus: () => invoke<boolean>("market_token_status"),
   marketSetToken: (token: string | null) => invoke<void>("market_set_token", { token }),
 

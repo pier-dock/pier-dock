@@ -9,13 +9,14 @@ import { CalendarWidget } from "./CalendarWidget";
 import { AiUsageWidget } from "./AiUsageWidget";
 import { AgentSessionsWidget } from "./AgentSessionsWidget";
 import { MarketWidget } from "./MarketWidget";
+import { NotesWidget } from "./NotesWidget";
 import { PokemonWidget } from "./PokemonWidget";
 
 import type { WidgetData } from "./widgetData";
 export type { WidgetData } from "./widgetData";
 
 /** Widgets com formato largo e compacto. */
-export const RESIZABLE = new Set<WidgetKind>(["media", "github-review", "github-mine", "github-contrib", "weather", "pomodoro", "system-usage", "calendar", "ai-usage", "market"]);
+export const RESIZABLE = new Set<WidgetKind>(["media", "github-review", "github-mine", "github-contrib", "weather", "pomodoro", "system-usage", "calendar", "ai-usage", "market", "notes"]);
 
 /** Formatos de um widget redimensionável, na ordem do seletor. */
 export function formatsOf(kind: WidgetKind): WidgetSize[] {
@@ -65,6 +66,8 @@ export function WidgetView({ kind, size, data }: { kind: WidgetKind; size: Widge
       return <AiUsageWidget data={data.ai} wide={wide} />;
     case "market":
       return <MarketWidget data={data.market} wide={wide} />;
+    case "notes":
+      return <NotesWidget notes={data.notes} wide={wide} />;
     case "ai-agents":
       return <AgentSessionsWidget />;
     case "pokemon":

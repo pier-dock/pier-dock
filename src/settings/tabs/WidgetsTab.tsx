@@ -11,6 +11,7 @@ import { useWeather } from "../../hooks/useWeather";
 import { useCalendar } from "../../hooks/useCalendar";
 import { useAiUsage } from "../../hooks/useAiUsage";
 import { useMarket } from "../../hooks/useMarket";
+import { useNotes } from "../../hooks/useNotes";
 import { RESIZABLE, WidgetView, formatsOf, type WidgetData } from "../../widgets/WidgetView";
 import { FitScale } from "../../widgets/FitScale";
 import { AgentSessionsOptions, AiUsageOptions, CalendarOptions, MarketOptions, PokemonOptions, PomodoroOptions, WeatherOptions } from "./WidgetOptions";
@@ -46,6 +47,7 @@ const WIDGETS: Record<WidgetKind, { group: Group; tint: [string, string] }> = {
   "system-usage": { group: "system", tint: ["#3A1E6A", "#1E2A4A"] },
   calendar: { group: "productivity", tint: ["#1E2A6A", "#2A1E5A"] },
   market: { group: "productivity", tint: ["#123A2A", "#1E2A4A"] },
+  notes: { group: "productivity", tint: ["#6A5A12", "#5A2E3A"] },
   "ai-usage": { group: "productivity", tint: ["#5A2E1E", "#20242C"] },
   "ai-agents": { group: "productivity", tint: ["#3A2E1E", "#20242C"] },
   pokemon: { group: "fun", tint: ["#3A3A12", "#1E2A4A"] },
@@ -329,6 +331,7 @@ export function WidgetsTab({ config, update, setFooter }: TabProps) {
     calendar: useCalendar(),
     ai: useAiUsage(),
     market: useMarket(),
+    notes: useNotes(true),
   };
 
   const actions: WidgetActions = {

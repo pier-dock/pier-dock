@@ -91,6 +91,20 @@ export const en: Dict = {
     tileChooseCity: "Weather: choose a city in settings",
     tileHighLow: (max, min) => `, high ${max}, low ${min}`,
   },
+  notes: {
+    title: "Reminders",
+    tileEmpty: "Reminders: click to create one",
+    tileLabel: (text) => `Reminder: ${text}`,
+    noteLabel: "Reminder text",
+    newText: "New reminder",
+    add: "New reminder",
+    delete: "Delete reminder",
+    deleteConfirm: "Delete?",
+    counter: (used, max) => `${used}/${max}`,
+    colors: { yellow: "Yellow", pink: "Pink", blue: "Blue", green: "Green" },
+    empty: "No reminders.",
+    emptyHint: "They are saved in Documentos/Pier/Lembretes.",
+  },
   market: {
     title: "Market",
     tileLoading: "Market: loading…",
@@ -354,6 +368,7 @@ export const en: Dict = {
       "github-contrib": "Contributions",
       weather: "Weather",
       market: "Market",
+      notes: "Reminders",
       pomodoro: "Pomodoro",
       "system-usage": "System usage",
       calendar: "Calendar",
@@ -513,6 +528,12 @@ export const en: Dict = {
         name: "Market",
         description:
           "Stocks, REITs and cryptocurrencies from brapi.dev. The square shows the first asset; the wide format shows up to three. Clicking opens the list with day and 52-week ranges, volume and market cap.",
+      },
+      notes: {
+        summary: "Sticky-note reminders that rotate on the dock.",
+        name: "Reminders",
+        description:
+          "Short sticky-note reminders saved as .md files in Documents/Pier/Lembretes. With more than one, the dock rotates between them. Clicking opens the panel to create, edit, recolor and delete.",
       },
       pomodoro: { summary: "Focus cycles with a progress ring.",
         name: "Pomodoro",

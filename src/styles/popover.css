@@ -1860,3 +1860,118 @@
 .group-panel-item:is(:hover, :focus-within) .group-panel-remove {
   opacity: 1;
 }
+
+/* Lembretes */
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.note-card {
+  --note-bg: #f7e27a;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px 6px;
+  border-radius: var(--radius-card);
+  background: var(--note-bg);
+  color: #2b2410;
+}
+
+.note-card.pink {
+  --note-bg: #f4b6c8;
+}
+
+.note-card.blue {
+  --note-bg: #a9cdf0;
+}
+
+.note-card.green {
+  --note-bg: #b5e0b0;
+}
+
+.note-input {
+  min-height: 52px;
+  resize: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.note-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.note-colors {
+  display: flex;
+  gap: 5px;
+  margin-right: auto;
+}
+
+.note-swatch {
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: #f7e27a;
+  cursor: pointer;
+}
+
+.note-swatch.pink {
+  background: #f4b6c8;
+}
+
+.note-swatch.blue {
+  background: #a9cdf0;
+}
+
+.note-swatch.green {
+  background: #b5e0b0;
+}
+
+.note-swatch.active {
+  border-color: rgb(0 0 0 / 0.45);
+}
+
+.note-count {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.6;
+}
+
+.note-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 5px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: 10px;
+  opacity: 0.65;
+  cursor: pointer;
+}
+
+.note-delete:is(:hover, :focus-visible) {
+  opacity: 1;
+  background: rgb(0 0 0 / 0.1);
+}
+
+.note-delete.confirm {
+  opacity: 1;
+  background: var(--danger);
+  color: #fff;
+}

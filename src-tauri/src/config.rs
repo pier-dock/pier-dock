@@ -230,6 +230,7 @@ impl Default for Config {
                 disabled("show-desktop", "small"),
                 disabled("keyboard-layout", "small"),
                 disabled("market", "wide"),
+                disabled("notes", "wide"),
             ],
             material: "glass".into(),
             reduced_effects: false,

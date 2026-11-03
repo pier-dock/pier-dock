@@ -14,6 +14,7 @@ mod i18n;
 mod icons;
 mod keyboard;
 mod market;
+mod notes;
 mod media;
 #[cfg(windows)]
 mod notifications;
@@ -251,6 +252,9 @@ fn main() {
             market::market_cached,
             market::market_token_status,
             market::market_set_token,
+            notes::notes_list,
+            notes::notes_save,
+            notes::notes_delete,
             pomodoro::pomodoro_state,
             pomodoro::pomodoro_control,
             usage::system_usage,

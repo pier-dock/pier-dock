@@ -89,6 +89,20 @@ export const pt = {
     tileChooseCity: "Clima: escolha uma cidade nas configurações",
     tileHighLow: (max: string, min: string) => `, máxima ${max}, mínima ${min}`,
   },
+  notes: {
+    title: "Lembretes",
+    tileEmpty: "Lembretes: clique para criar um",
+    tileLabel: (text: string) => `Lembrete: ${text}`,
+    noteLabel: "Texto do lembrete",
+    newText: "Novo lembrete",
+    add: "Novo lembrete",
+    delete: "Apagar lembrete",
+    deleteConfirm: "Apagar?",
+    counter: (used: number, max: number) => `${used}/${max}`,
+    colors: { yellow: "Amarelo", pink: "Rosa", blue: "Azul", green: "Verde" },
+    empty: "Nenhum lembrete.",
+    emptyHint: "Eles ficam salvos em Documentos/Pier/Lembretes.",
+  },
   market: {
     title: "Mercado",
     tileLoading: "Mercado: carregando…",
@@ -354,6 +368,7 @@ export const pt = {
       "github-contrib": "Contribuições",
       weather: "Clima",
       market: "Mercado",
+      notes: "Lembretes",
       pomodoro: "Pomodoro",
       "system-usage": "Uso do sistema",
       calendar: "Agenda",
@@ -513,6 +528,12 @@ export const pt = {
         name: "Mercado",
         description:
           "Ações, FIIs e criptomoedas da brapi.dev. O quadrado mostra o primeiro ativo; o formato largo, até três. O clique abre a lista com faixa do dia, de 52 semanas, volume e valor de mercado.",
+      },
+      notes: {
+        summary: "Post-its com lembretes que se alternam na dock.",
+        name: "Lembretes",
+        description:
+          "Lembretes curtos, no estilo post-it, salvos como arquivos .md em Documentos/Pier/Lembretes. Com mais de um, a dock alterna entre eles. O clique abre o painel para criar, editar, mudar a cor e apagar.",
       },
       pomodoro: { summary: "Ciclos de foco com o anel de progresso.",
         name: "Pomodoro",
