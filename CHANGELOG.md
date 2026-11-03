@@ -2,6 +2,20 @@
 
 What changed in each version of Pier. The app shows these notes once after it updates, so write them for users. Add a `## <version>` section before tagging a release, in this file and in `CHANGELOG.pt-BR.md`.
 
+## 0.24.0
+
+### Market widget
+- **New widget:** the **Market** widget follows stocks, REITs and cryptocurrencies from brapi.dev on the dock. The square format shows one asset at a time, the wide one up to three, and clicking opens the full list with the day and 52-week ranges, volume and market cap.
+- **Settings:** pick up to 12 assets in total. Without a key, the free brapi tier only answers PETR4, VALE3, MGLU3 and ITUB4. The optional key is stored in the system keychain and unlocks the other assets and cryptocurrencies.
+
+### Reminders widget
+- **New widget:** the **Reminders** widget shows short sticky notes on the dock, and rotates between them when there is more than one. Click it to create, edit, recolor and delete them.
+- **Your files:** each reminder is an `.md` file in `Documents/Pier/Lembretes`, so you can also edit it outside Pier.
+
+### Fixes
+- **macOS:** clicking a running app with no open windows, such as Finder, now opens a window, as the native Dock does. Without Accessibility permission, clicking a frontmost app still hides it.
+- **Settings:** the window no longer goes blank when your settings list a widget from a newer version of Pier. That widget stays saved, and if a tab fails to load, the other tabs keep working.
+
 ## 0.23.0
 
 ### All displays
