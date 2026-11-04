@@ -202,7 +202,7 @@ fn main() {
             pokemon::pokemon_list,
             pokemon::pokemon_sprite,
             dock_window::set_preview_glass,
-            dock_window::dock_visible,
+            dock_window::window_visible,
             dock_window::set_dock_hover,
             dock_window::list_monitors,
             windows_list::get_windows,

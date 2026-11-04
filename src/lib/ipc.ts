@@ -523,7 +523,7 @@ export const ipc = {
     invoke<void>("set_pet_rect", { rect }),
   setPreviewGlass: (rect: { x: number; y: number; width: number; height: number; radius: number } | null) =>
     invoke<void>("set_preview_glass", { rect }),
-  dockVisible: () => invoke<boolean>("dock_visible"),
+  dockVisible: () => invoke<boolean>("window_visible"),
   setDockHover: (hovering: boolean) => invoke<void>("set_dock_hover", { hovering }),
 
   getWindows: () => invoke<WindowsSnapshot>("get_windows"),

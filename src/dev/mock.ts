@@ -486,7 +486,7 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   github_cached: () => github,
   github_fetch: () => github,
   github_auth_status: () => ({ source: "gh" }),
-  dock_visible: () => true,
+  window_visible: () => true,
   weather_cached: () => weather,
   weather_fetch: () => weather,
   weather_search: () => [config.weatherLocation, { name: "Campinas", admin: "Mato Grosso do Sul, Brasil", latitude: -20.4, longitude: -54.6 }],
