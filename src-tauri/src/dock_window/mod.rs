@@ -704,6 +704,19 @@ pub(crate) struct Placement {
     monitor: Band,
 }
 
+/// Retângulo `(x, y, largura, altura)` da janela na borda dada. `inset` é o que não pertence às
+/// janelas no topo do monitor (a barra de menus do macOS): a dock não entra nessa faixa.
+fn window_rect(edge: u8, bounds: Band, thickness: i32, inset: i32) -> (i32, i32, u32, u32) {
+    let width = bounds.width() as u32;
+    let side_height = (bounds.height() - inset).max(1) as u32;
+    match edge {
+        TOP => (bounds.left, bounds.top + inset, width, thickness as u32),
+        LEFT => (bounds.left, bounds.top + inset, thickness as u32, side_height),
+        RIGHT => (bounds.right - thickness, bounds.top + inset, thickness as u32, side_height),
+        _ => (bounds.left, bounds.bottom - thickness, width, thickness as u32),
+    }
+}
+
 /// Posiciona a janela no monitor dado, encostada na borda escolhida. Não grava em `PLACED`.
 pub(crate) fn place_window_with(window: &WebviewWindow, monitor: Monitor) -> Option<Placement> {
     #[cfg(not(target_os = "macos"))]
@@ -715,12 +728,7 @@ pub(crate) fn place_window_with(window: &WebviewWindow, monitor: Monitor) -> Opt
     let thickness = (layout.window_size * scale).round().max(1.0) as i32;
     let reserved = (layout.reserved * scale).round().max(0.0) as i32;
     let bounds = Band::new(pos.x, pos.y, pos.x + size.width as i32, pos.y + size.height as i32);
-    let (x, y, width, height) = match position() {
-        TOP => (bounds.left, bounds.top + backend::top_inset(bounds), size.width, thickness as u32),
-        LEFT => (bounds.left, bounds.top, thickness as u32, size.height),
-        RIGHT => (bounds.right - thickness, bounds.top, thickness as u32, size.height),
-        _ => (bounds.left, bounds.bottom - thickness, size.width, thickness as u32),
-    };
+    let (x, y, width, height) = window_rect(position(), bounds, thickness, backend::top_inset(bounds));
     // No macOS o tao converte pixels físicos em pontos pela escala da tela onde a janela está
     // agora, não da tela de destino: indo de um Retina para um monitor 1x, a janela cairia no lugar
     // e no tamanho errados. Em pontos (pela escala do destino) ela chega certa.
@@ -821,6 +829,23 @@ mod tests {
         assert_eq!(with_position("top", || reserved_band(MONITOR, 72)), Band::new(0, 0, 1920, 72));
         assert_eq!(with_position("left", || reserved_band(MONITOR, 72)), Band::new(0, 0, 72, 1080));
         assert_eq!(with_position("right", || reserved_band(MONITOR, 72)), Band::new(1848, 0, 1920, 1080));
+    }
+
+    #[test]
+    fn window_stays_below_the_menu_bar_on_every_edge_that_reaches_it() {
+        let monitor = Band::new(100, 50, 2020, 1130);
+        assert_eq!(window_rect(LEFT, monitor, 300, 28), (100, 78, 300, 1052));
+        assert_eq!(window_rect(RIGHT, monitor, 300, 28), (1720, 78, 300, 1052));
+        assert_eq!(window_rect(TOP, monitor, 300, 28), (100, 78, 1920, 300));
+        assert_eq!(window_rect(BOTTOM, monitor, 300, 28), (100, 830, 1920, 300));
+    }
+
+    #[test]
+    fn without_an_inset_the_window_takes_the_whole_edge() {
+        let monitor = Band::new(0, 0, 1920, 1080);
+        assert_eq!(window_rect(LEFT, monitor, 300, 0), (0, 0, 300, 1080));
+        assert_eq!(window_rect(RIGHT, monitor, 300, 0), (1620, 0, 300, 1080));
+        assert_eq!(window_rect(TOP, monitor, 300, 0), (0, 0, 1920, 300));
     }
 
     #[test]
