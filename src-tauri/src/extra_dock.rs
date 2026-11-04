@@ -160,6 +160,11 @@ fn create_extra(app: &AppHandle, monitor_id: &str) -> Option<ExtraEntry> {
     Some(entry)
 }
 
+/// O monitor da janela extra `label`. `None` para qualquer outra janela.
+pub fn monitor_id_of(label: &str) -> Option<String> {
+    ENTRIES.lock().unwrap().iter().find(|e| e.label == label).map(|e| e.monitor_id.clone())
+}
+
 /// Notifica todas as janelas extras sobre uma mudança de visibilidade da dock principal.
 /// Chamado por `dock_window::set_visible`. Só no Linux, onde as extras não têm thread de ponteiro.
 #[cfg(target_os = "linux")]
