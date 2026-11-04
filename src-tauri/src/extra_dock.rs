@@ -104,6 +104,9 @@ fn create_extra(app: &AppHandle, monitor_id: &str) -> Option<ExtraEntry> {
         .always_on_top(true)
         .skip_taskbar(true)
         .resizable(false)
+        .focused(false)
+        .focusable(false)
+        .accept_first_mouse(true)
         .visible(false)
         .build()
         .ok()?;
