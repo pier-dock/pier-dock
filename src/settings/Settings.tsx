@@ -74,7 +74,7 @@ export function Settings() {
     apps: [{ label: t.dock.addDivider, onClick: () => update((c) => addDivider(c)) }],
     widgets: [],
     appearance: [],
-    github: [{ label: t.settings.syncNow, keys: `${keys.command} R`, onClick: refreshGithub }],
+    github: [{ label: t.settings.syncNow, loadingLabel: t.common.syncing, keys: `${keys.command} R`, onClick: refreshGithub }],
     general: [{ label: labels().quit, onClick: () => ipc.quit() }],
   };
 

@@ -41,7 +41,7 @@ function MarketRow({ asset }: { asset: MarketAsset }) {
 
 export function Market() {
   const data = useMarket();
-  const { market: t } = useT();
+  const { market: t, common } = useT();
   const assets = data?.assets ?? [];
   const skipped = [...(data?.unavailable ?? []), ...(data?.missing ?? [])];
 
@@ -85,7 +85,7 @@ export function Market() {
       <ActionFooter
         context={t.title}
         actions={[
-          { label: t.refresh, keys: "↵", onClick: () => ipc.marketFetch() },
+          { label: t.refresh, loadingLabel: common.refreshing, keys: "↵", onClick: () => ipc.marketFetch() },
           { label: t.settings, onClick: () => ipc.openSettings("widgets") },
         ]}
       />

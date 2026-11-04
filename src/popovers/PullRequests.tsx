@@ -130,7 +130,7 @@ export function PullRequests({ initial }: { initial: Tab }) {
         }
         actions={[
           { label: t.openOnGithub, keys: "↵", onClick: () => openUrl(link) },
-          { label: common.refresh, keys: `${keys.command} R`, onClick: refreshGithub },
+          { label: common.refresh, loadingLabel: common.refreshing, keys: `${keys.command} R`, onClick: refreshGithub },
         ]}
       />
     </>

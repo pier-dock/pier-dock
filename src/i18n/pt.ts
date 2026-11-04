@@ -5,6 +5,7 @@ export const pt = {
     save: "Salvar",
     remove: "Remover",
     refresh: "Atualizar",
+    refreshing: "Atualizando…",
     openSettings: "Abrir configurações",
     viewProfile: "Ver perfil",
     moveUp: "Mover para cima",
