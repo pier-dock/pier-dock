@@ -18,6 +18,7 @@ import { reuseDockApps } from "./appIdentity";
 import { buildDockApps, type DockApp } from "./apps";
 import { stableOpenApps } from "./runningOrder";
 import { PREVIEW_GAP, barRect, dockMetrics, isVertical, previewSpace } from "./layout";
+import { useFitIcon } from "./useFitIcon";
 import { WindowPreview } from "./WindowPreview";
 import { AgentPet } from "./AgentPet";
 import { PokemonPet } from "./PokemonPet";
@@ -165,8 +166,6 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
   const groupsList = useMemo(() => activeGroups(config), [config]);
   // O cursor na direção da barra: x nas bordas de cima e de baixo, y nas laterais.
   const mouse = useMotionValue(Infinity);
-  const magnifyContext = useMemo(() => ({ mouse, base: config.iconSize, scale: Math.max(1, config.magnification), position }),
-    [mouse, config.iconSize, config.magnification, position]);
   const barRef = useRef<HTMLDivElement>(null);
   // Janela em prévia: guarda o app pelo `key`, porque a lista de apps é remontada a cada snapshot.
   const [preview, setPreview] = useState<{ key: string; x: number; y: number } | null>(null);
@@ -190,6 +189,13 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
     position,
     groupsList.length > 0,
   );
+  const fit = useFitIcon(barRef, mouse, {
+    iconSize: config.iconSize,
+    magnification: Math.max(1, config.magnification),
+    vertical,
+    margin: full ? 0 : metrics.margin,
+  });
+  const magnifyContext = useMemo(() => ({ mouse, base: fit.icon, scale: fit.scale, position }), [mouse, fit.icon, fit.scale, position]);
   const previousApps = useRef<DockApp[]>([]);
   const apps = useMemo(
     () => {
@@ -538,7 +544,9 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
   // (de ponta a ponta ela ocupa a borda inteira).
   const barStyle: React.CSSProperties = {
     ["--dock-thickness" as string]: `${metrics.barThickness}px`,
-    ["--dock-item-offset" as string]: `${metrics.itemOffset}px`,
+    // A espessura segue o ícone configurado (o layout no Rust é um só para todas as docks): o ícone
+    // encolhido para caber no monitor continua centrado nela.
+    ["--dock-item-offset" as string]: `${metrics.itemOffset + (config.iconSize - fit.icon) / 2}px`,
     ["--group-cell" as string]: `${metrics.groupCell}px`,
   };
   if (vertical) {
@@ -557,7 +565,7 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
       className="dock-root"
       data-pos={position}
       style={{
-        ["--icon" as string]: `${config.iconSize}px`,
+        ["--icon" as string]: `${fit.icon}px`,
         ["--preview-offset" as string]: `${previewOffset}px`,
       }}
     >

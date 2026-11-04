@@ -91,6 +91,8 @@ pub fn init_extra(window: &WebviewWindow, monitor_id: &str) {
     store_extra_visible(window.label(), false);
     set_collection_behavior(window);
     pointer::forward(window);
+    // Um monitor recém-plugado ainda não está em `TOP_INSETS`: só a dock principal relê a lista.
+    refresh_insets(window);
     let _ = place_window_on(window, monitor_id);
     let _ = window.set_ignore_cursor_events(true);
     let _ = window.show();
