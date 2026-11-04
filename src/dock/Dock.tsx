@@ -3,8 +3,8 @@ import { useMotionValue } from "framer-motion";
 import { LayoutGrid, Search } from "lucide-react";
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
 import { arrayMove, horizontalListSortingStrategy, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { latestSender, sameHitRect } from "./hitRect";
 import { Menu } from "@tauri-apps/api/menu";
 import { ipc, type AppEntry, type Config, type UpdateInfo, type WidgetConfig } from "../lib/ipc";
@@ -254,14 +254,17 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
   // aqui só anima. Ela começa fora da tela e entra quando o Rust manda.
   const [visible, setVisible] = useState(false);
   useEffect(() => {
-    ipc.dockVisible().then(setVisible);
-    const unlisten = listen<boolean>("dock-visibility", (e) => {
+    // Na janela, não o `listen` global: esse recebe também o `emit_to` feito para as outras docks,
+    // e a visibilidade de uma mexeria na barra da outra.
+    const unlisten = getCurrentWebviewWindow().listen<boolean>("dock-visibility", (e) => {
       setVisible(e.payload);
       if (!e.payload) {
         mouse.set(Infinity);
         resetDockHover();
       }
     });
+    // Só depois de registrar: um evento emitido antes disso se perderia e a barra ficaria escondida.
+    unlisten.then(() => ipc.dockVisible()).then(setVisible);
     return () => {
       unlisten.then((f) => f());
     };
@@ -314,12 +317,12 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
   useEffect(() => {
     const subs = [
       // Quando o Rust liga o click-through, o WebView não recebe mouseleave.
-      listen("dock-pointer-left", () => {
+      getCurrentWebviewWindow().listen("dock-pointer-left", () => {
         mouse.set(Infinity);
         resetDockHover();
         setPreview(null);
       }),
-      listen<number>("shortcut-app", (e) => {
+      getCurrentWebviewWindow().listen<number>("shortcut-app", (e) => {
         const app = appsRef.current[e.payload];
         if (app) clickApp(app);
       }),

@@ -1,6 +1,8 @@
 //! Janelas extras da dock: uma por monitor adicional selecionado pelo usuário.
 //! Cada janela extra carrega o mesmo frontend da dock principal, é posicionada no monitor
-//! escolhido e registra sua própria AppBar. Visibilidade e layout são herdados da janela principal.
+//! escolhido e registra sua própria AppBar. O layout é herdado da janela principal. A visibilidade
+//! também no Linux; no macOS, cada janela decide a sua pelo hover do próprio monitor, e no Windows
+//! ela soma esse hover à visibilidade da principal.
 
 #[cfg(windows)]
 use std::sync::atomic::AtomicBool;
@@ -9,7 +11,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
 #[cfg(windows)]
 use crate::dock_window::Band;
@@ -92,7 +94,7 @@ fn sync_monitors(app: &AppHandle, monitor_ids: &[String]) {
 /// Cria uma janela extra para o monitor com o id dado e a inicializa.
 fn create_extra(app: &AppHandle, monitor_id: &str) -> Option<ExtraEntry> {
     let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-    let label = format!("dock-extra-{n}");
+    let label = format!("{}{n}", crate::dock_window::EXTRA_LABEL_PREFIX);
 
     let window = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
         .title("Pier")
@@ -110,7 +112,7 @@ fn create_extra(app: &AppHandle, monitor_id: &str) -> Option<ExtraEntry> {
     let stop = Arc::new(AtomicBool::new(false));
 
     // Ao destruir a janela extra (troca de config, monitor desconectado): encerra a thread de
-    // ponteiro e esquece o vidro e a geometria da barra desta janela.
+    // ponteiro e esquece o vidro e o estado desta janela.
     {
         let cleanup_label = label.clone();
         #[cfg(windows)]
@@ -120,7 +122,7 @@ fn create_extra(app: &AppHandle, monitor_id: &str) -> Option<ExtraEntry> {
                 #[cfg(windows)]
                 cleanup_stop.store(true, Ordering::SeqCst);
                 crate::backdrop::forget(&cleanup_label);
-                crate::dock_window::forget_hit_rect(&cleanup_label);
+                crate::dock_window::forget_window(&cleanup_label);
             }
         });
     }
@@ -143,8 +145,10 @@ fn create_extra(app: &AppHandle, monitor_id: &str) -> Option<ExtraEntry> {
         stop,
     );
 
-    // Em outros sistemas operacionais: apenas posicionar.
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    crate::dock_window::init_extra(&window, monitor_id);
+
+    #[cfg(target_os = "linux")]
     {
         let _ = crate::dock_window::place_window_on(&window, monitor_id);
         let _ = window.show();
@@ -154,8 +158,10 @@ fn create_extra(app: &AppHandle, monitor_id: &str) -> Option<ExtraEntry> {
 }
 
 /// Notifica todas as janelas extras sobre uma mudança de visibilidade da dock principal.
-/// Chamado por `dock_window::set_visible`.
+/// Chamado por `dock_window::set_visible`. Só no Linux, onde as extras não têm thread de ponteiro.
+#[cfg(target_os = "linux")]
 pub fn on_visibility_changed(app: &AppHandle, visible: bool) {
+    use tauri::Emitter;
     let entries = ENTRIES.lock().unwrap();
     for entry in entries.iter() {
         if let Some(window) = app.get_webview_window(&entry.label) {
