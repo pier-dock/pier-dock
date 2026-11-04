@@ -18,6 +18,12 @@
   --lilac: #b48cff;
   --white: #ffffff;
 
+  /* Lembretes */
+  --note-yellow: #f7e27a;
+  --note-pink: #f4b6c8;
+  --note-blue: #a9cdf0;
+  --note-green: #b5e0b0;
+
   /* Superfícies */
   --bg: var(--ink);
   --surface: var(--graphite);
