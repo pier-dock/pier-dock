@@ -152,7 +152,9 @@ fn start_pointer_thread(window: &WebviewWindow, update: impl Fn(&WebviewWindow, 
             if over_dock || at_edge {
                 hover_until = now + Duration::from_millis(HOVER_GRACE_MS);
             }
-            update(&window, want_visible(now < hover_until, crate::windows_list::app_has_focus));
+            // A dock fica à mostra com o próprio painel aberto, mesmo com o cursor fora dela.
+            let app_focused = || crate::windows_list::app_has_focus() && !crate::panels::owns_open_panel(&label);
+            update(&window, want_visible(now < hover_until, app_focused));
 
             if over_dock == ignoring {
                 ignoring = !over_dock;

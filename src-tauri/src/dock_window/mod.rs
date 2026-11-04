@@ -615,9 +615,12 @@ fn reserved_band(monitor: Band, reserved: i32) -> Band {
     }
 }
 
-/// Faixa reservada no monitor da dock, em pixels físicos de tela.
+/// Faixa reservada no monitor da dock `window`, em pixels físicos de tela.
 pub fn reserved_rect(window: &WebviewWindow) -> Option<Reserved> {
-    let monitor = target_monitor(window)?;
+    let monitor = match crate::extra_dock::monitor_id_of(window.label()) {
+        Some(id) => monitor_by_id(window, &id)?,
+        None => target_monitor(window)?,
+    };
     let scale = monitor.scale_factor();
     let pos = monitor.position();
     let size = monitor.size();
@@ -753,13 +756,17 @@ fn place_window(window: &WebviewWindow) -> Option<Placement> {
     place_window_with(window, monitor)
 }
 
+/// `None` quando o monitor não está conectado.
+fn monitor_by_id(window: &WebviewWindow, monitor_id: &str) -> Option<Monitor> {
+    let monitors = window.available_monitors().ok()?;
+    let i = ids_of(&monitors).iter().position(|id| id == monitor_id)?;
+    monitors.into_iter().nth(i)
+}
+
 /// Resolve o monitor pelo id e posiciona a janela nele. Não grava em `PLACED`.
 /// Retorna `None` quando o monitor não está conectado.
 pub(crate) fn place_window_on(window: &WebviewWindow, monitor_id: &str) -> Option<Placement> {
-    let monitors = window.available_monitors().ok()?;
-    let i = ids_of(&monitors).iter().position(|id| id == monitor_id)?;
-    let monitor = monitors.into_iter().nth(i)?;
-    place_window_with(window, monitor)
+    place_window_with(window, monitor_by_id(window, monitor_id)?)
 }
 
 #[cfg(test)]

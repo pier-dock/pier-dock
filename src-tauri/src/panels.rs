@@ -5,7 +5,7 @@ use std::sync::Mutex;
 
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
 
-use crate::dock_window::{position, reserved_rect, DOCK_LABEL, LEFT, RIGHT, TOP};
+use crate::dock_window::{is_dock_bar, position, reserved_rect, DOCK_LABEL, LEFT, RIGHT, TOP};
 use crate::util::ErrStr;
 
 pub const SETTINGS_LABEL: &str = "settings";
@@ -16,9 +16,16 @@ pub const WHATS_NEW_LABEL: &str = "whats-new";
 const PANEL_INSET: f64 = 18.0;
 const PANEL_RADIUS: f64 = 18.0;
 
-/// (label, kind) do painel aberto. Cada painel ganha um label novo porque fechar uma janela é
-/// assíncrono e reutilizar o label logo em seguida falharia.
-static OPEN_PANEL: Mutex<Option<(String, String)>> = Mutex::new(None);
+/// Cada painel ganha um label novo porque fechar uma janela é assíncrono e reutilizar o label logo
+/// em seguida falharia.
+struct OpenPanel {
+    label: String,
+    kind: String,
+    /// A dock cujas coordenadas o `anchor` do painel usa.
+    owner: String,
+}
+
+static OPEN_PANEL: Mutex<Option<OpenPanel>> = Mutex::new(None);
 static PANEL_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 /// O frontend decide o que renderizar por esta variável global, injetada antes da página carregar.
@@ -32,31 +39,59 @@ fn view_script(view: &str, kind: &str, anchor: Option<(f64, f64)>) -> String {
 
 /// Avisa a dock qual painel está aberto (`None`: nenhum), para o Clawd parar enquanto o das sessões
 /// estiver aberto.
-fn notify(app: &AppHandle, kind: Option<&str>) {
-    let _ = app.emit_to(DOCK_LABEL, "panel-changed", kind);
+fn notify(app: &AppHandle, owner: &str, kind: Option<&str>) {
+    let _ = app.emit_to(owner, "panel-changed", kind);
 }
 
 pub fn panel_open() -> bool {
     OPEN_PANEL.lock().unwrap().is_some()
 }
 
-pub fn close_open_panel(app: &AppHandle) -> Option<String> {
-    let (label, kind) = OPEN_PANEL.lock().unwrap().take()?;
-    if let Some(window) = app.get_webview_window(&label) {
+/// A dock `label` abriu o painel que está aberto?
+#[cfg(target_os = "macos")]
+pub fn owns_open_panel(label: &str) -> bool {
+    OPEN_PANEL.lock().unwrap().as_ref().is_some_and(|panel| panel.owner == label)
+}
+
+fn take_open_panel(app: &AppHandle) -> Option<OpenPanel> {
+    let panel = OPEN_PANEL.lock().unwrap().take()?;
+    if let Some(window) = app.get_webview_window(&panel.label) {
         let _ = window.destroy();
     }
-    notify(app, None);
-    Some(kind)
+    notify(app, &panel.owner, None);
+    Some(panel)
+}
+
+pub fn close_open_panel(app: &AppHandle) {
+    take_open_panel(app);
+}
+
+/// Um painel de grupo abre outros painéis com o `anchor` da dock que o abriu, então herda o dono.
+fn owner_label(caller: &str, open_owner: Option<&str>) -> String {
+    if is_dock_bar(caller) {
+        caller.to_string()
+    } else {
+        open_owner.unwrap_or(DOCK_LABEL).to_string()
+    }
+}
+
+/// A dock em cujas coordenadas a janela `caller` informa um `anchor`.
+pub fn owner_dock(app: &AppHandle, caller: &WebviewWindow) -> Option<WebviewWindow> {
+    let open = OPEN_PANEL.lock().unwrap();
+    let owner = owner_label(caller.label(), open.as_ref().map(|panel| panel.owner.as_str()));
+    drop(open);
+    app.get_webview_window(&owner)
 }
 
 /// Abre o painel de um widget ao lado dele; clicar de novo no mesmo widget fecha. `anchor_x` e
 /// `anchor_y` são o centro do widget em pixels lógicos da janela da dock.
 #[tauri::command]
-pub async fn open_panel(app: AppHandle, kind: String, anchor_x: f64, anchor_y: f64, width: f64, height: f64) -> Result<(), String> {
-    if close_open_panel(&app).as_deref() == Some(kind.as_str()) {
+pub async fn open_panel(app: AppHandle, window: WebviewWindow, kind: String, anchor_x: f64, anchor_y: f64, width: f64, height: f64) -> Result<(), String> {
+    let dock = owner_dock(&app, &window).ok_or(crate::i18n::tr("dock não encontrada", "dock not found"))?;
+    let owner = dock.label().to_string();
+    if take_open_panel(&app).is_some_and(|panel| panel.kind == kind && panel.owner == owner) {
         return Ok(());
     }
-    let dock = app.get_webview_window(DOCK_LABEL).ok_or(crate::i18n::tr("dock não encontrada", "dock not found"))?;
     let reserved = reserved_rect(&dock).ok_or(crate::i18n::tr("monitor não encontrado", "monitor not found"))?;
     let dock_pos = dock.outer_position().err_str()?;
 
@@ -126,16 +161,15 @@ pub async fn open_panel(app: AppHandle, kind: String, anchor_x: f64, anchor_y: f
             if !was_focused.load(Ordering::SeqCst) {
                 return;
             }
-            let mut open = OPEN_PANEL.lock().unwrap();
-            if open.as_ref().map(|(l, _)| l == handle.label()).unwrap_or(false) {
-                *open = None;
-                notify(handle.app_handle(), None);
+            let closed = OPEN_PANEL.lock().unwrap().take_if(|panel| panel.label == handle.label());
+            if let Some(panel) = closed {
+                notify(handle.app_handle(), &panel.owner, None);
             }
             let _ = handle.destroy();
         }
     });
-    notify(&app, Some(&kind));
-    *OPEN_PANEL.lock().unwrap() = Some((label, kind));
+    notify(&app, &owner, Some(&kind));
+    *OPEN_PANEL.lock().unwrap() = Some(OpenPanel { label, kind, owner });
     Ok(())
 }
 
@@ -150,7 +184,7 @@ fn clamp(value: f64, min: f64, max: f64) -> f64 {
 /// Windows recusa trazer a janela nova para a frente e o `Focused(false)` nunca chega.
 #[cfg(windows)]
 pub fn close_if_outside(app: &AppHandle, x: i32, y: i32) {
-    let Some(label) = OPEN_PANEL.lock().unwrap().as_ref().map(|(l, _)| l.clone()) else { return };
+    let Some(label) = OPEN_PANEL.lock().unwrap().as_ref().map(|panel| panel.label.clone()) else { return };
     let Some(window) = app.get_webview_window(&label) else { return };
     let (Ok(pos), Ok(size)) = (window.outer_position(), window.outer_size()) else { return };
     let inside = x >= pos.x && x < pos.x + size.width as i32 && y >= pos.y && y < pos.y + size.height as i32;
@@ -257,10 +291,20 @@ fn app_window(app: &AppHandle, label: &str, kind: &str, title: &str, size: (f64,
     Ok(window)
 }
 
+#[cfg(target_os = "macos")]
+static REGULAR_WINDOW_OPEN: AtomicBool = AtomicBool::new(false);
+
+/// Há uma janela comum do Pier aberta (configurações ou novidades)?
+#[cfg(target_os = "macos")]
+pub fn regular_window_open() -> bool {
+    REGULAR_WINDOW_OPEN.load(Ordering::SeqCst)
+}
+
 /// No macOS o Pier é um app de segundo plano (sem ícone no Dock); enquanto há uma janela comum
 /// aberta ele vira um app regular, para aparecer na dock e poder ser trazido de volta.
 #[cfg(target_os = "macos")]
 fn set_regular_policy(app: &AppHandle, regular: bool) {
+    REGULAR_WINDOW_OPEN.store(regular, Ordering::SeqCst);
     let handle = app.clone();
     let _ = app.run_on_main_thread(move || {
         let policy = if regular { tauri::ActivationPolicy::Regular } else { tauri::ActivationPolicy::Accessory };
@@ -336,4 +380,37 @@ pub async fn open_settings(app: AppHandle, tab: Option<String>) -> Result<(), St
 #[tauri::command]
 pub async fn open_whats_new(app: AppHandle) -> Result<(), String> {
     open_whats_new_window(&app, "").map(|_| ()).err_str()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_dock_owns_the_panels_it_opens() {
+        assert_eq!(owner_label(DOCK_LABEL, None), DOCK_LABEL);
+        assert_eq!(owner_label("dock-extra-0", None), "dock-extra-0");
+        assert_eq!(owner_label("dock-extra-0", Some(DOCK_LABEL)), "dock-extra-0");
+    }
+
+    #[test]
+    fn a_group_panel_passes_on_the_dock_that_opened_it() {
+        assert_eq!(owner_label("panel-3", Some("dock-extra-0")), "dock-extra-0");
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn only_the_dock_that_opened_the_panel_owns_it() {
+        *OPEN_PANEL.lock().unwrap() = Some(OpenPanel { label: "panel-test".into(), kind: "calendar".into(), owner: "dock-extra-0".into() });
+        assert!(owns_open_panel("dock-extra-0"));
+        assert!(!owns_open_panel(DOCK_LABEL));
+        *OPEN_PANEL.lock().unwrap() = None;
+        assert!(!owns_open_panel("dock-extra-0"));
+    }
+
+    #[test]
+    fn without_an_owner_panels_belong_to_the_main_dock() {
+        assert_eq!(owner_label("panel-3", None), DOCK_LABEL);
+        assert_eq!(owner_label(SETTINGS_LABEL, None), DOCK_LABEL);
+    }
 }
