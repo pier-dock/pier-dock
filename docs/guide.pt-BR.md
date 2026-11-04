@@ -6,7 +6,7 @@
 
 - **Apps:** apps fixados e abertos, com ampliação, reordenação por arrastar, lista de janelas e bolinhas de contagem.
 - **Barra personalizável:** coloque a dock em qualquer borda da tela, deixe-a no tamanho dos ícones ou de ponta a ponta e escolha o tamanho dos ícones, o material e a cor de destaque.
-- **Widgets:** player de mídia, GitHub (revisões, pull requests, commits, contribuições), sistema (rede, volume, Bluetooth, bateria, relógio, mostrar a área de trabalho, uso do sistema e, no Windows, layout do teclado e bandeja), clima, mercado (ações, FIIs e cripto), lembretes em post-it salvos em Documentos, agenda, Pomodoro e uso de IA.
+- **Widgets:** player de mídia, GitHub (revisões, pull requests, commits, contribuições), sistema (rede, volume, Bluetooth, bateria, relógio, mostrar a área de trabalho, uso do sistema e, no Windows, layout do teclado e bandeja), clima, mercado (ações, FIIs e cripto), lembretes salvos em Documentos, agenda, Pomodoro e uso de IA.
 - **Grupos de widgets:** arraste um widget sobre outro e segure até o contorno ficar sólido para juntar os dois num cartão 2×2. Clique no cartão para abrir todos os widgets num painel só, e gerencie os grupos em **Configurações** > **Widgets**.
 - **GitHub num relance:** as contagens de pull requests e revisões podem aparecer com ícone ou com rótulo de texto, visíveis sem passar o mouse.
 - **Agentes de IA:** as sessões do Claude Code, Codex, opencode e Gemini CLI num relance, e um clique leva ao terminal ou à IDE que a iniciou. O Clawd ou um Pokémon podem andar pela dock enquanto uma sessão roda.

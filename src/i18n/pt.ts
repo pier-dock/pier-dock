@@ -100,6 +100,7 @@ export const pt = {
     delete: "Apagar lembrete",
     deleteConfirm: "Apagar?",
     counter: (used: number, max: number) => `${used}/${max}`,
+    position: (current: number, total: number) => `${current} de ${total}`,
     colors: { yellow: "Amarelo", pink: "Rosa", blue: "Azul", green: "Verde" },
     empty: "Nenhum lembrete.",
     emptyHint: "Eles ficam salvos em Documentos/Pier/Lembretes.",
@@ -531,10 +532,10 @@ export const pt = {
           "Ações, FIIs e criptomoedas da brapi.dev. O quadrado mostra o primeiro ativo; o formato largo, até três. O clique abre a lista com faixa do dia, de 52 semanas, volume e valor de mercado.",
       },
       notes: {
-        summary: "Post-its com lembretes que se alternam na dock.",
+        summary: "Lembretes curtos que se alternam na dock.",
         name: "Lembretes",
         description:
-          "Lembretes curtos, no estilo post-it, salvos como arquivos .md em Documentos/Pier/Lembretes. Com mais de um, a dock alterna entre eles. O clique abre o painel para criar, editar, mudar a cor e apagar.",
+          "Lembretes curtos salvos como arquivos .md em Documentos/Pier/Lembretes. Com mais de um, a dock alterna entre eles. O clique abre o painel para criar, editar, mudar a cor e apagar.",
       },
       pomodoro: { summary: "Ciclos de foco com o anel de progresso.",
         name: "Pomodoro",
