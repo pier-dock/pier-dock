@@ -9,6 +9,7 @@ export const en: Dict = {
     save: "Save",
     remove: "Remove",
     refresh: "Refresh",
+    refreshing: "Refreshing…",
     openSettings: "Open settings",
     viewProfile: "View profile",
     moveUp: "Move up",

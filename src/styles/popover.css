@@ -165,6 +165,32 @@
   background: var(--fill-selected);
 }
 
+.action.loading {
+  color: var(--text);
+}
+
+.action-spinner {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-top-color: currentColor;
+  animation: action-spin 0.7s linear infinite;
+}
+
+@keyframes action-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .action-spinner {
+    animation: none;
+  }
+}
+
 .action-sep {
   width: 1px;
   height: 14px;
