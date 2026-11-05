@@ -484,4 +484,4 @@ pub fn top_inset(_monitor: Band) -> i32 {
 }
 
 /// O hover vem da thread que acompanha o cursor.
-pub fn set_hover(_hovering: bool) {}
+pub fn set_hover(_label: &str, _hovering: bool) {}

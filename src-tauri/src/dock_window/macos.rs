@@ -175,4 +175,4 @@ pub fn cursor(app: &AppHandle) -> Option<(f64, f64)> {
 }
 
 /// O hover vem da thread que acompanha o cursor.
-pub fn set_hover(_hovering: bool) {}
+pub fn set_hover(_label: &str, _hovering: bool) {}
