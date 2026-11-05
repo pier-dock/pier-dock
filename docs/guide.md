@@ -47,6 +47,7 @@ In-app updates work with the Windows installer, the macOS app, and the AppImage.
 - **Click** a divider to open its removal menu; it can also be reached with the keyboard.
 - **Drag** pinned apps to reorder them. To pin an app, drop it on the dock or add it in **Settings** > **Apps**.
 - **Click** a widget to open its panel. On the volume widget, scroll to adjust the volume and right-click to mute.
+- **Scroll** over the dock to switch to the next or previous profile, one at a time. Each profile has its own pinned apps, widgets, groups, order, and accent color. Create and edit profiles in **Settings** > **Profiles**. With the dock on all monitors, you can also give each monitor its own profile there.
 - **Drag** a widget onto another, or onto a group card, and hold until the outline turns solid to create or extend a group. Click the card to open the group; use each widget's X to remove it or **Ungroup** to undo the group.
 - In the sound panel, **Default output** selects the system output; **App audio** shows the controls for individual apps. On supported platforms, each app can use a separate output.
 - **Press** <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd>…<kbd>9</kbd> (<kbd>Control</kbd>+<kbd>Option</kbd>+<kbd>1</kbd>…<kbd>9</kbd> on macOS) to open or focus the app in that position.

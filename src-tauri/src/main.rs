@@ -205,6 +205,7 @@ fn main() {
             dock_window::window_visible,
             dock_window::set_dock_hover,
             dock_window::list_monitors,
+            extra_dock::extra_dock_monitor,
             windows_list::get_windows,
             windows_list::toggle_app_windows,
             windows_list::activate_window,

@@ -26,6 +26,10 @@ import { MagnifyCtx, MagnifyGeometry } from "./Magnify";
 import { resetDockHover } from "./hoverReset";
 import { AppIcon } from "./AppIcon";
 import { SortableItem } from "./SortableItem";
+import { DockUpdateProvider } from "./dockUpdate";
+import { ProfilePeek } from "./ProfilePeek";
+import { scopedUpdate, setWindowProfile } from "./profiles";
+import { useProfileScroll } from "./useProfileScroll";
 import { WidgetGroupSlot } from "./WidgetGroupSlot";
 import { createGroup } from "./groups";
 import { activeGroups, addDivider, applyOrder, groupKey, groupIdOf, isDivider, isGroupKey, LAUNCHER_KEY, removeItem, resolveOrder, START_KEY, widgetKey } from "./order";
@@ -150,12 +154,16 @@ function clickApp(app: DockApp) {
   else ipc.launchApp(app.launchTarget).catch(console.error);
 }
 
-export function Dock({ config }: { config: Config }) {
-  return <DockWidgetsProvider config={config}><DockLayout config={config} /></DockWidgetsProvider>;
+export function Dock({ config, profileId, monitor }: { config: Config; profileId: string; monitor: string | null }) {
+  return <DockWidgetsProvider config={config}><DockLayout config={config} profileId={profileId} monitor={monitor} /></DockWidgetsProvider>;
 }
 
-const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
-  const update = useConfig((s) => s.update);
+const DockLayout = memo(function DockLayout({ config, profileId, monitor }: { config: Config; profileId: string; monitor: string | null }) {
+  const storeUpdate = useConfig((s) => s.update);
+  const profileRef = useRef(profileId);
+  profileRef.current = profileId;
+  // Estável entre trocas de perfil: o que assina eventos nativos com ele não precisa assinar de novo.
+  const update = useCallback<typeof storeUpdate>((patch) => scopedUpdate(storeUpdate, profileRef.current)(patch), [storeUpdate]);
   const snapshot = useWindows();
   const pendingUpdate = usePendingUpdate();
   const setupNeeded = useSetupNeeded();
@@ -169,6 +177,21 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
   const barRef = useRef<HTMLDivElement>(null);
   // Janela em prévia: guarda o app pelo `key`, porque a lista de apps é remontada a cada snapshot.
   const [preview, setPreview] = useState<{ key: string; x: number; y: number } | null>(null);
+  const switchTo = useCallback((id: string) => {
+    void storeUpdate((c) => setWindowProfile(c, monitor, id));
+    setPreview(null);
+    void ipc.closePanel().catch(console.error);
+  }, [storeUpdate, monitor]);
+  const profileScroll = useProfileScroll({
+    barRef,
+    enabled: config.profileScroll,
+    invert: config.profileScrollInvert,
+    vertical,
+    animateLength: !full,
+    profiles: config.dockProfiles,
+    currentId: profileId,
+    onSwitch: switchTo,
+  });
 
   const [installed, setInstalled] = useState<AppEntry[]>([]);
   useEffect(() => {
@@ -459,6 +482,16 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
     const menu = await Menu.new({
       items: [
         ...attentionMenuItems(attention),
+        ...(config.dockProfiles.length > 1
+          ? [{
+              text: t.profile(config.dockProfiles.find((p) => p.id === profileId)?.name ?? ""),
+              items: [
+                ...config.dockProfiles.map((p) => ({ id: `profile-${p.id}`, text: p.name, checked: p.id === profileId, action: () => switchTo(p.id) })),
+                { item: "Separator" as const },
+                { id: "edit-profiles", text: t.editProfiles, action: () => ipc.openSettings("profiles") },
+              ],
+            }]
+          : [{ id: "edit-profiles", text: t.editProfiles, action: () => ipc.openSettings("profiles") }]),
         { id: "settings", text: t.dockSettings, action: () => ipc.openSettings() },
         { id: "divider", text: t.addDivider, action: () => update((c) => addDivider(c)) },
         ...(config.showStartButton
@@ -560,6 +593,7 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
   }
 
   return (
+    <DockUpdateProvider value={update}>
     <MagnifyGeometry {...magnifyContext}>
     <div
       className="dock-root"
@@ -597,7 +631,20 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
             />
           ))}
         </MagnifyCtx.Provider>
+        {config.dockProfiles.length > 1 && (
+          <span className={`tooltip dock-profile-hud ${profileScroll.hudVisible ? "visible" : ""}`} role="status">
+            <span className="tooltip-label">{config.dockProfiles.find((p) => p.id === profileId)?.name}</span>
+            <span className="indicators" aria-hidden>
+              {config.dockProfiles.map((p) => (
+                <span key={p.id} className={`indicator ${p.id === profileId ? "active" : "on"}`} />
+              ))}
+            </span>
+          </span>
+        )}
       </div>
+      {profileScroll.peekId && (
+        <ProfilePeek config={config} profileId={profileScroll.peekId} barRef={barRef} barStyle={barStyle} vertical={vertical} renderWidget={renderWidget} />
+      )}
       {config.claudePetEnabled && (
         <AgentPet
           mascot={config.agentPetMascot}
@@ -618,5 +665,6 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
       )}
     </div>
     </MagnifyGeometry>
+    </DockUpdateProvider>
   );
 });

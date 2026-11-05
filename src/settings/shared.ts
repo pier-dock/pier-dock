@@ -13,4 +13,6 @@ export interface TabProps {
   update: (patch: Partial<Config> | ((c: Config) => Partial<Config>)) => void;
   platform: PlatformInfo | null;
   setFooter: (footer: TabFooter | null) => void;
+  /** Abre a aba de apps ou de widgets editando este perfil. */
+  editProfile?: (id: string, tab: "apps" | "widgets") => void;
 }

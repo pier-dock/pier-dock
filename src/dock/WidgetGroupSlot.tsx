@@ -5,7 +5,7 @@ import { Menu } from "@tauri-apps/api/menu";
 import type { WidgetConfig, WidgetGroup } from "../lib/ipc";
 import { widgetSupported } from "../lib/platform";
 import { useT } from "../i18n";
-import { useConfig } from "../store/config";
+import { useDockUpdate } from "./dockUpdate";
 import { DockWidget } from "../widgets/DockWidgets";
 import { FitScale } from "../widgets/FitScale";
 import { dissolveGroup } from "./groups";
@@ -24,7 +24,7 @@ interface Props {
 /** Cartão 2×2 de um grupo na dock; as prévias são inertes e o clique abre o painel do grupo. */
 export function WidgetGroupSlot({ group, widgets, vertical, merge }: Props) {
   const t = useT();
-  const update = useConfig((s) => s.update);
+  const update = useDockUpdate();
   const ref = useRef<HTMLButtonElement>(null);
   const { hover, bind } = useHover();
   const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: groupKey(group.id) });
