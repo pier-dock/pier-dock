@@ -2,6 +2,28 @@
 
 O que mudou em cada versão do Pier. O app mostra estas notas uma vez depois de se atualizar, então escreva para quem usa. Antes de criar a tag de uma release, adicione uma seção `## <versão>` aqui e no `CHANGELOG.md`.
 
+## 0.25.0
+
+### Perfis da dock
+- **Novidade:** tenha perfis separados, cada um com seus próprios apps fixados, widgets, grupos, divisores, ordem, botões do launcher e cor de destaque. A sua dock atual vira o primeiro perfil.
+- **Troca:** role sobre a dock para ir ao próximo perfil ou ao anterior, um de cada vez. Também dá para trocar pelo menu do fundo da dock. O widget **Volume** continua com o próprio scroll.
+- **Configurações:** a nova aba **Perfis** cria, duplica, renomeia, reordena e exclui perfis, e define o ícone e a cor de destaque de cada um. **Apps** e **Widgets** ganham um seletor **Editando** quando você tem mais de um perfil.
+- **Vários monitores:** com a dock em todas as telas, ligue **Um perfil por monitor** para que cada dock troque sozinha.
+
+### Widget de lembretes
+- **Novo visual:** o card e o painel agora usam o mesmo estilo de vidro dos outros widgets, com um ponto colorido no lugar do bloco de cor e texto maior. O card largo também mostra a posição na rotação, como "1 de 4".
+
+### Vários monitores
+- **Ocultar automaticamente:** as docks extras agora se escondem por inteiro, em vez de deixar os ícones e a borda na tela. No macOS, a dock de cada monitor se esconde e aparece por conta própria.
+- **Cliques:** os apps abrem no primeiro clique numa dock extra, e a dock principal não sobe mais quando isso acontece.
+- **Painéis:** os painéis dos widgets abrem na dock que você clicou, e não no monitor principal.
+- **Tamanho:** a dock reduz os ícones dos apps para caber em cada monitor, até 24 px, e eles voltam a crescer quando há espaço. No macOS, uma dock na borda esquerda ou direita não cobre mais a barra de menus.
+- **Windows:** os apps na segunda tela não ficam mais travados e sem responder a cliques.
+- **Linux:** **Todas as telas** não deixa mais parte da área de trabalho sem receber cliques, nem desenha uma segunda dock no monitor vizinho.
+
+### Correções
+- **Atualizar:** **Atualizar** nos painéis do GitHub e de Mercado e **Sincronizar agora** nas configurações do GitHub agora mostram um indicador de carregamento enquanto rodam, para você saber que o clique funcionou.
+
 ## 0.24.0
 
 ### Widget de mercado

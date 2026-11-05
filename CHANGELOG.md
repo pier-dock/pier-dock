@@ -2,6 +2,28 @@
 
 What changed in each version of Pier. The app shows these notes once after it updates, so write them for users. Add a `## <version>` section before tagging a release, in this file and in `CHANGELOG.pt-BR.md`.
 
+## 0.25.0
+
+### Dock profiles
+- **New:** keep separate profiles, each with its own pinned apps, widgets, groups, dividers, order, launcher buttons and accent color. Your current dock becomes the first profile.
+- **Switching:** scroll over the dock to go to the next or previous profile, one at a time. You can also switch from the dock's background menu. The **Volume** widget keeps its own scroll.
+- **Settings:** the new **Profiles** tab creates, duplicates, renames, reorders and deletes profiles, and sets their icon and accent color. **Apps** and **Widgets** get an **Editing** selector when you have more than one profile.
+- **Multiple monitors:** with the dock on all displays, turn on **One profile per monitor** so each dock switches on its own.
+
+### Reminders widget
+- **New look:** the tile and the panel now use the same glass style as the other widgets, with a color dot instead of a block of color and larger text. The wide tile also shows the position in the rotation, such as "1 of 4".
+
+### Multiple monitors
+- **Auto-hide:** extra docks now hide completely, instead of leaving their icons and border on screen. On macOS, each monitor's dock hides and reveals on its own.
+- **Clicks:** apps open on the first click from an extra dock, and the main dock no longer slides up when that happens.
+- **Panels:** widget panels open on the dock you clicked, not on the primary monitor.
+- **Fit:** the dock shrinks its app icons to fit each monitor, down to 24 px, and they grow back when there is room. On macOS, a dock on the left or right edge no longer covers the menu bar.
+- **Windows:** apps on the second display no longer get stuck without responding to clicks.
+- **Linux:** **All displays** no longer leaves part of the desktop unable to receive clicks, or draws a second dock on the neighboring monitor.
+
+### Fixes
+- **Refresh:** **Refresh** in the GitHub and Market panels and **Sync now** in the GitHub settings now show a spinner while they run, so you can tell the click registered.
+
 ## 0.24.0
 
 ### Market widget
