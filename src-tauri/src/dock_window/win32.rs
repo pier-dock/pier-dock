@@ -79,6 +79,17 @@ fn hit_test_falls_through(hwnd: HWND, cursor: POINT) -> bool {
     }
 }
 
+/// O cursor está sobre a própria barra, longe dos cantos arredondados? Na folga acima dela e na
+/// margem até a borda da tela os pixels são transparentes, e lá o mouse atravessa mesmo.
+fn cursor_over_bar(hit: super::HitRect, win: &RECT, scale: f64, cx: f64, cy: f64) -> bool {
+    let inset = (hit.radius.max(2.0) * scale, 2.0 * scale);
+    let bar_left = win.left as f64 + hit.x * scale + inset.0;
+    let bar_top = win.top as f64 + hit.y * scale + inset.1;
+    let bar_right = win.left as f64 + (hit.x + hit.width) * scale - inset.0;
+    let bar_bottom = win.top as f64 + (hit.y + hit.height) * scale - inset.1;
+    cx > bar_left && cx < bar_right && cy > bar_top && cy < bar_bottom
+}
+
 /// Tirar e recolocar o `WS_EX_LAYERED` faz o Windows refazer a máscara de hit-test da janela; o
 /// `SWP_FRAMECHANGED` sozinho não basta.
 fn refresh_layered(hwnd: HWND) {
@@ -237,6 +248,7 @@ fn start_pointer_thread_extra(window: WebviewWindow, stop: Arc<AtomicBool>) {
     std::thread::spawn(move || {
         let mut ignoring = true;
         let mut last_visible: Option<bool> = None;
+        let mut hit_test_checked = Instant::now();
         loop {
             std::thread::sleep(Duration::from_millis(if ignoring { 30 } else { 16 }));
             if stop.load(Ordering::SeqCst) {
@@ -291,6 +303,23 @@ fn start_pointer_thread_extra(window: WebviewWindow, stop: Arc<AtomicBool>) {
             if interactive == ignoring {
                 ignoring = !interactive;
                 ensure_ex_style(hwnd, ignoring);
+                if ignoring {
+                    let _ = window.emit_to(window.label(), "dock-pointer-left", ());
+                }
+            }
+
+            // Mesma recuperação da dock principal: o Windows às vezes entrega o mouse à janela de
+            // baixo mesmo com a janela interativa (máscara de alfa velha).
+            if !ignoring
+                && hit.width > 0.0
+                && cursor_over_bar(hit, &win, scale, cx, cy)
+                && hit_test_checked.elapsed() >= HIT_TEST_CHECK
+            {
+                hit_test_checked = Instant::now();
+                if hit_test_falls_through(hwnd, cursor) {
+                    log::warn!("o hit-test atravessou a barra da dock {label}; refazendo o WS_EX_LAYERED");
+                    refresh_layered(hwnd);
+                }
             }
         }
     });
@@ -385,14 +414,7 @@ fn start_pointer_thread(window: WebviewWindow) {
                 }
             }
 
-            // Só sobre a própria barra, longe dos cantos arredondados: na folga acima dela e na
-            // margem até a borda da tela os pixels são transparentes, e lá o mouse atravessa mesmo.
-            let inset = (hit.radius.max(2.0) * scale, 2.0 * scale);
-            let bar_left = win.left as f64 + hit.x * scale + inset.0;
-            let bar_top = win.top as f64 + hit.y * scale + inset.1;
-            let bar_right = win.left as f64 + (hit.x + hit.width) * scale - inset.0;
-            let bar_bottom = win.top as f64 + (hit.y + hit.height) * scale - inset.1;
-            let over_bar = cx > bar_left && cx < bar_right && cy > bar_top && cy < bar_bottom;
+            let over_bar = cursor_over_bar(hit, &win, scale, cx, cy);
             if !ignoring && over_bar && hit_test_checked.elapsed() >= HIT_TEST_CHECK {
                 hit_test_checked = Instant::now();
                 if hit_test_falls_through(hwnd, cursor) {
@@ -484,4 +506,4 @@ pub fn top_inset(_monitor: Band) -> i32 {
 }
 
 /// O hover vem da thread que acompanha o cursor.
-pub fn set_hover(_hovering: bool) {}
+pub fn set_hover(_label: &str, _hovering: bool) {}

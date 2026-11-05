@@ -75,3 +75,38 @@ test("Wi-Fi permission button requests permission", async ({ page }) => {
   await page.locator(".wifi-empty-action").click();
   await expectCall(page, "wifi_request_permission");
 });
+
+for (const kind of ["github-mine", "github-commits", "github-contrib", "market"]) {
+  test(`${kind} refresh shows it is loading even with an instant response`, async ({ page }) => {
+    await openMock(page, `view=panel&kind=${kind}`);
+    await page.locator(".action", { hasText: "Refresh" }).click();
+    const loading = page.locator(".action.loading");
+    await expect(loading).toContainText("Refreshing…");
+    await expect(loading).toHaveAttribute("aria-busy", "true");
+    await expect(loading.locator(".action-spinner")).toBeVisible();
+    await expect(loading).toHaveCount(0);
+    await expect(page.locator(".action", { hasText: "Refresh" })).toBeEnabled();
+  });
+}
+
+test("a failed refresh stops loading and shows the error", async ({ page }) => {
+  await openMock(page, "view=panel&kind=github-commits", {}, { github_fetch: "offline" });
+  await page.locator(".action", { hasText: "Refresh" }).click();
+  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.locator(".action.loading")).toHaveCount(0);
+});
+
+test("actions without a loading label show no spinner", async ({ page }) => {
+  await openMock(page, "view=panel&kind=github-commits");
+  await page.evaluate(() => {
+    document.addEventListener("click", () => {
+      (window as unknown as { __SPINNERS__: number }).__SPINNERS__ = document.querySelectorAll(".action-spinner").length;
+      requestAnimationFrame(() => {
+        (window as unknown as { __SPINNERS__: number }).__SPINNERS__ += document.querySelectorAll(".action-spinner").length;
+      });
+    });
+  });
+  await page.locator(".action", { hasText: "View profile" }).click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __SPINNERS__?: number }).__SPINNERS__)).toBe(0);
+  await expect(page.locator(".action.loading")).toHaveCount(0);
+});

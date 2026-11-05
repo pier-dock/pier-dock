@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { Activity, GitBranch, LayoutGrid, Menu, Palette } from "lucide-react";
+import { Activity, GitBranch, LayoutGrid, Menu, Palette, Layers } from "lucide-react";
 import { ipc, type PlatformInfo } from "../lib/ipc";
 import { currentView } from "../lib/view";
 import { keys, labels, os } from "../lib/platform";
@@ -18,10 +18,14 @@ import { GithubTab } from "./tabs/GithubTab";
 import { GeneralTab } from "./tabs/GeneralTab";
 import { refreshGithub } from "../popovers/PullRequests";
 import { addDivider } from "../dock/order";
+import { profileView, scopedUpdate } from "../dock/profiles";
+import { ProfileScope } from "./ProfileScope";
+import { ProfilesTab } from "./tabs/ProfilesTab";
 import { useT } from "../i18n";
 
 const TABS = [
   { id: "apps", Icon: LayoutGrid, Content: AppsTab },
+  { id: "profiles", Icon: Layers, Content: ProfilesTab },
   { id: "widgets", Icon: Activity, Content: WidgetsTab },
   { id: "appearance", Icon: Palette, Content: AppearanceTab },
   { id: "github", Icon: GitBranch, Content: GithubTab },
@@ -68,13 +72,24 @@ export function Settings() {
     tabRefs.current[target.id]?.focus();
   };
 
-  const props: TabProps = { config, update: (p) => void update(p), platform, setFooter };
+  // Apps e Widgets editam o conteúdo de um perfil; o resto da config é um só.
+  const [editing, setEditing] = useState<string | null>(null);
+  const editingId = config.dockProfiles.some((p) => p.id === editing) ? editing! : config.activeProfile;
+  const scoped = tab === "apps" || tab === "widgets";
+  const editProfile = (id: string, target: "apps" | "widgets") => {
+    setEditing(id);
+    setTab(target);
+  };
+  const props: TabProps = scoped
+    ? { config: profileView(config, editingId), update: (p) => void scopedUpdate(update, editingId)(p), platform, setFooter }
+    : { config, update: (p) => void update(p), platform, setFooter, editProfile };
   const { Content } = TABS.find((t) => t.id === tab)!;
   const actions: Record<TabId, Action[]> = {
-    apps: [{ label: t.dock.addDivider, onClick: () => update((c) => addDivider(c)) }],
+    apps: [{ label: t.dock.addDivider, onClick: () => props.update((c) => addDivider(c)) }],
+    profiles: [],
     widgets: [],
     appearance: [],
-    github: [{ label: t.settings.syncNow, keys: `${keys.command} R`, onClick: refreshGithub }],
+    github: [{ label: t.settings.syncNow, loadingLabel: t.common.syncing, keys: `${keys.command} R`, onClick: refreshGithub }],
     general: [{ label: labels().quit, onClick: () => ipc.quit() }],
   };
 
@@ -110,7 +125,8 @@ export function Settings() {
       <PlatformNotice platform={platform} refresh={refreshPlatform} />
       {firstRun && <Welcome platform={platform} update={props.update} done={() => setFirstRun(false)} />}
       <main className="settings-main" id="settings-panel" role="tabpanel" aria-labelledby={`tab-${tab}`}>
-        <ErrorBoundary key={tab}>
+        <ErrorBoundary key={scoped ? `${tab}:${editingId}` : tab}>
+          {scoped && <ProfileScope config={config} editingId={editingId} onChange={setEditing} />}
           <Content {...props} />
         </ErrorBoundary>
       </main>

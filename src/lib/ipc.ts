@@ -67,6 +67,21 @@ export type DockPosition = "bottom" | "top" | "left" | "right";
 
 export type AgentPetMascot = "clawd" | "pokemon";
 
+/** Um arranjo da dock. O conteúdo do perfil ativo fica no topo da `Config`, de onde o app lê. */
+export interface DockProfile {
+  id: string;
+  name: string;
+  /** Chave de `PROFILE_ICONS`. */
+  icon: string;
+  accent: Accent;
+  pinnedApps: AppEntry[];
+  widgets: WidgetConfig[];
+  dockOrder: string[];
+  widgetGroups: WidgetGroup[];
+  showStartButton: boolean;
+  showLauncher: boolean;
+}
+
 export interface Config {
   pinnedApps: AppEntry[];
   widgets: WidgetConfig[];
@@ -122,6 +137,17 @@ export interface Config {
   /** Pokémon que andam sobre a borda da dock, com o ícone de time da PokeAPI; o primeiro também é o ícone do widget. */
   pokemonPetEnabled: boolean;
   pokemonPetIds: number[];
+  /** Sempre com pelo menos um perfil. */
+  dockProfiles: DockProfile[];
+  /** Perfil da dock principal e o que os campos de conteúdo do topo espelham. */
+  activeProfile: string;
+  /** Com a dock em todos os monitores, cada dock extra troca de perfil sozinha. */
+  profilePerMonitor: boolean;
+  /** Perfil de cada dock extra, pelo id do monitor. */
+  monitorProfiles: Record<string, string>;
+  /** Scroll sobre a dock troca de perfil. */
+  profileScroll: boolean;
+  profileScrollInvert: boolean;
 }
 
 /** Quantos Pokémon o widget aceita; o mesmo limite vale no Rust (`config.rs`). */
@@ -523,7 +549,7 @@ export const ipc = {
     invoke<void>("set_pet_rect", { rect }),
   setPreviewGlass: (rect: { x: number; y: number; width: number; height: number; radius: number } | null) =>
     invoke<void>("set_preview_glass", { rect }),
-  dockVisible: () => invoke<boolean>("dock_visible"),
+  dockVisible: () => invoke<boolean>("window_visible"),
   setDockHover: (hovering: boolean) => invoke<void>("set_dock_hover", { hovering }),
 
   getWindows: () => invoke<WindowsSnapshot>("get_windows"),
@@ -621,6 +647,7 @@ export const ipc = {
   systemLanguage: () => invoke<Lang>("system_language"),
   platformSetup: (action: "install-extension" | "request-accessibility") => invoke<void>("platform_setup", { action }),
   listMonitors: () => invoke<MonitorInfo[]>("list_monitors"),
+  extraDockMonitor: () => invoke<string | null>("extra_dock_monitor"),
   permissions: () => invoke<Permission[]>("permissions"),
   permissionAction: (id: Permission["id"]) => invoke<void>("permission_action", { id }),
 

@@ -47,7 +47,7 @@ export function Commits() {
         context={data ? common.updatedAgo(timeAgo(data.fetchedAt)) : ""}
         actions={[
           { label: common.viewProfile, keys: "↵", onClick: () => openUrl(profile) },
-          { label: common.refresh, keys: `${keys.command} R`, onClick: refreshGithub },
+          { label: common.refresh, loadingLabel: common.refreshing, keys: `${keys.command} R`, onClick: refreshGithub },
         ]}
       />
     </>

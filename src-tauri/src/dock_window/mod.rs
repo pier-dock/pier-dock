@@ -20,8 +20,15 @@ mod backend;
 pub use backend::init;
 #[cfg(windows)]
 pub use backend::{remove_appbar, reregister, init_extra, apply_layout_extra};
+#[cfg(not(windows))]
+pub use backend::init_extra;
+#[cfg(target_os = "linux")]
+pub use backend::apply_layout_extra;
 
 pub const DOCK_LABEL: &str = "dock";
+/// Prefixo do rótulo das janelas extras (`dock-extra-0`, `dock-extra-1`…). A capability em
+/// `capabilities/default.json` casa com esse mesmo prefixo.
+pub const EXTRA_LABEL_PREFIX: &str = "dock-extra-";
 
 /// Borda da tela onde a dock fica.
 pub const BOTTOM: u8 = 0;
@@ -346,7 +353,11 @@ static LAYOUT: Mutex<Layout> = Mutex::new(Layout { reserved: 72.0, window_size: 
 /// Geometria da barra medida pelo frontend, por janela (rótulo): cada dock (principal e extras)
 /// mede a própria barra, e o tamanho/centro dependem do monitor em que ela está.
 static HITS: Mutex<Option<HashMap<String, HitRect>>> = Mutex::new(None);
-static PET: Mutex<Option<HitRect>> = Mutex::new(None);
+/// A área do Clawd, por janela: cada dock tem o seu, em coordenadas da própria janela.
+static PET: Mutex<Option<HashMap<String, HitRect>>> = Mutex::new(None);
+/// Visibilidade das janelas extras que decidem a própria pelo hover do seu monitor (macOS). As que
+/// não estão aqui seguem `VISIBLE`.
+static EXTRA_VISIBLE: Mutex<Option<HashMap<String, bool>>> = Mutex::new(None);
 
 fn layout() -> Layout {
     *LAYOUT.lock().unwrap()
@@ -383,14 +394,33 @@ fn want_visible(hovering: bool, app_focused: impl FnOnce() -> bool) -> bool {
 }
 
 /// Atualiza a visibilidade e avisa o frontend, que anima a dock para dentro/fora da tela; o vidro
-/// nativo acompanha. As janelas extras são notificadas junto.
+/// nativo acompanha. No Linux as janelas extras são notificadas junto; no Windows e no macOS cada
+/// uma tem a própria thread de ponteiro, que decide a visibilidade dela.
 #[allow(dead_code)]
 fn set_visible(window: &WebviewWindow, visible: bool) {
     use tauri::Emitter;
     if VISIBLE.swap(visible, Ordering::SeqCst) != visible {
         let _ = window.emit_to(window.label(), "dock-visibility", visible);
         crate::backdrop::set_hidden(window, !visible);
+        #[cfg(target_os = "linux")]
         crate::extra_dock::on_visibility_changed(window.app_handle(), visible);
+    }
+}
+
+/// Grava a visibilidade de uma janela extra. Retorna se ela mudou.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+fn store_extra_visible(label: &str, visible: bool) -> bool {
+    let mut states = EXTRA_VISIBLE.lock().unwrap();
+    states.get_or_insert_with(HashMap::new).insert(label.to_string(), visible) != Some(visible)
+}
+
+/// Como `set_visible`, para uma janela extra que decide a própria visibilidade.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+fn set_extra_visible(window: &WebviewWindow, visible: bool) {
+    use tauri::Emitter;
+    if store_extra_visible(window.label(), visible) {
+        let _ = window.emit_to(window.label(), "dock-visibility", visible);
+        crate::backdrop::set_hidden(window, !visible);
     }
 }
 
@@ -459,9 +489,23 @@ pub fn init_auto_hide(mode: &str) {
     AUTO_HIDE.store(parse_auto_hide(mode), Ordering::SeqCst);
 }
 
-#[tauri::command]
 pub fn dock_visible() -> bool {
     VISIBLE.load(Ordering::SeqCst)
+}
+
+/// A dock da janela `label` está à mostra?
+pub fn visible_for(label: &str) -> bool {
+    EXTRA_VISIBLE.lock().unwrap().as_ref().and_then(|m| m.get(label).copied()).unwrap_or_else(dock_visible)
+}
+
+/// O rótulo é o da barra de uma dock? Vidros com nome (`label#nome`) não são.
+pub fn is_dock_bar(key: &str) -> bool {
+    key == DOCK_LABEL || (key.starts_with(EXTRA_LABEL_PREFIX) && !key.contains('#'))
+}
+
+#[tauri::command]
+pub fn window_visible(window: WebviewWindow) -> bool {
+    visible_for(window.label())
 }
 
 #[tauri::command]
@@ -476,8 +520,8 @@ pub fn set_dock_layout(window: WebviewWindow, layout: Layout) {
 /// O mouse entrou ou saiu da área clicável da dock. Só o Linux usa: lá o click-through é feito
 /// recortando a região de input da janela, e o hover vem do próprio WebView.
 #[tauri::command]
-pub fn set_dock_hover(hovering: bool) {
-    backend::set_hover(hovering);
+pub fn set_dock_hover(window: WebviewWindow, hovering: bool) {
+    backend::set_hover(window.label(), hovering);
 }
 
 /// A barra mudou de tamanho (itens, magnificação): atualiza a área clicável e o vidro. Cada janela
@@ -499,30 +543,51 @@ pub fn set_hit_rect(window: WebviewWindow, rect: HitRect) {
     backend::hit_rect_changed(window.app_handle());
 }
 
-/// Esquece a geometria da barra de uma janela destruída.
-pub fn forget_hit_rect(label: &str) {
+/// Esquece a barra, o Clawd e a visibilidade de uma janela destruída.
+pub fn forget_window(label: &str) {
     if let Some(m) = HITS.lock().unwrap().as_mut() {
         m.remove(label);
     }
+    store_pet(label, None);
+    if let Some(m) = EXTRA_VISIBLE.lock().unwrap().as_mut() {
+        m.remove(label);
+    }
+    // Uma janela destruída com o mouse em cima não recebe o evento de saída.
+    backend::set_hover(label, false);
 }
 
 /// O Clawd (mascote das sessões do Claude Code) anda logo para fora da barra, então a área dele
 /// também recebe clique, mesmo sem o cursor ter passado pela barra. `None` quando ele está
 /// escondido ou não tem o que abrir.
 #[tauri::command]
-pub fn set_pet_rect(app: AppHandle, rect: Option<HitRect>) {
-    *PET.lock().unwrap() = rect;
-    backend::hit_rect_changed(&app);
+pub fn set_pet_rect(window: WebviewWindow, rect: Option<HitRect>) {
+    store_pet(window.label(), rect);
+    backend::hit_rect_changed(window.app_handle());
 }
 
-pub fn pet_rect() -> Option<HitRect> {
-    *PET.lock().unwrap()
+fn store_pet(label: &str, rect: Option<HitRect>) {
+    let mut pets = PET.lock().unwrap();
+    let pets = pets.get_or_insert_with(HashMap::new);
+    match rect {
+        Some(rect) => pets.insert(label.to_string(), rect),
+        None => pets.remove(label),
+    };
 }
 
-/// O ponto (em pixels lógicos da janela) está sobre o Clawd?
+fn pet_rect_for(label: &str) -> Option<HitRect> {
+    PET.lock().unwrap().as_ref().and_then(|m| m.get(label).copied())
+}
+
+/// O ponto (em pixels lógicos da janela `label`) está sobre o Clawd dela?
 #[cfg_attr(target_os = "linux", allow(dead_code))]
+pub fn over_pet_for(label: &str, x: f64, y: f64) -> bool {
+    pet_rect_for(label).is_some_and(|r| x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height)
+}
+
+/// Como `over_pet_for`, na dock principal.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub fn over_pet(x: f64, y: f64) -> bool {
-    pet_rect().is_some_and(|r| x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height)
+    over_pet_for(DOCK_LABEL, x, y)
 }
 
 /// A faixa de prévias das janelas abriu, mudou de tamanho (`Some`) ou fechou (`None`): o vidro
@@ -548,9 +613,12 @@ fn reserved_band(monitor: Band, reserved: i32) -> Band {
     }
 }
 
-/// Faixa reservada no monitor da dock, em pixels físicos de tela.
+/// Faixa reservada no monitor da dock `window`, em pixels físicos de tela.
 pub fn reserved_rect(window: &WebviewWindow) -> Option<Reserved> {
-    let monitor = target_monitor(window)?;
+    let monitor = match crate::extra_dock::monitor_id_of(window.label()) {
+        Some(id) => monitor_by_id(window, &id)?,
+        None => target_monitor(window)?,
+    };
     let scale = monitor.scale_factor();
     let pos = monitor.position();
     let size = monitor.size();
@@ -595,6 +663,7 @@ pub fn reveal_strip(thickness: f64, window: (f64, f64)) -> (f64, f64, f64, f64) 
 
 /// Área clicável da dock na janela. `headroom` é a folga do hover, que só vale enquanto o cursor
 /// está na dock; ela fica presa aos limites da janela.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub fn clickable_area(window: (f64, f64), headroom: f64) -> (f64, f64, f64, f64) {
     clickable_area_with(hit_rect(), window, headroom)
 }
@@ -636,6 +705,19 @@ pub(crate) struct Placement {
     monitor: Band,
 }
 
+/// Retângulo `(x, y, largura, altura)` da janela na borda dada. `inset` é o que não pertence às
+/// janelas no topo do monitor (a barra de menus do macOS): a dock não entra nessa faixa.
+fn window_rect(edge: u8, bounds: Band, thickness: i32, inset: i32) -> (i32, i32, u32, u32) {
+    let width = bounds.width() as u32;
+    let side_height = (bounds.height() - inset).max(1) as u32;
+    match edge {
+        TOP => (bounds.left, bounds.top + inset, width, thickness as u32),
+        LEFT => (bounds.left, bounds.top + inset, thickness as u32, side_height),
+        RIGHT => (bounds.right - thickness, bounds.top + inset, thickness as u32, side_height),
+        _ => (bounds.left, bounds.bottom - thickness, width, thickness as u32),
+    }
+}
+
 /// Posiciona a janela no monitor dado, encostada na borda escolhida. Não grava em `PLACED`.
 pub(crate) fn place_window_with(window: &WebviewWindow, monitor: Monitor) -> Option<Placement> {
     #[cfg(not(target_os = "macos"))]
@@ -647,12 +729,7 @@ pub(crate) fn place_window_with(window: &WebviewWindow, monitor: Monitor) -> Opt
     let thickness = (layout.window_size * scale).round().max(1.0) as i32;
     let reserved = (layout.reserved * scale).round().max(0.0) as i32;
     let bounds = Band::new(pos.x, pos.y, pos.x + size.width as i32, pos.y + size.height as i32);
-    let (x, y, width, height) = match position() {
-        TOP => (bounds.left, bounds.top + backend::top_inset(bounds), size.width, thickness as u32),
-        LEFT => (bounds.left, bounds.top, thickness as u32, size.height),
-        RIGHT => (bounds.right - thickness, bounds.top, thickness as u32, size.height),
-        _ => (bounds.left, bounds.bottom - thickness, size.width, thickness as u32),
-    };
+    let (x, y, width, height) = window_rect(position(), bounds, thickness, backend::top_inset(bounds));
     // No macOS o tao converte pixels físicos em pontos pela escala da tela onde a janela está
     // agora, não da tela de destino: indo de um Retina para um monitor 1x, a janela cairia no lugar
     // e no tamanho errados. Em pontos (pela escala do destino) ela chega certa.
@@ -677,13 +754,17 @@ fn place_window(window: &WebviewWindow) -> Option<Placement> {
     place_window_with(window, monitor)
 }
 
+/// `None` quando o monitor não está conectado.
+fn monitor_by_id(window: &WebviewWindow, monitor_id: &str) -> Option<Monitor> {
+    let monitors = window.available_monitors().ok()?;
+    let i = ids_of(&monitors).iter().position(|id| id == monitor_id)?;
+    monitors.into_iter().nth(i)
+}
+
 /// Resolve o monitor pelo id e posiciona a janela nele. Não grava em `PLACED`.
 /// Retorna `None` quando o monitor não está conectado.
 pub(crate) fn place_window_on(window: &WebviewWindow, monitor_id: &str) -> Option<Placement> {
-    let monitors = window.available_monitors().ok()?;
-    let i = ids_of(&monitors).iter().position(|id| id == monitor_id)?;
-    let monitor = monitors.into_iter().nth(i)?;
-    place_window_with(window, monitor)
+    place_window_with(window, monitor_by_id(window, monitor_id)?)
 }
 
 #[cfg(test)]
@@ -704,12 +785,72 @@ mod tests {
 
     const MONITOR: Band = Band { left: 0, top: 0, right: 1920, bottom: 1080 };
 
+    fn pet_at(x: f64) -> HitRect {
+        HitRect { x, y: 0.0, width: 10.0, height: 10.0, radius: 0.0 }
+    }
+
+    #[test]
+    fn extras_keep_their_own_visibility_and_others_follow_the_main_dock() {
+        assert!(store_extra_visible("dock-extra-test-a", false));
+        assert!(!store_extra_visible("dock-extra-test-a", false));
+        assert!(!visible_for("dock-extra-test-a"));
+        assert!(store_extra_visible("dock-extra-test-a", true));
+        assert!(visible_for("dock-extra-test-a"));
+        assert_eq!(visible_for("dock-extra-test-unknown"), dock_visible());
+        assert_eq!(visible_for(DOCK_LABEL), dock_visible());
+
+        forget_window("dock-extra-test-a");
+        assert_eq!(visible_for("dock-extra-test-a"), dock_visible());
+    }
+
+    #[test]
+    fn pet_area_belongs_to_the_window_that_reported_it() {
+        store_pet("dock-extra-test-b", Some(pet_at(100.0)));
+        store_pet("dock-extra-test-c", Some(pet_at(500.0)));
+        assert!(over_pet_for("dock-extra-test-b", 105.0, 5.0));
+        assert!(!over_pet_for("dock-extra-test-b", 505.0, 5.0));
+        assert!(over_pet_for("dock-extra-test-c", 505.0, 5.0));
+
+        store_pet("dock-extra-test-b", None);
+        assert!(!over_pet_for("dock-extra-test-b", 105.0, 5.0));
+        assert!(over_pet_for("dock-extra-test-c", 505.0, 5.0));
+
+        forget_window("dock-extra-test-c");
+        assert!(!over_pet_for("dock-extra-test-c", 505.0, 5.0));
+    }
+
+    #[test]
+    fn only_the_bar_of_a_dock_counts_as_dock_bar() {
+        assert!(is_dock_bar(DOCK_LABEL));
+        assert!(is_dock_bar("dock-extra-0"));
+        assert!(!is_dock_bar("dock-extra-0#previews"));
+        assert!(!is_dock_bar("dock#previews"));
+        assert!(!is_dock_bar("panel-calendar"));
+    }
+
     #[test]
     fn reserved_band_follows_the_edge() {
         assert_eq!(with_position("bottom", || reserved_band(MONITOR, 72)), Band::new(0, 1008, 1920, 1080));
         assert_eq!(with_position("top", || reserved_band(MONITOR, 72)), Band::new(0, 0, 1920, 72));
         assert_eq!(with_position("left", || reserved_band(MONITOR, 72)), Band::new(0, 0, 72, 1080));
         assert_eq!(with_position("right", || reserved_band(MONITOR, 72)), Band::new(1848, 0, 1920, 1080));
+    }
+
+    #[test]
+    fn window_stays_below_the_menu_bar_on_every_edge_that_reaches_it() {
+        let monitor = Band::new(100, 50, 2020, 1130);
+        assert_eq!(window_rect(LEFT, monitor, 300, 28), (100, 78, 300, 1052));
+        assert_eq!(window_rect(RIGHT, monitor, 300, 28), (1720, 78, 300, 1052));
+        assert_eq!(window_rect(TOP, monitor, 300, 28), (100, 78, 1920, 300));
+        assert_eq!(window_rect(BOTTOM, monitor, 300, 28), (100, 830, 1920, 300));
+    }
+
+    #[test]
+    fn without_an_inset_the_window_takes_the_whole_edge() {
+        let monitor = Band::new(0, 0, 1920, 1080);
+        assert_eq!(window_rect(LEFT, monitor, 300, 0), (0, 0, 300, 1080));
+        assert_eq!(window_rect(RIGHT, monitor, 300, 0), (1620, 0, 300, 1080));
+        assert_eq!(window_rect(TOP, monitor, 300, 0), (0, 0, 1920, 300));
     }
 
     #[test]

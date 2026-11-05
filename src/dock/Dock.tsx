@@ -3,8 +3,8 @@ import { useMotionValue } from "framer-motion";
 import { LayoutGrid, Search } from "lucide-react";
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
 import { arrayMove, horizontalListSortingStrategy, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { latestSender, sameHitRect } from "./hitRect";
 import { Menu } from "@tauri-apps/api/menu";
 import { ipc, type AppEntry, type Config, type UpdateInfo, type WidgetConfig } from "../lib/ipc";
@@ -18,6 +18,7 @@ import { reuseDockApps } from "./appIdentity";
 import { buildDockApps, type DockApp } from "./apps";
 import { stableOpenApps } from "./runningOrder";
 import { PREVIEW_GAP, barRect, dockMetrics, isVertical, previewSpace } from "./layout";
+import { useFitIcon } from "./useFitIcon";
 import { WindowPreview } from "./WindowPreview";
 import { AgentPet } from "./AgentPet";
 import { PokemonPet } from "./PokemonPet";
@@ -25,6 +26,10 @@ import { MagnifyCtx, MagnifyGeometry } from "./Magnify";
 import { resetDockHover } from "./hoverReset";
 import { AppIcon } from "./AppIcon";
 import { SortableItem } from "./SortableItem";
+import { DockUpdateProvider } from "./dockUpdate";
+import { ProfilePeek } from "./ProfilePeek";
+import { scopedUpdate, setWindowProfile } from "./profiles";
+import { useProfileScroll } from "./useProfileScroll";
 import { WidgetGroupSlot } from "./WidgetGroupSlot";
 import { createGroup } from "./groups";
 import { activeGroups, addDivider, applyOrder, groupKey, groupIdOf, isDivider, isGroupKey, LAUNCHER_KEY, removeItem, resolveOrder, START_KEY, widgetKey } from "./order";
@@ -149,12 +154,16 @@ function clickApp(app: DockApp) {
   else ipc.launchApp(app.launchTarget).catch(console.error);
 }
 
-export function Dock({ config }: { config: Config }) {
-  return <DockWidgetsProvider config={config}><DockLayout config={config} /></DockWidgetsProvider>;
+export function Dock({ config, profileId, monitor }: { config: Config; profileId: string; monitor: string | null }) {
+  return <DockWidgetsProvider config={config}><DockLayout config={config} profileId={profileId} monitor={monitor} /></DockWidgetsProvider>;
 }
 
-const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
-  const update = useConfig((s) => s.update);
+const DockLayout = memo(function DockLayout({ config, profileId, monitor }: { config: Config; profileId: string; monitor: string | null }) {
+  const storeUpdate = useConfig((s) => s.update);
+  const profileRef = useRef(profileId);
+  profileRef.current = profileId;
+  // Estável entre trocas de perfil: o que assina eventos nativos com ele não precisa assinar de novo.
+  const update = useCallback<typeof storeUpdate>((patch) => scopedUpdate(storeUpdate, profileRef.current)(patch), [storeUpdate]);
   const snapshot = useWindows();
   const pendingUpdate = usePendingUpdate();
   const setupNeeded = useSetupNeeded();
@@ -165,11 +174,24 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
   const groupsList = useMemo(() => activeGroups(config), [config]);
   // O cursor na direção da barra: x nas bordas de cima e de baixo, y nas laterais.
   const mouse = useMotionValue(Infinity);
-  const magnifyContext = useMemo(() => ({ mouse, base: config.iconSize, scale: Math.max(1, config.magnification), position }),
-    [mouse, config.iconSize, config.magnification, position]);
   const barRef = useRef<HTMLDivElement>(null);
   // Janela em prévia: guarda o app pelo `key`, porque a lista de apps é remontada a cada snapshot.
   const [preview, setPreview] = useState<{ key: string; x: number; y: number } | null>(null);
+  const switchTo = useCallback((id: string) => {
+    void storeUpdate((c) => setWindowProfile(c, monitor, id));
+    setPreview(null);
+    void ipc.closePanel().catch(console.error);
+  }, [storeUpdate, monitor]);
+  const profileScroll = useProfileScroll({
+    barRef,
+    enabled: config.profileScroll,
+    invert: config.profileScrollInvert,
+    vertical,
+    animateLength: !full,
+    profiles: config.dockProfiles,
+    currentId: profileId,
+    onSwitch: switchTo,
+  });
 
   const [installed, setInstalled] = useState<AppEntry[]>([]);
   useEffect(() => {
@@ -190,6 +212,13 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
     position,
     groupsList.length > 0,
   );
+  const fit = useFitIcon(barRef, mouse, {
+    iconSize: config.iconSize,
+    magnification: Math.max(1, config.magnification),
+    vertical,
+    margin: full ? 0 : metrics.margin,
+  });
+  const magnifyContext = useMemo(() => ({ mouse, base: fit.icon, scale: fit.scale, position }), [mouse, fit.icon, fit.scale, position]);
   const previousApps = useRef<DockApp[]>([]);
   const apps = useMemo(
     () => {
@@ -254,14 +283,17 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
   // aqui só anima. Ela começa fora da tela e entra quando o Rust manda.
   const [visible, setVisible] = useState(false);
   useEffect(() => {
-    ipc.dockVisible().then(setVisible);
-    const unlisten = listen<boolean>("dock-visibility", (e) => {
+    // Na janela, não o `listen` global: esse recebe também o `emit_to` feito para as outras docks,
+    // e a visibilidade de uma mexeria na barra da outra.
+    const unlisten = getCurrentWebviewWindow().listen<boolean>("dock-visibility", (e) => {
       setVisible(e.payload);
       if (!e.payload) {
         mouse.set(Infinity);
         resetDockHover();
       }
     });
+    // Só depois de registrar: um evento emitido antes disso se perderia e a barra ficaria escondida.
+    unlisten.then(() => ipc.dockVisible()).then(setVisible);
     return () => {
       unlisten.then((f) => f());
     };
@@ -314,12 +346,12 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
   useEffect(() => {
     const subs = [
       // Quando o Rust liga o click-through, o WebView não recebe mouseleave.
-      listen("dock-pointer-left", () => {
+      getCurrentWebviewWindow().listen("dock-pointer-left", () => {
         mouse.set(Infinity);
         resetDockHover();
         setPreview(null);
       }),
-      listen<number>("shortcut-app", (e) => {
+      getCurrentWebviewWindow().listen<number>("shortcut-app", (e) => {
         const app = appsRef.current[e.payload];
         if (app) clickApp(app);
       }),
@@ -450,6 +482,16 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
     const menu = await Menu.new({
       items: [
         ...attentionMenuItems(attention),
+        ...(config.dockProfiles.length > 1
+          ? [{
+              text: t.profile(config.dockProfiles.find((p) => p.id === profileId)?.name ?? ""),
+              items: [
+                ...config.dockProfiles.map((p) => ({ id: `profile-${p.id}`, text: p.name, checked: p.id === profileId, action: () => switchTo(p.id) })),
+                { item: "Separator" as const },
+                { id: "edit-profiles", text: t.editProfiles, action: () => ipc.openSettings("profiles") },
+              ],
+            }]
+          : [{ id: "edit-profiles", text: t.editProfiles, action: () => ipc.openSettings("profiles") }]),
         { id: "settings", text: t.dockSettings, action: () => ipc.openSettings() },
         { id: "divider", text: t.addDivider, action: () => update((c) => addDivider(c)) },
         ...(config.showStartButton
@@ -535,7 +577,9 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
   // (de ponta a ponta ela ocupa a borda inteira).
   const barStyle: React.CSSProperties = {
     ["--dock-thickness" as string]: `${metrics.barThickness}px`,
-    ["--dock-item-offset" as string]: `${metrics.itemOffset}px`,
+    // A espessura segue o ícone configurado (o layout no Rust é um só para todas as docks): o ícone
+    // encolhido para caber no monitor continua centrado nela.
+    ["--dock-item-offset" as string]: `${metrics.itemOffset + (config.iconSize - fit.icon) / 2}px`,
     ["--group-cell" as string]: `${metrics.groupCell}px`,
   };
   if (vertical) {
@@ -549,12 +593,13 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
   }
 
   return (
+    <DockUpdateProvider value={update}>
     <MagnifyGeometry {...magnifyContext}>
     <div
       className="dock-root"
       data-pos={position}
       style={{
-        ["--icon" as string]: `${config.iconSize}px`,
+        ["--icon" as string]: `${fit.icon}px`,
         ["--preview-offset" as string]: `${previewOffset}px`,
       }}
     >
@@ -586,7 +631,20 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
             />
           ))}
         </MagnifyCtx.Provider>
+        {config.dockProfiles.length > 1 && (
+          <span className={`tooltip dock-profile-hud ${profileScroll.hudVisible ? "visible" : ""}`} role="status">
+            <span className="tooltip-label">{config.dockProfiles.find((p) => p.id === profileId)?.name}</span>
+            <span className="indicators" aria-hidden>
+              {config.dockProfiles.map((p) => (
+                <span key={p.id} className={`indicator ${p.id === profileId ? "active" : "on"}`} />
+              ))}
+            </span>
+          </span>
+        )}
       </div>
+      {profileScroll.peekId && (
+        <ProfilePeek config={config} profileId={profileScroll.peekId} barRef={barRef} barStyle={barStyle} vertical={vertical} renderWidget={renderWidget} />
+      )}
       {config.claudePetEnabled && (
         <AgentPet
           mascot={config.agentPetMascot}
@@ -607,5 +665,6 @@ const DockLayout = memo(function DockLayout({ config }: { config: Config }) {
       )}
     </div>
     </MagnifyGeometry>
+    </DockUpdateProvider>
   );
 });

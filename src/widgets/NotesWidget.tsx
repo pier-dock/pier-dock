@@ -25,11 +25,31 @@ export function NotesWidget({ notes, wide }: { notes: Note[]; wide: boolean }) {
     );
   }
 
-  const note = notes[index % notes.length];
+  const current = index % notes.length;
+  const note = notes[current];
+  const many = notes.length > 1;
+  const dot = <span className={`note-dot ${note.color}`} />;
+  const text = <span className="notes-text">{note.text}</span>;
   return (
-    <Tile kind="notes" label={t.tileLabel(note.text)} className={`notes-tile ${wide ? "wide" : "small"} ${note.color}`}>
-      <span key={note.id} className="notes-text">
-        {note.text}
+    <Tile kind="notes" label={t.tileLabel(note.text)} className={`notes-tile ${wide ? "wide" : "small"}`}>
+      <span key={note.id} className="notes-content">
+        {wide ? (
+          <>
+            {dot}
+            <span className={`notes-body${many ? " many" : ""}`}>
+              {text}
+              {many && <span className="notes-position">{t.position(current + 1, notes.length)}</span>}
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="notes-head">
+              {dot}
+              {many && <span className="notes-position">{`${current + 1}/${notes.length}`}</span>}
+            </span>
+            {text}
+          </>
+        )}
       </span>
     </Tile>
   );

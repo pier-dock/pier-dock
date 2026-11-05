@@ -40,25 +40,28 @@ function NoteCard({ note }: { note: Note }) {
   };
 
   return (
-    <li className={`note-card ${note.color}`}>
-      <textarea
-        className="note-input"
-        value={text}
-        maxLength={MAX_NOTE_CHARS}
-        aria-label={t.noteLabel}
-        onChange={(e) => edit(e.target.value)}
-        onBlur={() => {
-          window.clearTimeout(timer.current);
-          if (latest.current !== note.text) save(latest.current, note.color);
-        }}
-      />
+    <li className="note-card">
+      <div className="note-main">
+        <span className={`note-dot ${note.color}`} />
+        <textarea
+          className="note-input"
+          value={text}
+          maxLength={MAX_NOTE_CHARS}
+          aria-label={t.noteLabel}
+          onChange={(e) => edit(e.target.value)}
+          onBlur={() => {
+            window.clearTimeout(timer.current);
+            if (latest.current !== note.text) save(latest.current, note.color);
+          }}
+        />
+      </div>
       <div className="note-bar">
         <span className="note-colors">
           {NOTE_COLORS.map((color) => (
             <button
               key={color}
               type="button"
-              className={`note-swatch ${color}${color === note.color ? " active" : ""}`}
+              className={`note-dot note-swatch ${color}${color === note.color ? " active" : ""}`}
               aria-label={t.colors[color]}
               aria-pressed={color === note.color}
               onClick={() => save(latest.current, color)}

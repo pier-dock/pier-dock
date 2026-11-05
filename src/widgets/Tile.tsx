@@ -59,6 +59,7 @@ export function Tile({ kind, label, panel = true, onClick, onWheel, onContextMen
       ref={ref}
       className={`tile ${className}`}
       data-widget
+      data-wheel={onWheel ? "" : undefined}
       aria-label={label}
       onClick={handleClick}
       onWheel={onWheel}

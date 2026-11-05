@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useDockProfile } from "./dock/useDockProfile";
 import { ipc } from "./lib/ipc";
 import { locale, useLang } from "./i18n";
 import { currentView } from "./lib/view";
@@ -30,7 +31,8 @@ export function App() {
     ipc.platformInfo().then((p) => setGlassSupported(p.glass)).catch(() => setGlassSupported(false));
   }, []);
 
-  const accent = config?.accent;
+  const dockProfile = useDockProfile(config);
+  const accent = currentView.view === "dock" ? dockProfile?.view.accent : config?.accent;
   const material = config?.material;
   const glassOpacity = config?.glassOpacity;
   const reducedEffects = config?.reducedEffects;
@@ -47,5 +49,5 @@ export function App() {
   if (currentView.view === "panel") return <Popover kind={currentView.kind} />;
   if (currentView.view === "settings") return <Settings />;
   if (currentView.view === "whats-new") return <WhatsNew since={currentView.kind || null} />;
-  return <Dock config={config} />;
+  return dockProfile && <Dock config={dockProfile.view} profileId={dockProfile.id} monitor={dockProfile.monitor} />;
 }

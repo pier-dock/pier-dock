@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { ipc, type AgentPetMascot, type AgentSession, type DockPosition } from "../lib/ipc";
 import { useAgentSessions } from "../hooks/useAgentSessions";
 import { usePokemonSprite } from "../hooks/usePokemonSprite";
@@ -71,8 +71,8 @@ export function AgentPet({ mascot, pokemonId, position, full, margin, visible, b
   // Ao sair da área dele o Rust liga o click-through e o WebView não recebe o mouseleave.
   useEffect(() => {
     const subs = [
-      listen("dock-pointer-left", () => setHovered(false)),
-      listen<string | null>("panel-changed", (e) => setPanelOpen(e.payload === "ai-agents")),
+      getCurrentWebviewWindow().listen("dock-pointer-left", () => setHovered(false)),
+      getCurrentWebviewWindow().listen<string | null>("panel-changed", (e) => setPanelOpen(e.payload === "ai-agents")),
     ];
     return () => subs.forEach((s) => s.then((unlisten) => unlisten()));
   }, []);

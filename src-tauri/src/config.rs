@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
@@ -100,6 +101,41 @@ impl PomodoroConfig {
     }
 }
 
+/// Um arranjo da dock. Os campos de conteúdo do perfil ativo também ficam no topo da `Config`, que é
+/// de onde o resto do app lê; `normalize` copia o topo de volta para o perfil ativo.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct DockProfile {
+    pub id: String,
+    pub name: String,
+    /// Nome do ícone (ver `src/dock/profileIcons.ts`).
+    pub icon: String,
+    pub accent: String,
+    pub pinned_apps: Vec<AppEntry>,
+    pub widgets: Vec<WidgetConfig>,
+    pub dock_order: Vec<String>,
+    pub widget_groups: Vec<WidgetGroup>,
+    pub show_start_button: bool,
+    pub show_launcher: bool,
+}
+
+impl Default for DockProfile {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            name: String::new(),
+            icon: DEFAULT_PROFILE_ICON.into(),
+            accent: "coral".into(),
+            pinned_apps: Vec::new(),
+            widgets: Vec::new(),
+            dock_order: Vec::new(),
+            widget_groups: Vec::new(),
+            show_start_button: true,
+            show_launcher: false,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Config {
@@ -166,6 +202,17 @@ pub struct Config {
     /// Até `MAX_POKEMON`, sem repetir; o primeiro também é o ícone do widget.
     pub pokemon_pet_enabled: bool,
     pub pokemon_pet_ids: Vec<u32>,
+    /// Sempre com pelo menos um perfil; `normalize` garante.
+    pub dock_profiles: Vec<DockProfile>,
+    /// Perfil da dock principal e o que os campos de conteúdo do topo espelham.
+    pub active_profile: String,
+    /// Com a dock em todos os monitores, cada dock extra troca de perfil sozinha.
+    pub profile_per_monitor: bool,
+    /// Perfil de cada dock extra, pelo id do monitor. Fica guardado com o monitor desconectado.
+    pub monitor_profiles: BTreeMap<String, String>,
+    /// Scroll sobre a dock troca de perfil.
+    pub profile_scroll: bool,
+    pub profile_scroll_invert: bool,
 }
 
 fn widget(kind: &str, size: &str) -> WidgetConfig {
@@ -204,9 +251,12 @@ fn file_manager() -> AppEntry {
     };
 }
 
+const DEFAULT_PROFILE_ID: &str = "default";
+const DEFAULT_PROFILE_ICON: &str = "layers";
+
 impl Default for Config {
     fn default() -> Self {
-        Self {
+        let mut config = Self {
             pinned_apps: vec![file_manager()],
             widgets: vec![
                 widget("media", "wide"),
@@ -265,8 +315,46 @@ impl Default for Config {
             agent_pokemon_id: 25,
             pokemon_pet_enabled: false,
             pokemon_pet_ids: vec![25],
-        }
+            dock_profiles: Vec::new(),
+            active_profile: DEFAULT_PROFILE_ID.into(),
+            profile_per_monitor: false,
+            monitor_profiles: BTreeMap::new(),
+            profile_scroll: true,
+            profile_scroll_invert: false,
+        };
+        config.dock_profiles = vec![default_profile(&config)];
+        config
     }
+}
+
+fn default_profile(config: &Config) -> DockProfile {
+    let mut profile = DockProfile {
+        id: DEFAULT_PROFILE_ID.into(),
+        name: crate::i18n::system().t("Principal", "Main").into(),
+        ..DockProfile::default()
+    };
+    copy_top_level_to(config, &mut profile);
+    profile
+}
+
+fn copy_top_level_to(config: &Config, profile: &mut DockProfile) {
+    profile.accent = config.accent.clone();
+    profile.pinned_apps = config.pinned_apps.clone();
+    profile.widgets = config.widgets.clone();
+    profile.dock_order = config.dock_order.clone();
+    profile.widget_groups = config.widget_groups.clone();
+    profile.show_start_button = config.show_start_button;
+    profile.show_launcher = config.show_launcher;
+}
+
+fn copy_profile_to_top_level(profile: &DockProfile, config: &mut Config) {
+    config.accent = profile.accent.clone();
+    config.pinned_apps = profile.pinned_apps.clone();
+    config.widgets = profile.widgets.clone();
+    config.dock_order = profile.dock_order.clone();
+    config.widget_groups = profile.widget_groups.clone();
+    config.show_start_button = profile.show_start_button;
+    config.show_launcher = profile.show_launcher;
 }
 
 impl Config {
@@ -366,20 +454,24 @@ fn normalize(mut config: Config) -> Config {
     }
     config.pokemon_pet_ids = seen;
 
-    // Grupos: ids vazios ou repetidos somem; cada widget fica em um grupo só e membros que não
-    // existem mais (widget removido de uma versão antiga) são descartados. Um grupo de um membro
-    // fica guardado: ao religar o outro membro ele volta a aparecer.
-    let known: Vec<String> = config.widgets.iter().map(|w| w.kind.clone()).collect();
+    normalize_profiles(config)
+}
+
+/// Grupos: ids vazios ou repetidos somem; cada widget fica em um grupo só e membros que não existem
+/// mais (widget removido de uma versão antiga) são descartados. Um grupo de um membro fica guardado:
+/// ao religar o outro membro ele volta a aparecer.
+fn normalize_groups(widgets: &[WidgetConfig], groups: Vec<WidgetGroup>) -> Vec<WidgetGroup> {
+    let known: Vec<&str> = widgets.iter().map(|w| w.kind.as_str()).collect();
     let mut group_ids: Vec<String> = Vec::new();
     let mut member_kinds: Vec<String> = Vec::new();
-    let mut groups = Vec::new();
-    for mut group in std::mem::take(&mut config.widget_groups) {
+    let mut kept = Vec::new();
+    for mut group in groups {
         if group.id.is_empty() || group_ids.contains(&group.id) {
             continue;
         }
         let mut members = Vec::new();
         for kind in group.members {
-            if known.contains(&kind) && !member_kinds.contains(&kind) {
+            if known.contains(&kind.as_str()) && !member_kinds.contains(&kind) {
                 member_kinds.push(kind.clone());
                 members.push(kind);
             }
@@ -389,9 +481,40 @@ fn normalize(mut config: Config) -> Config {
         }
         group_ids.push(group.id.clone());
         group.members = members;
-        groups.push(group);
+        kept.push(group);
     }
-    config.widget_groups = groups;
+    kept
+}
+
+/// Deixa a lista de perfis válida e o perfil ativo igual ao topo da config. Se o ativo sumiu (perfil
+/// excluído em um arquivo importado, por exemplo), o primeiro assume e o conteúdo dele vai para o
+/// topo.
+fn normalize_profiles(mut config: Config) -> Config {
+    let mut ids: Vec<String> = Vec::new();
+    let mut profiles = Vec::new();
+    for mut profile in std::mem::take(&mut config.dock_profiles) {
+        if profile.id.is_empty() || ids.contains(&profile.id) {
+            continue;
+        }
+        ids.push(profile.id.clone());
+        profile.widget_groups = normalize_groups(&profile.widgets, profile.widget_groups);
+        profiles.push(profile);
+    }
+    config.widget_groups = normalize_groups(&config.widgets, std::mem::take(&mut config.widget_groups));
+    if profiles.is_empty() {
+        config.active_profile = DEFAULT_PROFILE_ID.into();
+        ids.push(DEFAULT_PROFILE_ID.into());
+        profiles.push(default_profile(&config));
+    }
+    match profiles.iter_mut().find(|p| p.id == config.active_profile) {
+        Some(active) => copy_top_level_to(&config, active),
+        None => {
+            config.active_profile = profiles[0].id.clone();
+            copy_profile_to_top_level(&profiles[0], &mut config);
+        }
+    }
+    config.monitor_profiles.retain(|_, profile| ids.contains(profile));
+    config.dock_profiles = profiles;
     config
 }
 
@@ -409,11 +532,16 @@ pub fn parse(json: &str) -> Result<Config, String> {
 /// Widgets que surgiram depois que a config foi salva entram desligados, no fim da lista; sem
 /// isso eles nunca apareceriam nas configurações.
 fn add_missing_widgets(mut config: Config) -> Config {
-    for default in Config::default().widgets {
-        if !config.widgets.iter().any(|w| w.kind == default.kind) {
-            config.widgets.push(WidgetConfig { enabled: false, ..default });
+    let defaults = Config::default().widgets;
+    let add = |widgets: &mut Vec<WidgetConfig>| {
+        for default in &defaults {
+            if !widgets.iter().any(|w| w.kind == default.kind) {
+                widgets.push(WidgetConfig { enabled: false, ..default.clone() });
+            }
         }
-    }
+    };
+    add(&mut config.widgets);
+    config.dock_profiles.iter_mut().for_each(|profile| add(&mut profile.widgets));
     config
 }
 
@@ -713,6 +841,99 @@ mod tests {
         assert!(config.widget_groups.is_empty());
         assert!(config.show_start_button);
         assert!(config.launcher_pinned.is_empty());
+    }
+
+    fn profile(id: &str) -> DockProfile {
+        DockProfile { id: id.into(), name: id.to_uppercase(), ..DockProfile::default() }
+    }
+
+    #[test]
+    fn a_config_without_profiles_moves_into_a_single_profile() {
+        let config = parse(r#"{"pinnedApps":[{"id":"a","name":"A","target":"a"}],"dockOrder":["app:a"],"accent":"blue"}"#).unwrap();
+        assert_eq!(config.dock_profiles.len(), 1);
+        let only = &config.dock_profiles[0];
+        assert_eq!(only.id, config.active_profile);
+        assert_eq!(only.pinned_apps, config.pinned_apps);
+        assert_eq!(only.pinned_apps[0].id, "a");
+        assert_eq!(only.dock_order, ["app:a"]);
+        assert_eq!(only.accent, "blue");
+        assert_eq!(only.widgets, config.widgets);
+    }
+
+    #[test]
+    fn an_explicitly_empty_profile_list_gets_a_profile() {
+        let config = normalize(serde_json::from_str(r#"{"dockProfiles":[],"activeProfile":"gone"}"#).unwrap());
+        assert_eq!(config.dock_profiles.len(), 1);
+        assert_eq!(config.active_profile, config.dock_profiles[0].id);
+    }
+
+    #[test]
+    fn the_active_profile_follows_the_top_level_fields() {
+        let config = normalize(Config {
+            dock_profiles: vec![profile("a"), profile("b")],
+            active_profile: "b".into(),
+            dock_order: vec!["start".into()],
+            ..Config::default()
+        });
+        assert_eq!(config.dock_profiles[1].dock_order, ["start"]);
+        assert!(config.dock_profiles[0].dock_order.is_empty());
+    }
+
+    #[test]
+    fn a_missing_active_profile_falls_back_to_the_first_and_loads_it() {
+        let first = DockProfile { dock_order: vec!["launcher".into()], show_launcher: true, accent: "green".into(), ..profile("a") };
+        let config = normalize(Config {
+            dock_profiles: vec![first, profile("b")],
+            active_profile: "gone".into(),
+            ..Config::default()
+        });
+        assert_eq!(config.active_profile, "a");
+        assert_eq!(config.dock_order, ["launcher"]);
+        assert!(config.show_launcher);
+        assert_eq!(config.accent, "green");
+    }
+
+    #[test]
+    fn profiles_are_deduped_and_monitor_links_to_removed_profiles_dropped() {
+        let config = normalize(Config {
+            dock_profiles: vec![profile("a"), profile("a"), profile("")],
+            active_profile: "a".into(),
+            monitor_profiles: BTreeMap::from([("m1".to_string(), "a".to_string()), ("m2".to_string(), "gone".to_string())]),
+            ..Config::default()
+        });
+        assert_eq!(config.dock_profiles.len(), 1);
+        assert_eq!(config.monitor_profiles, BTreeMap::from([("m1".to_string(), "a".to_string())]));
+    }
+
+    #[test]
+    fn groups_of_every_profile_are_normalized() {
+        let other = DockProfile {
+            widgets: vec![widget("clock", "small")],
+            widget_groups: vec![WidgetGroup { id: "g".into(), members: vec!["clock".into(), "ghost".into()] }],
+            ..profile("b")
+        };
+        let config = normalize(Config { dock_profiles: vec![profile("a"), other], active_profile: "a".into(), ..Config::default() });
+        assert_eq!(config.dock_profiles[1].widget_groups[0].members, ["clock"]);
+    }
+
+    #[test]
+    fn new_widgets_reach_every_profile() {
+        let config = parse(
+            r#"{
+                "widgets": [{ "kind": "clock", "enabled": true, "size": "small" }],
+                "activeProfile": "a",
+                "dockProfiles": [
+                    { "id": "a", "widgets": [{ "kind": "clock", "enabled": true, "size": "small" }] },
+                    { "id": "b", "widgets": [{ "kind": "volume", "enabled": true, "size": "small" }] }
+                ]
+            }"#,
+        )
+        .unwrap();
+        let total = Config::default().widgets.len();
+        assert_eq!(config.dock_profiles[1].widgets.len(), total);
+        let added = config.dock_profiles[1].widgets.iter().find(|w| w.kind == "clock").unwrap();
+        assert!(!added.enabled);
+        assert_eq!(config.dock_profiles[0].widgets, config.widgets);
     }
 
     fn migrated(json: &str) -> Config {

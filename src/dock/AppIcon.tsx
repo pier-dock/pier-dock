@@ -6,7 +6,7 @@ import { Menu } from "@tauri-apps/api/menu";
 import { ipc, type DockPosition } from "../lib/ipc";
 import { keys } from "../lib/platform";
 import { useIcon } from "../hooks/useIcon";
-import { useConfig } from "../store/config";
+import { useDockUpdate } from "./dockUpdate";
 import { Tooltip } from "../ui/Tooltip";
 import { useDockHoverReset } from "./hoverReset";
 import { Magnify, MagnifyCtx } from "./Magnify";
@@ -68,7 +68,7 @@ export const AppIcon = memo(function AppIcon({ app, active, sortable, shortcut, 
     cancelPreview();
   });
   useEffect(() => cancelPreview, []);
-  const update = useConfig((s) => s.update);
+  const update = useDockUpdate();
   const t = useT().dock;
   const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: app.key,

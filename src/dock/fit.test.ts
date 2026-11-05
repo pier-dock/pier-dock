@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fitItems, type FitItem } from "./fit.ts";
+import { MIN_FIT_ICON, fitDock, fitItems, type FitItem } from "./fit.ts";
 
 const icon = (key: string, fixed = false): FitItem => ({ key, length: 48, fixed });
 const wide = (key: string): FitItem => ({ key, length: 176, compact: 48 });
@@ -42,4 +42,51 @@ test("um widget compactado que acaba no menu não conta como compactado", () => 
 test("o resultado não depende do estado anterior", () => {
   const items = [wide("w1"), wide("w2")];
   assert.deepEqual(fitItems(items, 230, 4, 48), fitItems(items, 230, 4, 48));
+});
+
+const dock = { iconSize: 48, magnification: 1, rest: 200, count: 10 };
+
+test("com espaço de sobra o ícone e a magnificação ficam como configurados", () => {
+  assert.deepEqual(fitDock({ ...dock, magnification: 1.5, available: 1400 }), { icon: 48, scale: 1.5 });
+});
+
+test("encolhe o ícone só o necessário para a barra caber", () => {
+  // 200 + 10 * 40 = 600.
+  assert.equal(fitDock({ ...dock, available: 600 }).icon, 40);
+  assert.equal(fitDock({ ...dock, available: 609 }).icon, 40);
+  assert.equal(fitDock({ ...dock, available: 610 }).icon, 41);
+});
+
+test("o ícone não passa do piso, mesmo sem caber", () => {
+  assert.equal(fitDock({ ...dock, available: 100 }).icon, MIN_FIT_ICON);
+});
+
+test("um ícone configurado abaixo do piso não é aumentado", () => {
+  assert.equal(fitDock({ ...dock, iconSize: 20, available: 100 }).icon, 20);
+});
+
+test("barra sem ícones de app não muda", () => {
+  assert.deepEqual(fitDock({ ...dock, count: 0, available: 100 }), { icon: 48, scale: 1 });
+});
+
+test("a magnificação fica limitada à folga que sobra", () => {
+  const roomy = fitDock({ ...dock, magnification: 2, available: 1400 });
+  const tight = fitDock({ ...dock, magnification: 2, available: 720 });
+  const none = fitDock({ ...dock, magnification: 2, available: 680 });
+  assert.equal(roomy.scale, 2);
+  assert.equal(tight.icon, 48);
+  assert.ok(tight.scale > 1 && tight.scale < 2);
+  assert.equal(none.scale, 1);
+});
+
+test("o tamanho não alterna quando o resto da barra varia com o ícone", () => {
+  // Com 40 o resto é 200 e sobra exatamente o suficiente para 41, mas com 41 o resto sobe e não caberia.
+  const shrunk = fitDock({ ...dock, available: 609, rest: 201, previous: 41 }).icon;
+  assert.equal(shrunk, 40);
+  assert.equal(fitDock({ ...dock, available: 610, previous: shrunk }).icon, 40);
+});
+
+test("com folga de verdade o ícone volta ao tamanho configurado", () => {
+  assert.equal(fitDock({ ...dock, available: 1400, previous: 30 }).icon, 48);
+  assert.equal(fitDock({ ...dock, available: 684, previous: 47 }).icon, 48);
 });

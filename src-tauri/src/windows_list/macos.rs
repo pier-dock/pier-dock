@@ -41,7 +41,8 @@ extern "C" {
 
 /// Janela (ou app, se negativo) em foco no último app da frente que não era a própria dock.
 static LAST_FOREGROUND: AtomicI64 = AtomicI64::new(0);
-/// Um app (não a área de trabalho nem a própria dock) está em foco.
+/// Um app (não a área de trabalho) está em foco. Abrir um painel põe o Pier na frente, mas o app de
+/// antes continua contando: senão todas as docks subiriam, e não só a que abriu o painel.
 static APP_FOCUSED: AtomicBool = AtomicBool::new(false);
 /// Janelas do último snapshot, para as ações não precisarem procurar de novo.
 static WINDOWS: Mutex<Option<HashMap<i64, Element>>> = Mutex::new(None);
@@ -89,7 +90,9 @@ fn note_focus(trusted: bool) {
         return;
     };
     if front.pid == own {
-        APP_FOCUSED.store(false, Ordering::SeqCst);
+        if crate::panels::regular_window_open() {
+            APP_FOCUSED.store(false, Ordering::SeqCst);
+        }
         return;
     }
     let focused = trusted
