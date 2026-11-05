@@ -1815,3 +1815,128 @@ input[type="range"] {
   margin-top: 24px;
   text-align: center;
 }
+
+/* Perfis */
+.profile-scope {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 13px;
+  color: var(--text-secondary);
+  overflow-x: auto;
+}
+
+.profile-scope-hint {
+  margin-left: auto;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.settings-main:has(> .profile-scope) {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-main:has(> .profile-scope) > :not(.profile-scope) {
+  flex: 1;
+  min-height: 0;
+}
+
+.profile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profile-add {
+  margin-top: 8px;
+}
+
+.profile-new {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 8px;
+  padding: 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+}
+
+.profile-new .field-label {
+  font-size: 13px;
+}
+
+.profile-new .text-input {
+  flex: none;
+  height: 36px;
+}
+
+.profile-new .segmented button {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 8px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-scroll .profile-behavior-label {
+  padding-top: 24px;
+  padding-bottom: 8px;
+}
+
+.profile-new-actions,
+.profile-icons {
+  display: flex;
+  gap: 4px;
+}
+
+.profile-new-actions {
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.profile-icons button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--text-secondary);
+}
+
+.profile-icons button[aria-checked="true"] {
+  background: var(--fill-hover);
+  color: var(--text);
+}
+
+.profile-name {
+  width: 100%;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: none;
+  font-family: inherit;
+  color: inherit;
+}
+
+.profile-actions {
+  gap: 8px;
+}
+
+.profile-delete {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.profile-delete span {
+  flex: 1;
+}

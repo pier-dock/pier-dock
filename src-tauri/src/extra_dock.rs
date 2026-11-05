@@ -165,6 +165,12 @@ pub fn monitor_id_of(label: &str) -> Option<String> {
     ENTRIES.lock().unwrap().iter().find(|e| e.label == label).map(|e| e.monitor_id.clone())
 }
 
+/// Monitor desta janela, se ela for uma dock extra: é a chave do perfil dela em `monitor_profiles`.
+#[tauri::command]
+pub fn extra_dock_monitor(window: tauri::WebviewWindow) -> Option<String> {
+    monitor_id_of(window.label())
+}
+
 /// Notifica todas as janelas extras sobre uma mudança de visibilidade da dock principal.
 /// Chamado por `dock_window::set_visible`. Só no Linux, onde as extras não têm thread de ponteiro.
 #[cfg(target_os = "linux")]

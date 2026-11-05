@@ -788,3 +788,89 @@ html[data-reduced-effects="true"] .dock-bar {
     animation: none;
   }
 }
+
+/* Perfis: o indicador é a dica da dock, com o nome do perfil e os pontos do indicador de app. */
+.dock-profile-hud {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  animation: none;
+}
+
+.dock-profile-hud.visible {
+  opacity: 1;
+}
+
+.dock-bar[data-profile-gesture] > :not(.dock-profile-hud) {
+  translate: var(--profile-x, 0) var(--profile-y, 0);
+  opacity: var(--profile-opacity, 1);
+}
+
+.dock-bar[data-profile-gesture] .tooltip:not(.dock-profile-hud) {
+  display: none;
+}
+
+.dock-bar[data-profile-settling] > :not(.dock-profile-hud) {
+  transition:
+    translate 0.32s cubic-bezier(0.22, 1.25, 0.36, 1),
+    opacity 0.2s ease;
+}
+
+/* Durante a animação a largura é menor que o conteúdo em alguns quadros: nada pode encolher. */
+.dock-bar.dock-profile-resizing {
+  justify-content: center;
+}
+
+.dock-bar.dock-profile-resizing > * {
+  flex-shrink: 0;
+}
+
+.dock-profile-peek,
+.dock-profile-ghost {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-sizing: border-box;
+  border-color: transparent;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.dock-profile-peek {
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  overflow: hidden;
+  translate: var(--peek-x, 0) var(--peek-y, 0);
+  opacity: var(--peek-opacity, 0);
+}
+
+.dock-root[data-profile-settling] .dock-profile-peek {
+  transition:
+    translate 0.32s cubic-bezier(0.22, 1.25, 0.36, 1),
+    opacity 0.2s ease;
+}
+
+.dock-root[data-pos="left"] :is(.dock-profile-peek, .dock-profile-ghost),
+.dock-root[data-pos="right"] :is(.dock-profile-peek, .dock-profile-ghost) {
+  flex-direction: column;
+}
+
+.dock-profile-peek > *,
+.dock-profile-ghost > * {
+  flex-shrink: 0;
+}
+
+.dock-profile-peek-app {
+  width: calc(var(--icon) + 8px);
+  display: flex;
+  justify-content: center;
+}
+
+.dock-profile-peek-app img,
+.dock-profile-peek-app .placeholder {
+  width: var(--icon);
+  height: var(--icon);
+}

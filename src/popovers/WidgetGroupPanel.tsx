@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { X } from "lucide-react";
 import { ipc, type WidgetConfig } from "../lib/ipc";
 import { widgetSupported } from "../lib/platform";
@@ -8,14 +8,18 @@ import { DockWidget, DockWidgetsProvider } from "../widgets/DockWidgets";
 import { FitScale } from "../widgets/FitScale";
 import { activeGroups, groupIdOf, isGroupKey } from "../dock/order";
 import { removeFromGroup, dissolveGroup } from "../dock/groups";
+import { profileOfGroup, profileView, scopedUpdate } from "../dock/profiles";
 import { togglePanel } from "../widgets/Tile";
 
 /** Painel de um grupo: uma lista dos widgets de verdade, cada um com o nome embaixo. */
 export function WidgetGroupPanel({ kind }: { kind: string }) {
-  const config = useConfig((s) => s.config);
-  const update = useConfig((s) => s.update);
+  const shared = useConfig((s) => s.config);
+  const storeUpdate = useConfig((s) => s.update);
   const t = useT();
   const id = isGroupKey(kind) ? groupIdOf(kind) : "";
+  const profileId = shared ? profileOfGroup(shared, id) : "";
+  const config = useMemo(() => shared && profileView(shared, profileId), [shared, profileId]);
+  const update = scopedUpdate(storeUpdate, profileId);
 
   useEffect(() => {
     if (!config || !id) {

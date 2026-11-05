@@ -82,13 +82,13 @@ const config: Config = {
   glassOpacity: 0.4,
   accent: "coral",
   iconSize: 40,
-  magnification: 1,
+  magnification: params.has("magnify") ? 1.6 : 1,
   showRunningUnpinned: true,
   hideTaskbar: true,
   autoHide: "smart",
   dockWidth: "fit",
   dockPosition: "bottom",
-  dockMonitor: "primary",
+  dockMonitor: params.has("per-monitor") ? "all" : "primary",
   dockHeight: null,
   githubPollMinutes: 3,
   aiPollMinutes: 1,
@@ -110,6 +110,12 @@ const config: Config = {
   agentPokemonId: 25,
   pokemonPetEnabled: false,
   pokemonPetIds: [25],
+  dockProfiles: [],
+  activeProfile: "main",
+  profilePerMonitor: params.has("per-monitor"),
+  monitorProfiles: {},
+  profileScroll: true,
+  profileScrollInvert: false,
 };
 
 const windows: WindowsSnapshot = {
@@ -411,6 +417,24 @@ const audio = {
     appsNeedPermission: params.has("audio-permission"),
   };
 
+const profileContent = (pick: string[]) => ({
+  pinnedApps: config.pinnedApps.filter((app) => pick.includes(app.id)),
+  dockOrder: [],
+  widgetGroups: [],
+  showStartButton: true,
+  showLauncher: false,
+});
+
+config.dockProfiles = [
+  { id: "main", name: "Main", icon: "layers", accent: config.accent, pinnedApps: config.pinnedApps, widgets: config.widgets, dockOrder: config.dockOrder, widgetGroups: config.widgetGroups, showStartButton: true, showLauncher: false },
+  ...(params.has("profiles")
+    ? [
+        { id: "home", name: "Home", icon: "house", accent: "green" as const, widgets: config.widgets.map((w) => ({ ...w, enabled: w.kind === "clock" || w.kind === "volume" })), ...profileContent(config.pinnedApps.slice(0, 2).map((app) => app.id)) },
+        { id: "focus", name: "Focus", icon: "target", accent: "blue" as const, widgets: config.widgets.map((w) => ({ ...w, enabled: w.kind === "clock" })), ...profileContent(config.pinnedApps.slice(0, 1).map((app) => app.id)) },
+      ]
+    : []),
+];
+
 const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   get_config: () => config,
   save_config: (args) => Object.assign(config, args.config),
@@ -425,6 +449,7 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
     { id: "bluetooth", status: "granted" },
   ],
   permission_action: () => undefined,
+  extra_dock_monitor: () => params.get("monitor"),
   list_monitors: () => [
     { id: "Built-in Retina Display", name: "Built-in Retina Display", primary: true, width: 1512, height: 982 },
     ...(params.has("monitors") ? [{ id: "DELL U2720Q", name: "DELL U2720Q", primary: false, width: 2560, height: 1440 }] : []),

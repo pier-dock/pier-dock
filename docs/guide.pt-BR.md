@@ -47,6 +47,7 @@ A atualização pelo app funciona com o instalador do Windows, com o app do macO
 - **Clique** num separador para abrir o menu de remoção; ele também pode ser acessado pelo teclado.
 - **Arraste** os apps fixados para reordená-los. Para fixar um app, solte-o na dock ou adicione-o em **Configurações** > **Apps**.
 - **Clique** num widget para abrir o painel. No volume, role para ajustar e clique com o botão direito para silenciar.
+- **Role** sobre a dock para ir ao próximo perfil ou ao anterior, um de cada vez. Cada perfil tem seus próprios apps fixados, widgets, grupos, ordem e cor de destaque. Crie e edite perfis em **Configurações** > **Perfis**. Com a dock em todos os monitores, você também pode definir ali um perfil para cada monitor.
 - **Arraste** um widget sobre outro, ou sobre um cartão de grupo, e segure até o contorno ficar sólido para criar ou ampliar um grupo. Clique no cartão para abrir o grupo; use o X de cada widget para tirá-lo ou **Desagrupar** para desfazer.
 - No painel de som, **Saída padrão** escolhe a saída do sistema; **Áudio dos apps** mostra os controles de cada app. Nas plataformas compatíveis, cada app pode usar uma saída própria.
 - **Pressione** <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd>…<kbd>9</kbd> (<kbd>Control</kbd>+<kbd>Option</kbd>+<kbd>1</kbd>…<kbd>9</kbd> no macOS) para abrir ou focar o app dessa posição.

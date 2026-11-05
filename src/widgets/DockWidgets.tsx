@@ -3,6 +3,7 @@ import { createStore, useStore, type StoreApi } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import type { Config, WidgetKind, WidgetSize } from "../lib/ipc";
 import { widgetSupported } from "../lib/platform";
+import { anyProfileWidget } from "../dock/profiles";
 import { useMedia } from "../hooks/useMedia";
 import { useGithub } from "../hooks/useGithub";
 import { useBluetooth, useKeyboardLayouts, useSystemStatus } from "../hooks/useSystem";
@@ -19,9 +20,9 @@ const WidgetStore = createContext<StoreApi<WidgetData> | null>(null);
 /** Shared polling belongs to this boundary, so data changes do not render dock layout or apps. */
 export function DockWidgetsProvider({ config, children }: { config: Config; children: ReactNode }) {
   const [store] = useState(() => createStore<WidgetData>(() => EMPTY_WIDGET_DATA));
-  const enabled = (kind: WidgetKind) => config.widgets.some((w) => w.enabled && w.kind === kind && widgetSupported(w.kind));
+  const enabled = (kind: WidgetKind) => widgetSupported(kind) && anyProfileWidget(config, (k) => k === kind);
   const media = useMedia(enabled("media"));
-  const github = useGithub(config.widgets.some((w) => w.enabled && w.kind.startsWith("github-")) ? config.githubPollMinutes : undefined);
+  const github = useGithub(anyProfileWidget(config, (k) => k.startsWith("github-")) ? config.githubPollMinutes : undefined);
   const system = useSystemStatus(enabled("network") || enabled("battery"));
   const place = config.weatherLocation;
   const weather = useWeather(enabled("weather"), place ? `${place.latitude},${place.longitude}` : undefined);
