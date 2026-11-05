@@ -3,13 +3,15 @@
 //! escolhido e registra sua própria AppBar. O layout é herdado da janela principal. A visibilidade
 //! também no Linux; no macOS, cada janela decide a sua pelo hover do próprio monitor, e no Windows
 //! ela soma esse hover à visibilidade da principal.
+//!
+//! `ENTRIES` nunca fica travado enquanto uma janela é mexida: fora da thread principal, consultar
+//! os monitores espera a resposta dela, e os comandos síncronos do frontend, que rodam nela, também
+//! leem `ENTRIES`. Quem precisa das janelas copia a lista (`entries`) e solta o lock.
 
 #[cfg(windows)]
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::{AtomicU32, Ordering};
-#[cfg(windows)]
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
@@ -25,8 +27,12 @@ struct ExtraEntry {
     appbar_monitor: Mutex<Option<Band>>,
 }
 
-static ENTRIES: Mutex<Vec<ExtraEntry>> = Mutex::new(Vec::new());
+static ENTRIES: Mutex<Vec<Arc<ExtraEntry>>> = Mutex::new(Vec::new());
 static COUNTER: AtomicU32 = AtomicU32::new(0);
+
+fn entries() -> Vec<Arc<ExtraEntry>> {
+    ENTRIES.lock().unwrap().clone()
+}
 
 /// Sincroniza as janelas extras com base na configuração de monitor da dock.
 /// "all" → cria janelas em todos os monitores não-primários.
@@ -47,22 +53,20 @@ pub fn sync_from_setting(app: &AppHandle, setting: &str) {
 /// Sincroniza as janelas extras com a lista de ids de monitores. Cria janelas para
 /// monitores novos, fecha as de monitores removidos e re-aplica o layout nos que ficaram.
 fn sync_monitors(app: &AppHandle, monitor_ids: &[String]) {
-    // Fase 1: fechar janelas de monitores que saíram da lista (lock breve).
-    {
+    // Fase 1: fechar janelas de monitores que saíram da lista.
+    let removed: Vec<_> = {
         let mut entries = ENTRIES.lock().unwrap();
-        entries.retain(|e| {
-            if monitor_ids.contains(&e.monitor_id) {
-                true
-            } else {
-                if let Some(w) = app.get_webview_window(&e.label) {
-                    let _ = w.destroy();
-                }
-                false
-            }
-        });
+        let (kept, removed) = entries.drain(..).partition(|e| monitor_ids.contains(&e.monitor_id));
+        *entries = kept;
+        removed
+    };
+    for entry in removed {
+        if let Some(w) = app.get_webview_window(&entry.label) {
+            let _ = w.destroy();
+        }
     }
 
-    // Fase 2: descobrir quais monitores precisam de janela nova (lock breve).
+    // Fase 2: descobrir quais monitores precisam de janela nova.
     let to_create: Vec<String> = {
         let entries = ENTRIES.lock().unwrap();
         monitor_ids
@@ -72,23 +76,18 @@ fn sync_monitors(app: &AppHandle, monitor_ids: &[String]) {
             .collect()
     };
 
-    // Fase 3: criar janelas SEM segurar o lock — build() despacha para o event loop
-    // e qualquer evento disparado durante a criação pode precisar de ENTRIES.
+    // Fase 3: criar janelas — build() despacha para o event loop e qualquer evento disparado
+    // durante a criação pode precisar de ENTRIES.
     let mut new_entries = Vec::new();
     for id in &to_create {
         if let Some(entry) = create_extra(app, id) {
-            new_entries.push(entry);
+            new_entries.push(Arc::new(entry));
         }
     }
 
-    // Fase 4: adicionar entradas e re-aplicar layout em todas (lock breve).
-    {
-        let mut entries = ENTRIES.lock().unwrap();
-        entries.extend(new_entries);
-        for entry in entries.iter() {
-            apply_entry_layout(app, entry);
-        }
-    }
+    // Fase 4: adicionar entradas e re-aplicar layout em todas.
+    ENTRIES.lock().unwrap().extend(new_entries);
+    apply_all_layouts(app);
 }
 
 /// Cria uma janela extra para o monitor com o id dado e a inicializa.
@@ -103,7 +102,9 @@ fn create_extra(app: &AppHandle, monitor_id: &str) -> Option<ExtraEntry> {
         .shadow(false)
         .always_on_top(true)
         .skip_taskbar(true)
-        .resizable(false)
+        // No Linux o layout redimensiona a janela pelo GTK, e o tao reaplicaria este valor no
+        // primeiro configure, travando-a no tamanho inicial.
+        .resizable(cfg!(target_os = "linux"))
         .focused(false)
         .focusable(false)
         .accept_first_mouse(true)
@@ -148,14 +149,8 @@ fn create_extra(app: &AppHandle, monitor_id: &str) -> Option<ExtraEntry> {
         stop,
     );
 
-    #[cfg(target_os = "macos")]
+    #[cfg(not(windows))]
     crate::dock_window::init_extra(&window, monitor_id);
-
-    #[cfg(target_os = "linux")]
-    {
-        let _ = crate::dock_window::place_window_on(&window, monitor_id);
-        let _ = window.show();
-    }
 
     Some(entry)
 }
@@ -176,8 +171,7 @@ pub fn extra_dock_monitor(window: tauri::WebviewWindow) -> Option<String> {
 #[cfg(target_os = "linux")]
 pub fn on_visibility_changed(app: &AppHandle, visible: bool) {
     use tauri::Emitter;
-    let entries = ENTRIES.lock().unwrap();
-    for entry in entries.iter() {
+    for entry in entries() {
         if let Some(window) = app.get_webview_window(&entry.label) {
             let _ = window.emit_to(&entry.label, "dock-visibility", visible);
             crate::backdrop::set_hidden(&window, !visible);
@@ -188,9 +182,8 @@ pub fn on_visibility_changed(app: &AppHandle, visible: bool) {
 /// Re-aplica o layout em todas as janelas extras. Chamado quando posição, auto-hide ou tamanho
 /// do layout mudam.
 pub fn apply_all_layouts(app: &AppHandle) {
-    let entries = ENTRIES.lock().unwrap();
-    for entry in entries.iter() {
-        apply_entry_layout(app, entry);
+    for entry in entries() {
+        apply_entry_layout(app, &entry);
     }
 }
 
@@ -203,7 +196,9 @@ fn apply_entry_layout(app: &AppHandle, entry: &ExtraEntry) {
         &entry.appbar_registered,
         &entry.appbar_monitor,
     );
-    #[cfg(not(windows))]
+    #[cfg(target_os = "linux")]
+    crate::dock_window::apply_layout_extra(&window, &entry.monitor_id);
+    #[cfg(target_os = "macos")]
     {
         let _ = crate::dock_window::place_window_on(&window, &entry.monitor_id);
     }
@@ -213,10 +208,8 @@ fn apply_entry_layout(app: &AppHandle, entry: &ExtraEntry) {
 /// Re-registra cada janela extra.
 #[cfg(windows)]
 pub fn reregister_all(app: &AppHandle) {
-    let entries = ENTRIES.lock().unwrap();
-    for entry in entries.iter() {
+    for entry in entries() {
         entry.appbar_registered.store(false, Ordering::SeqCst);
     }
-    drop(entries);
     apply_all_layouts(app);
 }

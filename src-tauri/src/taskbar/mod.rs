@@ -11,13 +11,17 @@ pub use backend::{hide, restore};
 #[cfg(windows)]
 pub use backend::{run_guardian, show_for_tray, start_watchdog};
 
-/// Garante que a barra nativa volte em pânico e quando o processo é encerrado pelo terminal
+/// Garante que a barra nativa volte em pânico da thread principal e quando o processo é encerrado pelo terminal
 /// (Ctrl+C no `tauri dev`, fechar o console, SIGTERM).
 pub fn install_crash_guards() {
     let default_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         log::error!("{info}");
-        restore();
+        // Fora da thread principal o Pier continua de pé, só sem aquela thread: devolver a barra
+        // nativa aqui a deixaria aberta junto com a dock até o próximo reinício.
+        if std::thread::current().name() == Some("main") {
+            restore();
+        }
         default_hook(info);
     }));
     backend::install_signal_guard();

@@ -20,8 +20,10 @@ mod backend;
 pub use backend::init;
 #[cfg(windows)]
 pub use backend::{remove_appbar, reregister, init_extra, apply_layout_extra};
-#[cfg(target_os = "macos")]
+#[cfg(not(windows))]
 pub use backend::init_extra;
+#[cfg(target_os = "linux")]
+pub use backend::apply_layout_extra;
 
 pub const DOCK_LABEL: &str = "dock";
 /// Prefixo do rótulo das janelas extras (`dock-extra-0`, `dock-extra-1`…). A capability em
@@ -518,8 +520,8 @@ pub fn set_dock_layout(window: WebviewWindow, layout: Layout) {
 /// O mouse entrou ou saiu da área clicável da dock. Só o Linux usa: lá o click-through é feito
 /// recortando a região de input da janela, e o hover vem do próprio WebView.
 #[tauri::command]
-pub fn set_dock_hover(hovering: bool) {
-    backend::set_hover(hovering);
+pub fn set_dock_hover(window: WebviewWindow, hovering: bool) {
+    backend::set_hover(window.label(), hovering);
 }
 
 /// A barra mudou de tamanho (itens, magnificação): atualiza a área clicável e o vidro. Cada janela
@@ -550,6 +552,8 @@ pub fn forget_window(label: &str) {
     if let Some(m) = EXTRA_VISIBLE.lock().unwrap().as_mut() {
         m.remove(label);
     }
+    // Uma janela destruída com o mouse em cima não recebe o evento de saída.
+    backend::set_hover(label, false);
 }
 
 /// O Clawd (mascote das sessões do Claude Code) anda logo para fora da barra, então a área dele
@@ -572,12 +576,6 @@ fn store_pet(label: &str, rect: Option<HitRect>) {
 
 fn pet_rect_for(label: &str) -> Option<HitRect> {
     PET.lock().unwrap().as_ref().and_then(|m| m.get(label).copied())
-}
-
-/// O Clawd da dock principal.
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
-pub fn pet_rect() -> Option<HitRect> {
-    pet_rect_for(DOCK_LABEL)
 }
 
 /// O ponto (em pixels lógicos da janela `label`) está sobre o Clawd dela?
@@ -665,7 +663,7 @@ pub fn reveal_strip(thickness: f64, window: (f64, f64)) -> (f64, f64, f64, f64) 
 
 /// Área clicável da dock na janela. `headroom` é a folga do hover, que só vale enquanto o cursor
 /// está na dock; ela fica presa aos limites da janela.
-#[cfg_attr(target_os = "macos", allow(dead_code))]
+#[cfg_attr(not(windows), allow(dead_code))]
 pub fn clickable_area(window: (f64, f64), headroom: f64) -> (f64, f64, f64, f64) {
     clickable_area_with(hit_rect(), window, headroom)
 }
