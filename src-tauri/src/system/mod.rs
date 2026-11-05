@@ -164,11 +164,10 @@ pub async fn bluetooth_disconnect(id: String) -> Result<(), String> {
 /// Abre a gaveta de ícones ocultos da bandeja do Windows encostada na dock, centrada no widget
 /// (`anchor_x`/`anchor_y` em pixels lógicos da dock). Nos outros sistemas não existe.
 #[tauri::command]
-pub async fn open_tray(app: tauri::AppHandle, anchor_x: f64, anchor_y: f64) -> Result<(), String> {
+pub async fn open_tray(app: tauri::AppHandle, window: tauri::WebviewWindow, anchor_x: f64, anchor_y: f64) -> Result<(), String> {
     #[cfg(windows)]
     {
-        use tauri::Manager;
-        let dock = app.get_webview_window(crate::dock_window::DOCK_LABEL).ok_or(crate::i18n::tr("dock não encontrada", "dock not found"))?;
+        let dock = crate::panels::owner_dock(&app, &window).ok_or(crate::i18n::tr("dock não encontrada", "dock not found"))?;
         let reserved = crate::dock_window::reserved_rect(&dock).ok_or(crate::i18n::tr("monitor não encontrado", "monitor not found"))?;
         let dock_pos = dock.outer_position().err_str()?;
         let scale = reserved.scale;
@@ -186,7 +185,7 @@ pub async fn open_tray(app: tauri::AppHandle, anchor_x: f64, anchor_y: f64) -> R
     }
     #[cfg(not(windows))]
     {
-        let _ = (app, anchor_x, anchor_y);
+        let _ = (app, window, anchor_x, anchor_y);
         Err(crate::i18n::tr("a bandeja só existe no Windows", "the tray only exists on Windows").into())
     }
 }
