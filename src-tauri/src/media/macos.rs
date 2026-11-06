@@ -3,6 +3,7 @@
 
 use std::time::Duration;
 
+use objc2::rc::autoreleasepool;
 use tauri::AppHandle;
 
 use super::{fetch_image, image_data_url, now_ms, publish, thumbnail_key, MediaSession, MediaState, MAX_ART_BYTES};
@@ -125,7 +126,7 @@ fn read_state() -> MediaState {
 
 pub fn run(app: &AppHandle) {
     loop {
-        publish(app, read_state());
+        publish(app, autoreleasepool(|_| read_state()));
         std::thread::sleep(Duration::from_millis(1000));
     }
 }
