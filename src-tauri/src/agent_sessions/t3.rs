@@ -34,17 +34,22 @@ fn state_path() -> PathBuf {
         .unwrap_or_else(|| dirs::home_dir().unwrap_or_default().join(".t3/userdata/statev2.sqlite"))
 }
 
+pub(super) fn window_pids() -> Vec<u32> {
+    crate::windows_list::with_cached_windows(|windows| {
+        windows
+            .iter()
+            .filter(|w| w.title.contains("T3 Code") || w.exe.to_lowercase().contains("t3-code"))
+            .map(|w| w.pid)
+            .collect()
+    })
+}
+
 pub(super) fn read(now: f64) -> Vec<RawStatus> {
     let path = state_path();
     if !path.is_file() {
         return Vec::new();
     }
-    let pids: Vec<_> = crate::windows_list::get_windows()
-        .windows
-        .iter()
-        .filter(|w| w.title.contains("T3 Code") || w.exe.to_lowercase().contains("t3-code"))
-        .map(|w| w.pid)
-        .collect();
+    let pids = window_pids();
     // A persisted running row alone is not liveness evidence after T3 exits or crashes.
     if pids.is_empty() {
         return Vec::new();
