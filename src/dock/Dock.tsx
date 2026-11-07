@@ -7,6 +7,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { latestSender, sameHitRect } from "./hitRect";
 import { Menu } from "@tauri-apps/api/menu";
+import { setActiveInterval, setDockActive } from "../lib/dockActivity";
 import { ipc, type AppEntry, type Config, type UpdateInfo, type WidgetConfig } from "../lib/ipc";
 import { labels, os, widgetSupported } from "../lib/platform";
 import { dict } from "../i18n";
@@ -197,8 +198,7 @@ const DockLayout = memo(function DockLayout({ config, profileId, monitor }: { co
   useEffect(() => {
     const refresh = () => ipc.listInstalledApps().then(setInstalled).catch(() => {});
     refresh();
-    const id = setInterval(refresh, 10 * 60_000);
-    return () => clearInterval(id);
+    return setActiveInterval(refresh, 10 * 60_000);
   }, []);
 
   // Com a faixa aberta a área clicável avança até ela, senão o cursor não a alcança (app nenhum
@@ -298,6 +298,7 @@ const DockLayout = memo(function DockLayout({ config, profileId, monitor }: { co
       unlisten.then((f) => f());
     };
   }, [mouse]);
+  useEffect(() => setDockActive(visible), [visible]);
 
   // Linux: o click-through recorta a região de input da janela, e o Rust só sabe do hover por aqui.
   useEffect(() => {

@@ -3,6 +3,7 @@ import { StickyNote } from "lucide-react";
 import type { Note } from "../lib/ipc";
 import { useT } from "../i18n";
 import { Tile } from "./Tile";
+import { setActiveInterval } from "../lib/dockActivity";
 
 /** Tempo de cada lembrete na dock, como o painel de cotações do widget de mercado. */
 const ROTATE_MS = 5000;
@@ -12,8 +13,7 @@ export function NotesWidget({ notes, wide }: { notes: Note[]; wide: boolean }) {
   const [index, setIndex] = useState(0);
   useEffect(() => {
     if (notes.length < 2) return;
-    const id = window.setInterval(() => setIndex((current) => (current + 1) % notes.length), ROTATE_MS);
-    return () => window.clearInterval(id);
+    return setActiveInterval(() => setIndex((current) => (current + 1) % notes.length), ROTATE_MS);
   }, [notes.length]);
 
   if (!notes.length) {
