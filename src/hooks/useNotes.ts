@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { ipc, type Note } from "../lib/ipc";
+import { setActiveInterval } from "../lib/dockActivity";
 
 /** Os lembretes são arquivos editáveis fora do app, então a dock relê a pasta de tempos em tempos. */
 const REFRESH_MS = 30_000;
@@ -15,10 +16,10 @@ export function useNotes(poll = false): Note[] {
     const load = () => ipc.notesList().then(setNotes).catch(() => {});
     load();
     const unlisten = listen<Note[]>("notes-updated", (e) => setNotes(e.payload));
-    const id = poll ? window.setInterval(load, REFRESH_MS) : undefined;
+    const stop = poll ? setActiveInterval(load, REFRESH_MS) : undefined;
     return () => {
       unlisten.then((f) => f());
-      if (id) window.clearInterval(id);
+      stop?.();
     };
   }, [poll]);
   return notes;

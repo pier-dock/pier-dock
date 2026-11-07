@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { ipc, type AiProviderChoice, type AiUsage } from "../lib/ipc";
+import { setActiveInterval } from "../lib/dockActivity";
 
 /**
  * Uso das IAs de linha de comando. Só a dock faz polling (`pollMinutes`), porque a leitura varre
@@ -19,8 +20,7 @@ export function useAiUsage(pollMinutes?: number, provider: AiProviderChoice = "a
     if (!pollMinutes) return;
     const fetchNow = () => ipc.aiUsage(provider).catch(() => {});
     fetchNow();
-    const id = setInterval(fetchNow, Math.max(1, pollMinutes) * 60_000);
-    return () => clearInterval(id);
+    return setActiveInterval(fetchNow, Math.max(1, pollMinutes) * 60_000);
   }, [pollMinutes, provider]);
   return data;
 }

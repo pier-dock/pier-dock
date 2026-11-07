@@ -110,13 +110,31 @@ fn now_ms() -> f64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as f64).unwrap_or(0.0)
 }
 
-/// Emite `media-changed` se o estado mudou.
+/// Quanto a posição lida pode se afastar da extrapolada antes de contar como um seek.
+const SEEK_TOLERANCE_MS: f64 = 1500.0;
+
+/// `new` é só a reprodução seguindo em frente: nada mudou além de `position_ms`/`updated_at_ms`, e a
+/// posição está onde a extrapolação de `last` previa. O frontend interpola a posição sozinho, então
+/// emitir a cada leitura só acordaria todas as janelas por nada.
+fn is_continuation(last: &MediaState, new: &MediaState) -> bool {
+    let without_position = |s: &MediaSession| MediaSession { position_ms: 0.0, updated_at_ms: 0.0, ..s.clone() };
+    last.current == new.current
+        && last.sessions.len() == new.sessions.len()
+        && last.sessions.iter().zip(&new.sessions).all(|(a, b)| {
+            let expected = if a.playing { a.position_ms + (b.updated_at_ms - a.updated_at_ms) } else { a.position_ms };
+            without_position(a) == without_position(b) && (b.position_ms - expected).abs() <= SEEK_TOLERANCE_MS
+        })
+}
+
+/// Emite `media-changed` se o estado mudou. `STATE` guarda o último estado emitido, para a posição e
+/// o `updated_at_ms` continuarem formando o par que o frontend usa para interpolar.
 fn publish(app: &AppHandle, state: MediaState) {
     let mut last = STATE.lock().unwrap();
-    if last.as_ref() != Some(&state) {
-        let _ = app.emit("media-changed", &state);
-        *last = Some(state);
+    if last.as_ref().is_some_and(|last| is_continuation(last, &state)) {
+        return;
     }
+    let _ = app.emit("media-changed", &state);
+    *last = Some(state);
 }
 
 pub fn start(app: AppHandle) {
@@ -148,5 +166,55 @@ mod tests {
         assert_eq!(safe_image_mime(" IMAGE/WEBP "), "image/webp");
         assert_eq!(safe_image_mime(""), "image/png");
         assert_eq!(safe_image_mime("x),url(https://evil.example/a"), "image/png");
+    }
+
+    fn playing(position_ms: f64, updated_at_ms: f64) -> MediaState {
+        let session = MediaSession {
+            id: "spotify".into(),
+            title: "Song".into(),
+            playing: true,
+            duration_ms: 200_000.0,
+            position_ms,
+            updated_at_ms,
+            ..Default::default()
+        };
+        MediaState { sessions: vec![session], current: Some("spotify".into()) }
+    }
+
+    #[test]
+    fn steady_playback_is_not_republished() {
+        assert!(is_continuation(&playing(10_000.0, 1_000_000.0), &playing(11_000.0, 1_001_000.0)));
+        assert!(is_continuation(&playing(10_000.0, 1_000_000.0), &playing(11_400.0, 1_001_000.0)));
+    }
+
+    #[test]
+    fn seeks_and_stalls_are_republished() {
+        assert!(!is_continuation(&playing(10_000.0, 1_000_000.0), &playing(90_000.0, 1_001_000.0)));
+        assert!(!is_continuation(&playing(10_000.0, 1_000_000.0), &playing(2_000.0, 1_001_000.0)));
+        assert!(!is_continuation(&playing(10_000.0, 1_000_000.0), &playing(10_000.0, 1_005_000.0)));
+    }
+
+    #[test]
+    fn track_and_state_changes_are_republished() {
+        let last = playing(10_000.0, 1_000_000.0);
+        let mut paused = playing(11_000.0, 1_001_000.0);
+        paused.sessions[0].playing = false;
+        assert!(!is_continuation(&last, &paused));
+        let mut next = playing(11_000.0, 1_001_000.0);
+        next.sessions[0].title = "Other".into();
+        assert!(!is_continuation(&last, &next));
+        assert!(!is_continuation(&last, &MediaState::default()));
+    }
+
+    #[test]
+    fn a_paused_player_stays_quiet_until_the_position_moves() {
+        let mut last = playing(10_000.0, 1_000_000.0);
+        last.sessions[0].playing = false;
+        let mut same = playing(10_000.0, 1_001_000.0);
+        same.sessions[0].playing = false;
+        assert!(is_continuation(&last, &same));
+        let mut moved = playing(60_000.0, 1_002_000.0);
+        moved.sessions[0].playing = false;
+        assert!(!is_continuation(&last, &moved));
     }
 }

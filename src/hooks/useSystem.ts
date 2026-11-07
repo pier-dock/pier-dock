@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { ipc, type AppStream, type AudioState, type BluetoothState, type KeyboardLayouts, type SystemStatus, type Volume, type WifiState } from "../lib/ipc";
+import { setActiveInterval } from "../lib/dockActivity";
 
 export function useSystemStatus(enabled = true): SystemStatus | null {
   const [status, setStatus] = useState<SystemStatus | null>(null);
@@ -7,8 +8,7 @@ export function useSystemStatus(enabled = true): SystemStatus | null {
     if (!enabled) return;
     const refresh = () => ipc.systemStatus().then(setStatus).catch(() => {});
     refresh();
-    const id = setInterval(refresh, 10_000);
-    return () => clearInterval(id);
+    return setActiveInterval(refresh, 10_000);
   }, [enabled]);
   return status;
 }
@@ -18,8 +18,7 @@ export function useVolume(): [Volume | null, (patch: Partial<Volume>) => void] {
   useEffect(() => {
     const refresh = () => ipc.getVolume().then(setVolume).catch(() => {});
     refresh();
-    const id = setInterval(refresh, 3_000);
-    return () => clearInterval(id);
+    return setActiveInterval(refresh, 3_000);
   }, []);
   const update = useCallback((patch: Partial<Volume>) => {
     setVolume((v) => (v ? { ...v, ...patch } : v));
@@ -90,8 +89,7 @@ export function useBluetooth(enabled = true, intervalMs = 10_000): [BluetoothSta
   useEffect(() => {
     if (!enabled) return;
     refresh();
-    const id = setInterval(refresh, intervalMs);
-    return () => clearInterval(id);
+    return setActiveInterval(refresh, intervalMs);
   }, [enabled, intervalMs, refresh]);
   const setPowered = useCallback(async (powered: boolean) => {
     try { await ipc.setBluetooth(powered); }
@@ -107,8 +105,7 @@ export function useKeyboardLayouts(enabled = true, intervalMs = 1_000) {
   useEffect(() => {
     if (!enabled) return;
     refresh();
-    const id = setInterval(refresh, intervalMs);
-    return () => clearInterval(id);
+    return setActiveInterval(refresh, intervalMs);
   }, [enabled, intervalMs, refresh]);
   const setActive = useCallback((id: string) => setKeyboard((k) => k && { ...k, active: id }), []);
   return { keyboard, refresh, setActive };
@@ -117,8 +114,7 @@ export function useKeyboardLayouts(enabled = true, intervalMs = 1_000) {
 export function useNow(intervalMs = 1000): Date {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), intervalMs);
-    return () => clearInterval(id);
+    return setActiveInterval(() => setNow(new Date()), intervalMs);
   }, [intervalMs]);
   return now;
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { ipc, type MediaSession, type MediaState } from "../lib/ipc";
+import { setActiveInterval } from "../lib/dockActivity";
 
 export function useMedia(enabled = true): MediaState {
   const [state, setState] = useState<MediaState>({ sessions: [] });
@@ -54,8 +55,7 @@ export function usePlaybackPosition(session: MediaSession | undefined): number {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     if (!session?.playing) return;
-    const id = setInterval(() => setNow(Date.now()), 500);
-    return () => clearInterval(id);
+    return setActiveInterval(() => setNow(Date.now()), 500);
   }, [session?.playing]);
   if (!session) return 0;
   const elapsed = session.playing ? Math.max(0, now - session.updatedAtMs) : 0;
