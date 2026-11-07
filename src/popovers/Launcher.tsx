@@ -17,7 +17,7 @@ import { filterApps, matchesQuery } from "./launcherSearch";
 const COLUMNS = 6;
 
 function AppIcon({ app, large = false }: { app: AppEntry; large?: boolean }) {
-  const src = useIcon(iconKeyForEntry(app));
+  const src = useIcon(iconKeyForEntry(app), true);
   const className = `launcher-icon${large ? " lg" : ""}`;
   return src ? <img className={className} src={src} alt="" /> : <span className={`${className} fallback`}>{app.name[0]}</span>;
 }
