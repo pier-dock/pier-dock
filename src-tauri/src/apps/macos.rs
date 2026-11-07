@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
+use objc2::rc::autoreleasepool;
 use objc2_foundation::{NSFileManager, NSString};
 
 use super::app_id;
@@ -73,6 +74,10 @@ fn bundles_in(dir: &Path, out: &mut Vec<PathBuf>) {
 }
 
 pub fn installed_apps() -> Result<Vec<AppEntry>, String> {
+    autoreleasepool(|_| list_installed_apps())
+}
+
+fn list_installed_apps() -> Result<Vec<AppEntry>, String> {
     let mut dirs: Vec<PathBuf> = APP_DIRS.iter().map(PathBuf::from).collect();
     if let Some(home) = dirs::home_dir() {
         dirs.push(home.join("Applications"));

@@ -15,7 +15,7 @@ use accessibility_sys::{
 use core_foundation::base::TCFType;
 use block2::RcBlock;
 use core_foundation::string::{CFString, CFStringRef};
-use objc2::rc::Retained;
+use objc2::rc::{autoreleasepool, Retained};
 use objc2::runtime::AnyClass;
 use objc2::AllocAnyThread;
 use objc2_core_graphics::{
@@ -55,7 +55,8 @@ pub fn start(_app: AppHandle) {
         let mut ticks = 0;
         loop {
             std::thread::sleep(Duration::from_millis(150));
-            let front = workspace::frontmost().map(|a| a.pid).unwrap_or(0);
+            // Esta thread não tem run loop, então nada drenaria os autoreleased do AppKit.
+            let front = autoreleasepool(|_| workspace::frontmost().map(|a| a.pid).unwrap_or(0));
             ticks += 1;
             if front != last_front || ticks >= 7 {
                 last_front = front;
@@ -105,6 +106,10 @@ fn note_focus(trusted: bool) {
 }
 
 pub fn snapshot() -> WindowsSnapshot {
+    autoreleasepool(|_| take_snapshot())
+}
+
+fn take_snapshot() -> WindowsSnapshot {
     let trusted = ax::is_trusted();
     let mut windows = Vec::new();
     let mut elements = HashMap::new();

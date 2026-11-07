@@ -2,7 +2,7 @@
 //! AppleScript (Standard Additions, sem pedir permissão de Automação), Bluetooth pelo IOBluetooth e
 //! os menus do sistema pelos itens da barra de menus do Central de Controle.
 
-use objc2::rc::Retained;
+use objc2::rc::{autoreleasepool, Retained};
 use objc2_core_wlan::CWWiFiClient;
 use objc2_io_bluetooth::{BluetoothHCIPowerState, IOBluetoothDevice, IOBluetoothHostController};
 
@@ -83,6 +83,10 @@ pub fn set_volume(level: Option<f32>, muted: Option<bool>) -> Result<(), String>
 
 /// A bateria dos dispositivos só sai de APIs privadas do IOBluetooth, então fica de fora.
 pub fn bluetooth() -> Bluetooth {
+    autoreleasepool(|_| read_bluetooth())
+}
+
+fn read_bluetooth() -> Bluetooth {
     let Some(controller) = (unsafe { IOBluetoothHostController::defaultController() }) else { return Bluetooth::absent() };
     let powered = unsafe { controller.powerState() } == BluetoothHCIPowerState::ON;
     let devices = paired_devices()
