@@ -17,12 +17,13 @@
 //! Nada sai para a rede: dos rollouts são lidos apenas os campos numéricos de `usage`, o `model` e
 //! o timestamp — nunca o conteúdo das conversas, os comandos executados ou os diffs.
 
-use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 use chrono::{DateTime, Local, Utc};
 use serde_json::Value;
 
+use super::files::FileCache;
 use super::{active_block, now_ms, recent_files, today_totals, AiUsage, AiWindow, Event, STALE_MINUTES};
 
 // --- caminhos ---------------------------------------------------------------
@@ -99,36 +100,55 @@ pub fn parse_model(line: &str) -> Option<String> {
     record.pointer("/payload/model").and_then(Value::as_str).map(String::from)
 }
 
-/// Eventos e limites dos arquivos dados. Cada arquivo tem o modelo do seu último `turn_context`,
-/// que é o que os turnos seguintes usaram; os limites ficam com o `rate_limits` mais recente.
-fn scan(files: Vec<PathBuf>, now: DateTime<Utc>) -> (Vec<Event>, Limits) {
+/// O que já foi extraído de um rollout: o modelo do último `turn_context` (que é o que os turnos
+/// seguintes usaram), os turnos e o `rate_limits` mais recente dele, ainda sem interpretar, porque
+/// o resultado depende de "agora".
+#[derive(Default)]
+struct Rollout {
+    model: Option<String>,
+    events: Vec<Event>,
+    limits: Option<(DateTime<Utc>, Value)>,
+}
+
+/// O que já foi lido de cada rollout. Um rollout só cresce, então cada consulta lê apenas o que foi
+/// acrescentado desde a anterior em vez de reler as últimas 48 h inteiras.
+static ROLLOUTS: Mutex<Option<FileCache<Rollout>>> = Mutex::new(None);
+
+/// Eventos e limites dos arquivos dados; os limites ficam com o `rate_limits` mais recente de todos.
+fn scan(cache: &mut FileCache<Rollout>, files: Vec<PathBuf>, now: DateTime<Utc>) -> (Vec<Event>, Limits) {
+    cache.refresh(files, |rollout, line| {
+        // Filtro barato antes de pagar o custo do parse de JSON.
+        if line.contains("\"model\"") {
+            if let Some(found) = parse_model(line) {
+                rollout.model = Some(found);
+            }
+        }
+        if !line.contains("\"token_count\"") {
+            return;
+        }
+        let Some((mut event, rate_limits)) = parse_turn(line) else { return };
+        event.model = rollout.model.clone();
+        let seen_at = event.when.with_timezone(&Utc);
+        if let Some(rate_limits) = rate_limits {
+            if rollout.limits.as_ref().is_none_or(|(at, _)| seen_at > *at) {
+                rollout.limits = Some((seen_at, rate_limits));
+            }
+        }
+        rollout.events.push(event);
+    });
+
     let mut events = Vec::new();
-    let mut limits = Limits::default();
-    for path in files {
-        let Ok(file) = std::fs::File::open(&path) else { continue };
-        let mut model: Option<String> = None;
-        for line in BufReader::new(file).lines().map_while(Result::ok) {
-            // Filtro barato antes de pagar o custo do parse de JSON.
-            if line.contains("\"model\"") {
-                if let Some(found) = parse_model(&line) {
-                    model = Some(found);
-                }
+    let mut newest: Option<&(DateTime<Utc>, Value)> = None;
+    for rollout in cache.states() {
+        events.extend(rollout.events.iter().cloned());
+        if let Some(found) = &rollout.limits {
+            if newest.is_none_or(|(at, _)| found.0 > *at) {
+                newest = Some(found);
             }
-            if !line.contains("\"token_count\"") {
-                continue;
-            }
-            let Some((mut event, rate_limits)) = parse_turn(&line) else { continue };
-            event.model = model.clone();
-            let seen_at = event.when.with_timezone(&Utc);
-            if let Some(rate_limits) = rate_limits {
-                if limits.seen_at.is_none_or(|at| seen_at > at) {
-                    limits = Limits { windows: parse_limits(&rate_limits, now), seen_at: Some(seen_at) };
-                }
-            }
-            events.push(event);
         }
     }
     events.sort_by_key(|e| e.when);
+    let limits = newest.map_or_else(Limits::default, |(at, value)| Limits { windows: parse_limits(value, now), seen_at: Some(*at) });
     (events, limits)
 }
 
@@ -136,7 +156,10 @@ fn scan(files: Vec<PathBuf>, now: DateTime<Utc>) -> (Vec<Event>, Limits) {
 pub fn snapshot() -> AiUsage {
     let now_local = Local::now();
     let now = now_local.with_timezone(&Utc);
-    let (events, limits) = scan(recent_files(sessions_dir()), now);
+    let (events, limits) = {
+        let mut cache = ROLLOUTS.lock().unwrap_or_else(|e| e.into_inner());
+        scan(cache.get_or_insert_with(FileCache::default), recent_files(sessions_dir()), now)
+    };
 
     let age_min = limits.seen_at.map(|at| (now - at).num_minutes().max(0));
     let mut usage = AiUsage {
@@ -271,12 +294,25 @@ mod tests {
         std::fs::write(&older, format!("{}\n{}\n", parse_model_line(), turn("2026-10-15T10:00:00Z", 100, 10.0))).unwrap();
         std::fs::write(&newer, format!("{}\n{}\n", parse_model_line(), turn("2026-10-16T10:00:00Z", 25, 80.0))).unwrap();
 
-        let (events, limits) = scan(vec![newer, older], now());
+        let mut cache = FileCache::default();
+        let files = vec![newer.clone(), older];
+        let (events, limits) = scan(&mut cache, files.clone(), now());
         assert_eq!(events.iter().map(|e| e.tokens).sum::<i64>(), 125);
         assert_eq!(events[0].model.as_deref(), Some("gpt-5.6-luna"));
         // A leitura mais recente dos limites é a que vale.
         assert_eq!(limits.windows, vec![window("primary", Some(10_080), Some(80), Some(60))]);
         assert_eq!(limits.seen_at, Some(Utc.with_ymd_and_hms(2026, 10, 16, 10, 0, 0).unwrap()));
+
+        // Uma consulta seguinte lê só o que cresceu: o turno novo entra com o modelo do arquivo
+        // (que já tinha sido lido) e os limites passam a ser os dele.
+        use std::io::Write;
+        let mut file = std::fs::OpenOptions::new().append(true).open(&newer).unwrap();
+        writeln!(file, "{}", turn("2026-10-16T11:00:00Z", 5, 90.0)).unwrap();
+        let (events, limits) = scan(&mut cache, files, now());
+        assert_eq!(events.iter().map(|e| e.tokens).sum::<i64>(), 130);
+        assert_eq!(events.len(), 3);
+        assert_eq!(events[2].model.as_deref(), Some("gpt-5.6-luna"));
+        assert_eq!(limits.windows, vec![window("primary", Some(10_080), Some(90), Some(60))]);
 
         std::fs::remove_dir_all(&root).unwrap();
     }
