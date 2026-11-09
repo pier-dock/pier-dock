@@ -79,8 +79,16 @@ export function Popover({ kind }: { kind: string }) {
   const t = useT();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && ipc.closePanel();
+    // A margem transparente em volta do painel (sombra) também recebe o clique.
+    const onPointerDown = (e: PointerEvent) => {
+      if (!(e.target as Element).closest(".popover")) ipc.closePanel();
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", onPointerDown);
+    };
   }, []);
   if (isGroupKey(kind)) {
     return (
