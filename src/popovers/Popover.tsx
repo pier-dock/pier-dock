@@ -1,27 +1,30 @@
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { ipc } from "../lib/ipc";
-import { BluetoothPanel } from "./Bluetooth";
-import { MonthCalendar } from "./MonthCalendar";
-import { Calendar } from "./Calendar";
-import { AiUsagePanel } from "./AiUsagePanel";
-import { AgentSessionsPanel } from "./AgentSessionsPanel";
-import { Commits } from "./Commits";
-import { Contributions } from "./Contributions";
-import { KeyboardLayoutPanel } from "./KeyboardLayout";
-import { Launcher } from "./Launcher";
-import { Market } from "./Market";
-import { Notes } from "./Notes";
-import { NowPlaying } from "./NowPlaying";
-import { PowerPanel } from "./Power";
-import { Pomodoro } from "./Pomodoro";
-import { PullRequests } from "./PullRequests";
-import { SoundPanel } from "./Sound";
-import { SystemUsage } from "./SystemUsage";
-import { Weather } from "./Weather";
-import { WifiPanel } from "./Wifi";
-import { WidgetGroupPanel } from "./WidgetGroupPanel";
+import { lazyNamed } from "../lib/lazyNamed";
 import { isGroupKey } from "../dock/order";
 import { useT } from "../i18n";
+
+// Cada janela de painel mostra um só: carregar os outros 19 seria parse e memória à toa.
+const BluetoothPanel = lazyNamed(() => import("./Bluetooth"), "BluetoothPanel");
+const MonthCalendar = lazyNamed(() => import("./MonthCalendar"), "MonthCalendar");
+const Calendar = lazyNamed(() => import("./Calendar"), "Calendar");
+const AiUsagePanel = lazyNamed(() => import("./AiUsagePanel"), "AiUsagePanel");
+const AgentSessionsPanel = lazyNamed(() => import("./AgentSessionsPanel"), "AgentSessionsPanel");
+const Commits = lazyNamed(() => import("./Commits"), "Commits");
+const Contributions = lazyNamed(() => import("./Contributions"), "Contributions");
+const KeyboardLayoutPanel = lazyNamed(() => import("./KeyboardLayout"), "KeyboardLayoutPanel");
+const Launcher = lazyNamed(() => import("./Launcher"), "Launcher");
+const Market = lazyNamed(() => import("./Market"), "Market");
+const Notes = lazyNamed(() => import("./Notes"), "Notes");
+const NowPlaying = lazyNamed(() => import("./NowPlaying"), "NowPlaying");
+const PowerPanel = lazyNamed(() => import("./Power"), "PowerPanel");
+const Pomodoro = lazyNamed(() => import("./Pomodoro"), "Pomodoro");
+const PullRequests = lazyNamed(() => import("./PullRequests"), "PullRequests");
+const SoundPanel = lazyNamed(() => import("./Sound"), "SoundPanel");
+const SystemUsage = lazyNamed(() => import("./SystemUsage"), "SystemUsage");
+const Weather = lazyNamed(() => import("./Weather"), "Weather");
+const WifiPanel = lazyNamed(() => import("./Wifi"), "WifiPanel");
+const WidgetGroupPanel = lazyNamed(() => import("./WidgetGroupPanel"), "WidgetGroupPanel");
 
 function Content({ kind }: { kind: string }) {
   const t = useT();
@@ -79,10 +82,18 @@ export function Popover({ kind }: { kind: string }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-  if (isGroupKey(kind)) return <WidgetGroupPanel kind={kind} />;
+  if (isGroupKey(kind)) {
+    return (
+      <Suspense fallback={null}>
+        <WidgetGroupPanel kind={kind} />
+      </Suspense>
+    );
+  }
   return (
     <section className={`popover popover-${kind}`} aria-label={t.popover.labels[kind]} data-glass>
-      <Content kind={kind} />
+      <Suspense fallback={null}>
+        <Content kind={kind} />
+      </Suspense>
     </section>
   );
 }

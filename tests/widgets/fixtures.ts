@@ -5,7 +5,8 @@ export async function openMock(page: Page, query: string, responses: Record<stri
     Object.assign(window, { __PIER_TEST_CALLS__: [], __PIER_TEST_RESPONSES__: responses, __PIER_TEST_ERRORS__: errors });
   }, { responses, errors });
   await page.goto(`/?${query}`);
-  await page.locator(query.includes("view=panel") ? ".popover" : ".dock-bar").waitFor();
+  // O conteúdo do painel é carregado sob demanda: a moldura (`.popover`) aparece antes dele.
+  await page.locator(query.includes("view=panel") ? ".popover > *" : ".dock-bar").first().waitFor();
 }
 
 export async function expectCall(page: Page, command: string, args: Record<string, unknown> = {}) {
