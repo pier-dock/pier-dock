@@ -1,14 +1,17 @@
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useDockProfile } from "./dock/useDockProfile";
 import { ipc } from "./lib/ipc";
 import { locale, useLang } from "./i18n";
 import { currentView } from "./lib/view";
 import { useConfig } from "./store/config";
-import { Dock } from "./dock/Dock";
-import { Popover } from "./popovers/Popover";
-import { Settings } from "./settings/Settings";
-import { WhatsNew } from "./whats-new/WhatsNew";
+import { lazyNamed } from "./lib/lazyNamed";
 import { LoadError } from "./ui/LoadError";
+
+// Cada janela renderiza uma só destas telas, então as outras nem são baixadas nem parseadas.
+const Dock = lazyNamed(() => import("./dock/Dock"), "Dock");
+const Popover = lazyNamed(() => import("./popovers/Popover"), "Popover");
+const Settings = lazyNamed(() => import("./settings/Settings"), "Settings");
+const WhatsNew = lazyNamed(() => import("./whats-new/WhatsNew"), "WhatsNew");
 
 export function App() {
   const config = useConfig((s) => s.config);
@@ -46,8 +49,17 @@ export function App() {
   }, [accent, material, glassOpacity, reducedEffects, glassSupported]);
 
   if (!config) return loadError ? <LoadError retry={load} /> : null;
-  if (currentView.view === "panel") return <Popover kind={currentView.kind} />;
-  if (currentView.view === "settings") return <Settings />;
-  if (currentView.view === "whats-new") return <WhatsNew since={currentView.kind || null} />;
-  return dockProfile && <Dock config={dockProfile.view} profileId={dockProfile.id} monitor={dockProfile.monitor} />;
+  return (
+    <Suspense fallback={null}>
+      {currentView.view === "panel" ? (
+        <Popover kind={currentView.kind} />
+      ) : currentView.view === "settings" ? (
+        <Settings />
+      ) : currentView.view === "whats-new" ? (
+        <WhatsNew since={currentView.kind || null} />
+      ) : (
+        dockProfile && <Dock config={dockProfile.view} profileId={dockProfile.id} monitor={dockProfile.monitor} />
+      )}
+    </Suspense>
+  );
 }
