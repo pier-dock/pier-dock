@@ -2,6 +2,21 @@
 
 O que mudou em cada versão do Pier. O app mostra estas notas uma vez depois de se atualizar, então escreva para quem usa. Antes de criar a tag de uma release, adicione uma seção `## <versão>` aqui e no `CHANGELOG.md`.
 
+## 0.26.0
+
+### Widget de mercado
+- **Criptomoedas:** os preços agora vêm da CoinGecko, então não precisam mais da chave da brapi. Ações e FIIs continuam vindo da brapi.dev. A CoinGecko não informa a faixa de 52 semanas, então as criptomoedas não a mostram.
+
+### Desempenho
+- **Em repouso:** enquanto a dock está escondida, os widgets param de consultar e as animações pausam, e tudo se atualiza quando ela volta. A mídia em reprodução não atualiza mais todas as janelas a cada segundo.
+- **Janelas e painéis:** cada janela e cada painel de widget agora carrega só o próprio código, então os painéis abrem com menos coisa para carregar.
+- **Ícones:** o launcher, o popover de som e a lista de apps nas configurações usam ícones menores, que ocupam menos memória.
+- **Uso de IA:** o widget lê só o que foi acrescentado às suas transcrições desde a última atualização, em vez de reler tudo a cada minuto.
+- **macOS:** a dock pesa menos na thread principal enquanto espera o cursor, e a memória cresce mais devagar em sessões longas.
+
+### Correções
+- **macOS:** com a ocultação automática ligada e a dock escondida por um tempo, clicar num botão de um painel de widget não vai mais para o app que está atrás, o que fechava o painel e escondia a dock.
+
 ## 0.25.0
 
 ### Perfis da dock
