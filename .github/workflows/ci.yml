@@ -27,7 +27,6 @@ jobs:
       - run: npm run build
       - run: npm run lint
       - run: npm test
-      - run: ./scripts/apt-direct-mirror.sh
       - run: npx playwright install --with-deps chromium
       - run: npm run test:ui
 
@@ -58,7 +57,6 @@ jobs:
         if: runner.os == 'Linux'
         timeout-minutes: 10
         run: |
-          ./scripts/apt-direct-mirror.sh
           sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update
           sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
