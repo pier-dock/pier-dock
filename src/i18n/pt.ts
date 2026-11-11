@@ -125,7 +125,7 @@ export const pt = {
     marketCap: (value: string) => `Valor de mercado ${value}`,
     crypto: "Cripto",
     ticker: "Ação/FII",
-    source: "Cotações da brapi.dev, com possível atraso. Não é recomendação de investimento.",
+    source: "Cotações da brapi.dev e da CoinGecko, com possível atraso. Não é recomendação de investimento.",
   },
   pomodoro: {
     focus: "Foco",
@@ -568,7 +568,7 @@ export const pt = {
         summary: "Ações, FIIs e cripto, com a variação do dia.",
         name: "Mercado",
         description:
-          "Ações, FIIs e criptomoedas da brapi.dev. O quadrado mostra o primeiro ativo; o formato largo, até três. O clique abre a lista com faixa do dia, de 52 semanas, volume e valor de mercado.",
+          "Ações e FIIs da brapi.dev, criptomoedas da CoinGecko. O quadrado mostra o primeiro ativo; o formato largo, até três. O clique abre a lista com faixa do dia, de 52 semanas, volume e valor de mercado.",
       },
       notes: {
         summary: "Lembretes curtos que se alternam na dock.",
@@ -648,7 +648,7 @@ export const pt = {
     marketTickersHint: "Separe por vírgula ou espaço. Sem chave, a brapi só responde PETR4, VALE3, MGLU3 e ITUB4.",
     marketCoins: "Criptomoedas",
     marketCoinsPlaceholder: "BTC, ETH",
-    marketCoinsHint: "Cotadas em reais. Precisam da chave da brapi.",
+    marketCoinsHint: "Cotadas em reais pela CoinGecko. Não precisam de chave.",
     marketPoll: "Atualização",
     marketPollHint: "A brapi gratuita aceita 20 consultas por minuto; 5 minutos é um bom ritmo.",
     marketKey: "Chave da brapi",
