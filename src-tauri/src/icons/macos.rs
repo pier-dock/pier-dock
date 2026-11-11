@@ -2,6 +2,7 @@
 
 use std::path::Path;
 
+use objc2::rc::autoreleasepool;
 use objc2::AllocAnyThread;
 use objc2_app_kit::{NSBitmapImageFileType, NSBitmapImageRep, NSWorkspace};
 use objc2_foundation::{NSDictionary, NSPoint, NSRect, NSSize, NSString};
@@ -18,6 +19,10 @@ fn resolve(key: &str) -> Option<String> {
 }
 
 pub fn extract(key: &str) -> Result<(Vec<u8>, &'static str), String> {
+    autoreleasepool(|_| render(key))
+}
+
+fn render(key: &str) -> Result<(Vec<u8>, &'static str), String> {
     let path = resolve(key).ok_or_else(|| format!("sem ícone para {key}"))?;
     let image = NSWorkspace::sharedWorkspace().iconForFile(&NSString::from_str(&path));
     let size = NSSize::new(SIZE, SIZE);

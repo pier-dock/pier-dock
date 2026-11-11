@@ -562,7 +562,8 @@ export const ipc = {
   listInstalledApps: () => invoke<AppEntry[]>("list_installed_apps"),
   launchApp: (target: string) => invoke<void>("launch_app", { target }),
   resolveAppPath: (path: string) => invoke<AppEntry>("resolve_app_path", { path }),
-  getIcon: (key: string) => invoke<string>("get_icon", { key }),
+  /** `small` pede a versão reduzida, para listas e popovers (o dock usa a de tamanho cheio). */
+  getIcon: (key: string, small = false) => invoke<string>("get_icon", { key, small }),
   pokemonList: () => invoke<PokemonEntry[]>("pokemon_list"),
   pokemonSprite: (id: number) => invoke<string>("pokemon_sprite", { id }),
 

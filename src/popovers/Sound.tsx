@@ -28,7 +28,7 @@ function AppRow({ app, outputs, canRoute, onRoute, onChange }: {
   const [routing, setRouting] = useState(false);
   const [failed, setFailed] = useState(false);
   const t = useT().sound;
-  const icon = useIcon(app.icon);
+  const icon = useIcon(app.icon, true);
   return (
     <li className="sound-app">
       <span className="sound-app-icon" aria-hidden>

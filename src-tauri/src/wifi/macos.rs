@@ -3,6 +3,7 @@
 
 use std::sync::Mutex;
 
+use objc2::rc::autoreleasepool;
 use objc2_core_location::{CLAuthorizationStatus, CLLocationManager};
 use objc2_core_wlan::{CWInterface, CWSecurity, CWWiFiClient};
 use objc2_foundation::NSString;
@@ -32,6 +33,10 @@ fn known_ssids(interface: &CWInterface) -> Vec<String> {
 }
 
 pub fn status() -> WifiState {
+    autoreleasepool(|_| read_status())
+}
+
+fn read_status() -> WifiState {
     let Some(interface) = interface() else { return WifiState::default() };
     let enabled = unsafe { interface.powerOn() };
     let mut state = WifiState { available: true, enabled, can_toggle: true, can_connect: true, ..Default::default() };
@@ -56,6 +61,10 @@ pub fn status() -> WifiState {
 }
 
 pub fn scan() -> Result<(), String> {
+    autoreleasepool(|_| scan_networks())
+}
+
+fn scan_networks() -> Result<(), String> {
     let interface = interface().ok_or(crate::i18n::tr("sem interface Wi-Fi", "no Wi-Fi interface"))?;
     let found = unsafe { interface.scanForNetworksWithName_error(None) }.map_err(|e| e.localizedDescription().to_string())?;
     let mut redacted = false;

@@ -240,7 +240,7 @@ fn pick_window(windows: &[windows_list::WindowInfo], pid_chain: &[u32], project:
 }
 
 fn resolve_window(pid_chain: &[u32], project: &str) -> Option<i64> {
-    pick_window(&windows_list::get_windows().windows, pid_chain, project)
+    windows_list::with_cached_windows(|windows| pick_window(windows, pid_chain, project))
 }
 
 /// `done`/`error` usam `FINISHED_TTL_SECS`; `running`/`permission`, o teto bem mais alto de

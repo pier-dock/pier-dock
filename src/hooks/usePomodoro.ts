@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { ipc, type PomodoroState } from "../lib/ipc";
+import { setActiveInterval } from "../lib/dockActivity";
 
 /** Estado do timer (que vive no Rust) e o tempo restante, atualizado a cada segundo. */
 export function usePomodoro(): { state: PomodoroState | null; remainingMs: number } {
@@ -15,8 +16,7 @@ export function usePomodoro(): { state: PomodoroState | null; remainingMs: numbe
   }, []);
   useEffect(() => {
     if (!state?.running) return;
-    const id = setInterval(() => setNow(Date.now()), 250);
-    return () => clearInterval(id);
+    return setActiveInterval(() => setNow(Date.now()), 250);
   }, [state?.running]);
   const remainingMs = state?.running && state.endsAtMs ? Math.max(0, state.endsAtMs - now) : (state?.remainingMs ?? 0);
   return { state, remainingMs };

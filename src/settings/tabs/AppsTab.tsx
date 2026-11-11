@@ -11,7 +11,7 @@ import type { TabProps } from "../shared";
 import { useT } from "../../i18n";
 
 function AppIconImg({ entry, size }: { entry: AppEntry; size: number }) {
-  const src = useIcon(iconKeyForEntry(entry));
+  const src = useIcon(iconKeyForEntry(entry), size <= 40);
   const style = { width: size, height: size };
   return src ? <img className="row-icon" style={style} src={src} alt="" /> : <span className="row-icon placeholder" style={style} />;
 }

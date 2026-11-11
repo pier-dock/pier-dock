@@ -4,6 +4,7 @@ import type { MarketAsset, MarketData } from "../lib/ipc";
 import { formatChange, formatQuote } from "../lib/market";
 import { useT } from "../i18n";
 import { Tile } from "./Tile";
+import { setActiveInterval } from "../lib/dockActivity";
 
 /** Tempo de cada página de cotações, como o painel de uma bolsa. */
 const ROTATE_MS = 4000;
@@ -28,8 +29,7 @@ export function MarketWidget({ data, wide }: { data: MarketData | null; wide: bo
   const [page, setPage] = useState(0);
   useEffect(() => {
     if (pages < 2) return;
-    const id = window.setInterval(() => setPage((current) => (current + 1) % pages), ROTATE_MS);
-    return () => window.clearInterval(id);
+    return setActiveInterval(() => setPage((current) => (current + 1) % pages), ROTATE_MS);
   }, [pages]);
   if (!assets.length) {
     const label = data?.error ?? (data ? t.tileChoose : t.tileLoading);

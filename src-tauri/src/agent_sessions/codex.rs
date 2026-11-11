@@ -52,12 +52,7 @@ impl Sessions {
             // An app-server can serve many projects from one process. The rollout identifies its
             // client, not its PID. For T3, use its actual open windows; never guess a terminal PID.
             let pid_chain = if tail.originator.eq_ignore_ascii_case("T3 Code") {
-                crate::windows_list::get_windows()
-                    .windows
-                    .iter()
-                    .filter(|w| w.title.contains("T3 Code") || w.exe.to_lowercase().contains("t3-code"))
-                    .map(|w| w.pid)
-                    .collect()
+                super::t3::window_pids()
             } else {
                 Vec::new()
             };

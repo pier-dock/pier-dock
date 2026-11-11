@@ -127,7 +127,7 @@ export const en: Dict = {
     marketCap: (value) => `Market cap ${value}`,
     crypto: "Crypto",
     ticker: "Stock/REIT",
-    source: "Quotes from brapi.dev, possibly delayed. Not investment advice.",
+    source: "Quotes from brapi.dev and CoinGecko, possibly delayed. Not investment advice.",
   },
   pomodoro: {
     focus: "Focus",
@@ -568,7 +568,7 @@ export const en: Dict = {
         summary: "Stocks, REITs and crypto, with today's change.",
         name: "Market",
         description:
-          "Stocks, REITs and cryptocurrencies from brapi.dev. The square shows the first asset; the wide format shows up to three. Clicking opens the list with day and 52-week ranges, volume and market cap.",
+          "Stocks and REITs from brapi.dev, cryptocurrencies from CoinGecko. The square shows the first asset; the wide format shows up to three. Clicking opens the list with day and 52-week ranges, volume and market cap.",
       },
       notes: {
         summary: "Short reminders that rotate on the dock.",
@@ -648,7 +648,7 @@ export const en: Dict = {
     marketTickersHint: "Separate with commas or spaces. Without a key, brapi only answers PETR4, VALE3, MGLU3 and ITUB4.",
     marketCoins: "Cryptocurrencies",
     marketCoinsPlaceholder: "BTC, ETH",
-    marketCoinsHint: "Priced in reais. Requires the brapi key.",
+    marketCoinsHint: "Priced in reais by CoinGecko. No key needed.",
     marketPoll: "Refresh",
     marketPollHint: "The free brapi tier allows 20 requests per minute; 5 minutes is a good pace.",
     marketKey: "brapi key",

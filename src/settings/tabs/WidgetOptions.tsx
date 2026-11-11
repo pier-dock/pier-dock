@@ -108,7 +108,8 @@ function SymbolsInput({ label, placeholder, value, onCommit }: { label: string; 
 
 /**
  * Ativos do widget de mercado. Sem chave, a brapi só responde a lista gratuita, então as ações
- * fora dela e as criptomoedas aparecem no aviso do painel em vez de sumirem sem explicação.
+ * fora dela aparecem no aviso do painel em vez de sumirem sem explicação. As criptomoedas vêm da
+ * CoinGecko e não dependem da chave.
  */
 export function MarketOptions({ config, update }: OptionsProps) {
   const [hasKey, setHasKey] = useState<boolean | null>(null);

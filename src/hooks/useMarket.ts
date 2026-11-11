@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { ipc, type MarketData } from "../lib/ipc";
+import { setActiveInterval } from "../lib/dockActivity";
 
 /**
  * Cotações do mercado. Só a dock faz polling (`pollMinutes`); painéis e a pré-visualização leem o
@@ -20,8 +21,7 @@ export function useMarket(pollMinutes?: number, reloadKey?: string): MarketData 
     if (!pollMinutes) return;
     const fetchNow = () => ipc.marketFetch().catch(() => {});
     fetchNow();
-    const id = setInterval(fetchNow, Math.max(1, pollMinutes) * 60_000);
-    return () => clearInterval(id);
+    return setActiveInterval(fetchNow, Math.max(1, pollMinutes) * 60_000);
   }, [pollMinutes, reloadKey]);
   return data;
 }

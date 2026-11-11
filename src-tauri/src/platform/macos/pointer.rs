@@ -3,23 +3,47 @@
 //! está em uso. Então uma thread lê o cursor e manda a posição para a página (`pointer-bridge`),
 //! que gera os eventos de mouse e o estado de hover por conta própria (`src/lib/pointerBridge.ts`).
 
+use std::ffi::c_void;
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewWindow};
+use tauri::{Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewWindow};
 
-/// Escala da tela principal: a que o `cursor_position` do tao usa.
-pub fn primary_scale(app: &AppHandle) -> f64 {
-    app.primary_monitor().ok().flatten().map_or(1.0, |m| m.scale_factor())
+#[repr(C)]
+struct CGPoint {
+    x: f64,
+    y: f64,
 }
 
-/// O cursor em pontos, a partir do canto de cima à esquerda da tela principal. O `cursor_position`
-/// do tao multiplica os pontos pela escala da tela principal, mas a posição de uma janela ou de um
-/// monitor usa a escala da própria tela: com telas de escalas diferentes (um Retina e um monitor
-/// externo) os "pixels físicos" de cada um não se comparam. Os pontos, sim.
-pub fn cursor_points(app: &AppHandle, primary_scale: f64) -> Option<(f64, f64)> {
-    let cursor = app.cursor_position().ok()?;
-    Some((cursor.x / primary_scale, cursor.y / primary_scale))
+#[link(name = "CoreGraphics", kind = "framework")]
+extern "C" {
+    fn CGEventCreate(source: *const c_void) -> *mut c_void;
+    fn CGEventGetLocation(event: *const c_void) -> CGPoint;
+}
+
+#[link(name = "CoreFoundation", kind = "framework")]
+extern "C" {
+    fn CFRelease(cf: *const c_void);
+}
+
+/// O cursor em pontos, a partir do canto de cima à esquerda da tela principal. Com telas de escalas
+/// diferentes (um Retina e um monitor externo) os "pixels físicos" de cada uma não se comparam; os
+/// pontos, sim.
+///
+/// Lê direto do Quartz, que vale de qualquer thread. O `cursor_position` do tao faz uma ida à thread
+/// principal por leitura, e as threads de hover leem a cada 16 ms.
+pub fn cursor_points() -> Option<(f64, f64)> {
+    // SAFETY: `CGEventCreate` aceita uma fonte nula e devolve um evento que este código possui (e
+    // solta aqui) ou nulo; `CGEventGetLocation` só lê dele.
+    unsafe {
+        let event = CGEventCreate(std::ptr::null());
+        if event.is_null() {
+            return None;
+        }
+        let location = CGEventGetLocation(event);
+        CFRelease(event);
+        Some((location.x, location.y))
+    }
 }
 
 /// Posição em pixels CSS, relativa ao topo esquerdo da janela.
@@ -36,7 +60,7 @@ pub fn forward(window: &WebviewWindow) {
     let label = window.label().to_string();
     std::thread::spawn(move || {
         let mut last: Option<Pointer> = None;
-        let mut frame: Option<(PhysicalPosition<i32>, PhysicalSize<u32>, f64, f64)> = None;
+        let mut frame: Option<(PhysicalPosition<i32>, PhysicalSize<u32>, f64)> = None;
         let mut frame_read = Instant::now();
         loop {
             std::thread::sleep(Duration::from_millis(16));
@@ -44,13 +68,13 @@ pub fn forward(window: &WebviewWindow) {
             // Posição, tamanho e telas só mudam com o layout; cada leitura é uma ida à thread principal.
             if frame.is_none() || frame_read.elapsed() > Duration::from_millis(500) {
                 frame = match (window.outer_position(), window.outer_size(), window.scale_factor()) {
-                    (Ok(pos), Ok(size), Ok(scale)) => Some((pos, size, scale, primary_scale(&app))),
+                    (Ok(pos), Ok(size), Ok(scale)) => Some((pos, size, scale)),
                     _ => None,
                 };
                 frame_read = Instant::now();
             }
-            let Some((pos, size, scale, primary)) = frame else { continue };
-            let Some((cx, cy)) = cursor_points(&app, primary) else { continue };
+            let Some((pos, size, scale)) = frame else { continue };
+            let Some((cx, cy)) = cursor_points() else { continue };
             // Pontos da tela são pixels CSS da página.
             let x = cx - pos.x as f64 / scale;
             let y = cy - pos.y as f64 / scale;

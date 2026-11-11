@@ -141,7 +141,12 @@ pub async fn open_panel(app: AppHandle, window: WebviewWindow, kind: String, anc
     let builder = builder.accept_first_mouse(true);
     let window = builder.build().err_str()?;
     #[cfg(target_os = "macos")]
-    crate::platform::macos::pointer::forward(&window);
+    {
+        crate::platform::macos::pointer::forward(&window);
+        // Sem um valor explícito, o AppKit decide o clique pelo alfa do que a janela transparente
+        // desenhou; depois de um tempo parado o clique no painel passava para o app de trás.
+        let _ = window.set_ignore_cursor_events(false);
+    }
     let rect = crate::backdrop::Rect { x: PANEL_INSET, y: PANEL_INSET, width: width - 2.0 * PANEL_INSET, height: height - 2.0 * PANEL_INSET };
     crate::backdrop::set_frame(&window, rect, PANEL_RADIUS);
 

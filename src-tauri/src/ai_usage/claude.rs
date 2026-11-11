@@ -14,12 +14,14 @@
 //! e-mail, uuids da conta e os caminhos de todos os projetos, só `cachedUsageUtilization` é tocado.
 
 use std::collections::HashSet;
-use std::io::{BufRead, BufReader};
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 use chrono::{DateTime, Local, Utc};
 use serde_json::Value;
 
+use super::files::FileCache;
 use super::{active_block, now_ms, recent_files, today_totals, AiUsage, AiWindow, Event, BLOCK_HOURS, STALE_MINUTES};
 
 /// A janela que o Claude Code chama de "sessão", em minutos.
@@ -148,24 +150,47 @@ pub fn parse_event(line: &str) -> Option<((String, String), Event)> {
     Some((key, Event { when, tokens, model }))
 }
 
+/// Os eventos já extraídos de um transcript, cada um com o hash da chave de deduplicação (guardar
+/// as duas strings de cada um custaria dezenas de bytes a mais por evento).
+#[derive(Default)]
+struct Transcript {
+    events: Vec<(u64, Event)>,
+}
+
+fn key_hash(key: &(String, String)) -> u64 {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    key.hash(&mut hasher);
+    hasher.finish()
+}
+
+/// O que já foi lido de cada transcript. Um transcript só cresce, então cada consulta lê apenas o
+/// que foi acrescentado desde a anterior em vez de reler as últimas 48 h inteiras.
+static TRANSCRIPTS: Mutex<Option<FileCache<Transcript>>> = Mutex::new(None);
+
 /// Eventos dos transcripts recentes, deduplicados e ordenados por tempo.
 fn collect_events() -> Vec<Event> {
-    let mut seen = HashSet::new();
-    let mut events = Vec::new();
-    for path in recent_files(projects_dir()) {
-        let Ok(file) = std::fs::File::open(&path) else { continue };
-        for line in BufReader::new(file).lines().map_while(Result::ok) {
-            // Filtro barato antes de pagar o custo do parse de JSON.
-            if !line.contains("\"usage\"") {
-                continue;
-            }
-            if let Some((key, event)) = parse_event(&line) {
-                if seen.insert(key) {
-                    events.push(event);
-                }
-            }
+    let mut cache = TRANSCRIPTS.lock().unwrap_or_else(|e| e.into_inner());
+    events_from(cache.get_or_insert_with(FileCache::default), recent_files(projects_dir()))
+}
+
+fn events_from(cache: &mut FileCache<Transcript>, files: Vec<PathBuf>) -> Vec<Event> {
+    cache.refresh(files, |transcript, line| {
+        // Filtro barato antes de pagar o custo do parse de JSON.
+        if !line.contains("\"usage\"") {
+            return;
         }
-    }
+        if let Some((key, event)) = parse_event(line) {
+            transcript.events.push((key_hash(&key), event));
+        }
+    });
+    let mut seen = HashSet::new();
+    let mut events: Vec<Event> = cache
+        .states()
+        .into_iter()
+        .flat_map(|transcript| &transcript.events)
+        .filter(|(key, _)| seen.insert(*key))
+        .map(|(_, event)| event.clone())
+        .collect();
     events.sort_by_key(|e| e.when);
     events
 }
@@ -267,6 +292,47 @@ mod tests {
         assert_eq!(key, ("msg_1".into(), "req_1".into()));
         assert_eq!(event.tokens, 2 + 2537 + 53677 + 100);
         assert_eq!(event.model.as_deref(), Some("claude-opus-5"));
+    }
+
+    fn usage_line(id: &str, request: &str, at: &str, tokens: i64) -> String {
+        json!({
+            "type": "assistant", "timestamp": at, "requestId": request,
+            "message": { "id": id, "model": "claude-opus-5", "usage": { "input_tokens": tokens } }
+        })
+        .to_string()
+    }
+
+    #[test]
+    fn collects_each_message_once_across_files_and_polls() {
+        use std::io::Write;
+        let dir = std::env::temp_dir().join(format!("pier-ai-claude-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let (main, agent) = (dir.join("main.jsonl"), dir.join("agent.jsonl"));
+        let append = |path: &PathBuf, lines: &[String]| {
+            let mut file = std::fs::OpenOptions::new().create(true).append(true).open(path).unwrap();
+            for line in lines {
+                writeln!(file, "{line}").unwrap();
+            }
+        };
+        // O stream repete a mesma mensagem; o subagente também repete uma da sessão principal.
+        append(&main, &[
+            usage_line("m1", "r1", "2026-10-16T10:00:00Z", 100),
+            "{\"type\":\"user\",\"message\":{}}".into(),
+            usage_line("m1", "r1", "2026-10-16T10:00:00Z", 100),
+        ]);
+        append(&agent, &[usage_line("m1", "r1", "2026-10-16T10:00:00Z", 100), usage_line("m2", "r2", "2026-10-16T10:05:00Z", 40)]);
+
+        let mut cache = FileCache::default();
+        let files = vec![main.clone(), agent.clone()];
+        let tokens = |cache: &mut FileCache<Transcript>| events_from(cache, files.clone()).iter().map(|e| e.tokens).collect::<Vec<_>>();
+        assert_eq!(tokens(&mut cache), [100, 40]);
+
+        // Uma nova consulta sem mudanças dá o mesmo resultado; o que cresce entra uma vez só.
+        assert_eq!(tokens(&mut cache), [100, 40]);
+        append(&main, &[usage_line("m3", "r3", "2026-10-16T09:00:00Z", 7), usage_line("m2", "r2", "2026-10-16T10:05:00Z", 40)]);
+        assert_eq!(tokens(&mut cache), [7, 100, 40]);
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

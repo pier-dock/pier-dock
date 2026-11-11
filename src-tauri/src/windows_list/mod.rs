@@ -5,6 +5,7 @@
 //! `toggle_desktop` e `thumbnail` (a prévia de uma janela, quando o sistema permite capturá-la).
 
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 use std::time::Duration;
 
 use serde::Serialize;
@@ -47,6 +48,9 @@ pub struct WindowsSnapshot {
 }
 
 static DIRTY: AtomicBool = AtomicBool::new(true);
+/// Último snapshot emitido: quem só precisa da lista de janelas (`agent_sessions`) lê daqui em vez
+/// de refazer a varredura, que no macOS é uma rodada de chamadas de Acessibilidade por app.
+static LAST: Mutex<Option<WindowsSnapshot>> = Mutex::new(None);
 
 /// Algo mudou: a próxima volta da thread de eventos tira um snapshot novo.
 pub fn mark_dirty() {
@@ -67,10 +71,19 @@ pub fn start(app: AppHandle) {
             let snap = backend::snapshot();
             if last.as_ref() != Some(&snap) {
                 let _ = app.emit("windows-changed", &snap);
+                *LAST.lock().unwrap_or_else(|e| e.into_inner()) = Some(snap.clone());
                 last = Some(snap);
             }
         }
     });
+}
+
+/// Lê as janelas do último snapshot. Só varre de verdade se a thread de `start` ainda não
+/// produziu o primeiro.
+pub fn with_cached_windows<R>(f: impl FnOnce(&[WindowInfo]) -> R) -> R {
+    let mut cached = LAST.lock().unwrap_or_else(|e| e.into_inner());
+    let snap = cached.get_or_insert_with(backend::snapshot);
+    f(&snap.windows)
 }
 
 #[tauri::command]

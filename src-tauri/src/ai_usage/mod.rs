@@ -22,6 +22,7 @@ use crate::util::ErrStr;
 
 pub(crate) mod claude;
 pub(crate) mod codex;
+pub(crate) mod files;
 
 /// Arquivo mais velho que isso não influencia nem "hoje" nem o bloco de 5h, então nem é aberto.
 /// É o que derruba a varredura de centenas de arquivos para um punhado.

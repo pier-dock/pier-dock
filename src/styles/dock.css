@@ -57,6 +57,16 @@
   transform: translate(calc(100% + 24px), 0) scale(0.94);
 }
 
+/* Escondida, a barra e os mascotes não aparecem; as animações infinitas só gastariam CPU. */
+.dock-bar.dock-hidden *,
+.dock-bar.dock-hidden *::before,
+.dock-bar.dock-hidden *::after,
+.claude-pet.claude-pet-hidden *,
+.claude-pet.claude-pet-hidden *::before,
+.claude-pet.claude-pet-hidden *::after {
+  animation-play-state: paused;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dock-bar,
   .dock-bar.dock-hidden {

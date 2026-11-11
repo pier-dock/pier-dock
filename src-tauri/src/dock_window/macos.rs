@@ -113,20 +113,20 @@ fn start_pointer_thread(window: &WebviewWindow, update: impl Fn(&WebviewWindow, 
     std::thread::spawn(move || {
         let mut ignoring = true;
         let mut hover_until = Instant::now();
-        let mut frame: Option<(PhysicalPosition<i32>, PhysicalSize<u32>, f64, f64)> = None;
+        let mut frame: Option<(PhysicalPosition<i32>, PhysicalSize<u32>, f64)> = None;
         let mut frame_read = Instant::now();
         loop {
             std::thread::sleep(Duration::from_millis(if ignoring { 30 } else { 16 }));
             let Some(window) = app.get_webview_window(&label) else { return };
             if frame.is_none() || frame_read.elapsed() > Duration::from_millis(500) {
                 frame = match (window.outer_position(), window.outer_size(), window.scale_factor()) {
-                    (Ok(pos), Ok(size), Ok(scale)) => Some((pos, size, scale, pointer::primary_scale(&app))),
+                    (Ok(pos), Ok(size), Ok(scale)) => Some((pos, size, scale)),
                     _ => None,
                 };
                 frame_read = Instant::now();
             }
-            let Some((pos, size, scale, primary)) = frame else { continue };
-            let Some(cursor) = pointer::cursor_points(&app, primary) else { continue };
+            let Some((pos, size, scale)) = frame else { continue };
+            let Some(cursor) = pointer::cursor_points() else { continue };
             let hit = hit_rect_for(&label);
             if hit.width <= 0.0 {
                 continue;
@@ -170,8 +170,8 @@ fn start_pointer_thread(window: &WebviewWindow, update: impl Fn(&WebviewWindow, 
 pub fn hit_rect_changed(_app: &AppHandle) {}
 
 /// Em pontos: com telas de escalas diferentes, só eles se comparam entre monitores (`contains`).
-pub fn cursor(app: &AppHandle) -> Option<(f64, f64)> {
-    pointer::cursor_points(app, pointer::primary_scale(app))
+pub fn cursor(_app: &AppHandle) -> Option<(f64, f64)> {
+    pointer::cursor_points()
 }
 
 /// O hover vem da thread que acompanha o cursor.
