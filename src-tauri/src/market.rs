@@ -1,7 +1,7 @@
-//! Widget de mercado, pela brapi (https://brapi.dev). Ações e FIIs vêm da cotação em lote; as
-//! criptomoedas, do endpoint de cripto. Sem chave, a brapi só responde os tickers de teste, então
-//! os outros ficam de fora sem derrubar a lista. A chave opcional fica no cofre de senhas do
-//! sistema e nunca chega ao WebView, como o token do GitHub.
+//! Widget de mercado. Ações e FIIs vêm da brapi (https://brapi.dev), em lote; as criptomoedas, da
+//! API pública da CoinGecko, que não pede chave. Sem chave, a brapi só responde os tickers de
+//! teste, então os outros ficam de fora sem derrubar a lista. A chave opcional da brapi fica no
+//! cofre de senhas do sistema e nunca chega ao WebView, como o token do GitHub.
 
 use std::sync::Mutex;
 use std::time::Duration;
@@ -114,34 +114,33 @@ pub fn parse_quotes(json: &Value) -> Vec<MarketAsset> {
         .unwrap_or_default()
 }
 
+/// Resposta de `coins/markets` da CoinGecko: um array, uma moeda por símbolo pedido.
 pub fn parse_crypto(json: &Value) -> Vec<MarketAsset> {
-    json.get("coins")
-        .and_then(Value::as_array)
+    json.as_array()
         .map(|coins| {
             coins
                 .iter()
                 .filter_map(|item| {
-                    let symbol = text(item, "coin");
+                    let symbol = text(item, "symbol").to_uppercase();
                     if symbol.is_empty() {
                         return None;
                     }
-                    let currency = text(item, "currency");
                     Some(MarketAsset {
-                        name: text(item, "coinName"),
+                        name: text(item, "name"),
                         kind: "crypto".into(),
-                        price: number(item, "regularMarketPrice").unwrap_or(0.0),
-                        change: number(item, "regularMarketChange").unwrap_or(0.0),
-                        change_percent: number(item, "regularMarketChangePercent").unwrap_or(0.0),
-                        currency: if currency.is_empty() { "BRL".into() } else { currency },
-                        logo_url: Some(text(item, "coinImageUrl")).filter(|url| !url.is_empty()),
-                        day_low: number(item, "regularMarketDayLow"),
-                        day_high: number(item, "regularMarketDayHigh"),
-                        // Cripto não tem faixa de 52 semanas na resposta.
+                        price: number(item, "current_price").unwrap_or(0.0),
+                        change: number(item, "price_change_24h").unwrap_or(0.0),
+                        change_percent: number(item, "price_change_percentage_24h").unwrap_or(0.0),
+                        currency: "BRL".into(),
+                        logo_url: Some(text(item, "image")).filter(|url| !url.is_empty()),
+                        day_low: number(item, "low_24h"),
+                        day_high: number(item, "high_24h"),
+                        // A CoinGecko não traz faixa de 52 semanas nesse endpoint.
                         week_low: None,
                         week_high: None,
-                        volume: positive(item, "regularMarketVolume"),
-                        market_cap: positive(item, "marketCap"),
-                        updated_at: text(item, "regularMarketTime"),
+                        volume: positive(item, "total_volume"),
+                        market_cap: positive(item, "market_cap"),
+                        updated_at: text(item, "last_updated"),
                         symbol,
                     })
                 })
@@ -187,11 +186,6 @@ fn error_code(body: &str) -> Option<String> {
 
 fn status_message(status: u16, code: Option<&str>) -> String {
     match (code, status) {
-        (Some("FEATURE_NOT_AVAILABLE"), _) => crate::i18n::tr(
-            "Criptomoedas exigem o plano Startup da brapi.",
-            "Crypto requires the brapi Startup plan.",
-        )
-        .to_string(),
         (Some("QUOTES_PER_REQUEST_EXCEEDED"), _) => crate::i18n::tr(
             "O plano da brapi limita os ativos por requisição.",
             "Your brapi plan limits assets per request.",
@@ -258,17 +252,31 @@ async fn fetch_quotes(client: &reqwest::Client, tickers: &[String], token: Optio
     }
 }
 
-async fn fetch_crypto(client: &reqwest::Client, coins: &[String], token: Option<&str>) -> Result<Vec<MarketAsset>, String> {
+/// Criptomoedas pela API pública da CoinGecko, que dispensa chave.
+async fn fetch_crypto(client: &reqwest::Client, coins: &[String]) -> Result<Vec<MarketAsset>, String> {
     if coins.is_empty() {
         return Ok(Vec::new());
     }
-    let mut request = client
-        .get("https://brapi.dev/api/v2/crypto")
-        .query(&[("coin", coins.join(",")), ("currency", "BRL".to_string())]);
-    if let Some(token) = token {
-        request = request.bearer_auth(token);
+    let request = client.get("https://api.coingecko.com/api/v3/coins/markets").query(&[
+        ("vs_currency", "brl".to_string()),
+        ("symbols", coins.join(",").to_lowercase()),
+        ("include_tokens", "top".to_string()),
+        ("price_change_percentage", "24h".to_string()),
+    ]);
+    let response = request.send().await.err_str()?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(match status.as_u16() {
+            429 => crate::i18n::tr(
+                "Limite da CoinGecko atingido. Tente de novo em alguns minutos.",
+                "CoinGecko rate limit reached. Try again in a few minutes.",
+            )
+            .to_string(),
+            code => format!("CoinGecko: HTTP {code}"),
+        });
     }
-    send(request).await.map(|json| parse_crypto(&json)).map_err(|error| error.message)
+    let json: Value = response.json().await.err_str()?;
+    Ok(parse_crypto(&json))
 }
 
 async fn fetch(tickers: &[String], coins: &[String], token: Option<&str>) -> (Vec<MarketAsset>, Vec<String>, Option<String>) {
@@ -282,7 +290,7 @@ async fn fetch(tickers: &[String], coins: &[String], token: Option<&str>) -> (Ve
         Ok(quotes) => assets.extend(quotes),
         Err(error) => errors.push(error),
     }
-    match fetch_crypto(&client, coins, token).await {
+    match fetch_crypto(&client, coins).await {
         Ok(crypto) => assets.extend(crypto),
         Err(error) => errors.push(error),
     }
@@ -298,13 +306,8 @@ pub async fn market_fetch(app: AppHandle, state: State<'_, ConfigState>) -> Resu
         (config.market_tickers.clone(), config.market_coins.clone())
     };
     let token = tauri::async_runtime::spawn_blocking(stored_token).await.err_str()?.filter(|t| !t.is_empty());
-    let (tickers, mut unavailable) = if token.is_some() { (tickers, Vec::new()) } else { split_free(tickers) };
-    let coins = if token.is_some() {
-        coins
-    } else {
-        unavailable.extend(coins);
-        Vec::new()
-    };
+    // Só as ações dependem da chave da brapi; as moedas vêm da CoinGecko, sem chave.
+    let (tickers, unavailable) = if token.is_some() { (tickers, Vec::new()) } else { split_free(tickers) };
     let (mut assets, missing, error) = fetch(&tickers, &coins, token.as_deref()).await;
     // Se a requisição falhou, a última cotação dos mesmos ativos continua na tela.
     if assets.is_empty() {
@@ -390,23 +393,26 @@ mod tests {
 
     #[test]
     fn parses_crypto_coins() {
-        let json = json!({ "coins": [
+        let json = json!([
             {
-                "currency": "BRL", "coin": "BTC", "coinName": "Bitcoin",
-                "coinImageUrl": "https://icons.brapi.dev/icons/BTC.svg",
-                "regularMarketPrice": 380000.0, "regularMarketChange": -2000.0,
-                "regularMarketChangePercent": -0.52, "regularMarketDayLow": 375000.0,
-                "regularMarketDayHigh": 385000.0, "regularMarketVolume": 1200.0,
-                "marketCap": 0, "regularMarketTime": "2026-11-01T22:15:46.000Z"
+                "id": "bitcoin", "symbol": "btc", "name": "Bitcoin",
+                "image": "https://coin-images.coingecko.com/coins/images/1/large/bitcoin.png",
+                "current_price": 412234, "price_change_24h": -6263.24,
+                "price_change_percentage_24h": -0.16, "low_24h": 406160, "high_24h": 418888,
+                "total_volume": 174614063598u64, "market_cap": 0,
+                "last_updated": "2026-11-11T01:44:44.000Z"
             }
-        ]});
+        ]);
         let assets = parse_crypto(&json);
         assert_eq!(assets.len(), 1);
         assert_eq!(assets[0].symbol, "BTC");
         assert_eq!(assets[0].name, "Bitcoin");
         assert_eq!(assets[0].kind, "crypto");
+        assert_eq!(assets[0].price, 412234.0);
+        assert_eq!(assets[0].day_high, Some(418888.0));
         assert_eq!(assets[0].week_low, None);
         assert_eq!(assets[0].market_cap, None);
+        assert!(assets[0].logo_url.is_some());
     }
 
     #[test]
@@ -425,8 +431,9 @@ mod tests {
         let body = r#"{"error":true,"code":"FEATURE_NOT_AVAILABLE","message":"x"}"#;
         assert_eq!(error_code(body).as_deref(), Some("FEATURE_NOT_AVAILABLE"));
         assert_eq!(error_code("not json"), None);
-        assert!(status_message(403, Some("FEATURE_NOT_AVAILABLE")).contains("Startup"));
-        assert!(!status_message(403, None).contains("Startup"));
+        let body = r#"{"error":true,"code":"QUOTES_PER_REQUEST_EXCEEDED"}"#;
+        assert_eq!(error_code(body).as_deref(), Some("QUOTES_PER_REQUEST_EXCEEDED"));
+        assert!(status_message(403, None).contains("plano") || status_message(403, None).contains("plan"));
     }
 
     #[test]
@@ -452,6 +459,19 @@ mod live_tests {
         .unwrap();
         println!("{:?}", found.iter().map(|a| &a.symbol).collect::<Vec<_>>());
         assert_eq!(found.len(), 3);
+    }
+
+    #[test]
+    #[ignore = "smoke test: chama a CoinGecko real, sem chave"]
+    fn fetches_coingecko_crypto() {
+        let found = tauri::async_runtime::block_on(async {
+            let client = super::client().unwrap();
+            super::fetch_crypto(&client, &["BTC".to_string(), "ETH".to_string()]).await
+        })
+        .unwrap();
+        println!("{:?}", found.iter().map(|a| (&a.symbol, a.price)).collect::<Vec<_>>());
+        assert_eq!(found.len(), 2);
+        assert!(found[0].price > 0.0);
     }
 
     #[test]
