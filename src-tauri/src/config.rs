@@ -278,6 +278,7 @@ impl Default for Config {
                 disabled("ai-agents", "small"),
                 disabled("pokemon", "small"),
                 disabled("show-desktop", "small"),
+                disabled("do-not-disturb", "small"),
                 disabled("keyboard-layout", "small"),
                 disabled("market", "wide"),
                 disabled("notes", "wide"),

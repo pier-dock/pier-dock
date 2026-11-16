@@ -1,4 +1,6 @@
 import {
+  Bell,
+  BellOff,
   Bluetooth,
   BluetoothConnected,
   BluetoothOff,
@@ -10,8 +12,8 @@ import {
   WifiOff,
 } from "lucide-react";
 import { Battery, Volume1, Volume2, VolumeX, Wifi } from "../ui/DockIcons";
-import { ipc, type BluetoothState, type KeyboardLayouts, type SystemStatus } from "../lib/ipc";
-import { useNow, useVolume } from "../hooks/useSystem";
+import { ipc, type BluetoothState, type DoNotDisturbState, type KeyboardLayouts, type SystemStatus } from "../lib/ipc";
+import { setDoNotDisturb, useNow, useVolume } from "../hooks/useSystem";
 import { shortDate } from "../lib/format";
 import { Tile, panelAnchor } from "./Tile";
 import { locale, useT } from "../i18n";
@@ -76,6 +78,27 @@ export function BluetoothWidget({ bluetooth }: { bluetooth: BluetoothState | nul
     <Tile kind="bluetooth" label={label} className={`sys-tile bt-tile ${on ? "" : "off"}`}>
       <Icon size={17} />
       {names.length > 0 && <span className="bt-dot" aria-hidden />}
+    </Tile>
+  );
+}
+
+/** Liga e desliga o "Não incomodar" do sistema. Sem acesso ao recurso, abre as configurações de notificações. */
+export function DoNotDisturbWidget({ state }: { state: DoNotDisturbState | null }) {
+  const t = useT().system;
+  const on = !!state?.enabled;
+  const Icon = on ? BellOff : Bell;
+  const toggle = () => {
+    const done = state && !state.available ? ipc.openShell("do-not-disturb") : setDoNotDisturb(!on);
+    done.catch(console.error);
+  };
+  return (
+    <Tile
+      kind="do-not-disturb"
+      label={`${t.doNotDisturb} · ${on ? t.doNotDisturbOn : t.doNotDisturbOff}`}
+      className={`sys-tile dnd-tile ${on ? "on" : ""}`}
+      onClick={toggle}
+    >
+      <Icon size={17} />
     </Tile>
   );
 }

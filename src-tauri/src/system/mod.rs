@@ -8,6 +8,8 @@
 mod backend;
 #[cfg(target_os = "linux")]
 mod settings;
+#[cfg(windows)]
+mod quiet_hours;
 
 use serde::Serialize;
 
@@ -75,6 +77,14 @@ impl Bluetooth {
     fn absent() -> Self {
         Bluetooth { available: false, powered: false, can_toggle: false, can_connect: false, devices: Vec::new() }
     }
+}
+
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct DoNotDisturb {
+    /// O sistema deixa o Pier ler e mudar o "Não incomodar" (só no Windows).
+    pub available: bool,
+    pub enabled: bool,
 }
 
 fn sort_devices(devices: &mut [BluetoothDevice]) {
@@ -150,6 +160,16 @@ pub async fn set_bluetooth(powered: bool) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || backend::set_bluetooth(powered)).await.err_str()?
 }
 
+#[tauri::command]
+pub async fn do_not_disturb_status() -> Result<DoNotDisturb, String> {
+    tauri::async_runtime::spawn_blocking(backend::do_not_disturb).await.err_str()
+}
+
+#[tauri::command]
+pub async fn set_do_not_disturb(enabled: bool) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || backend::set_do_not_disturb(enabled)).await.err_str()?
+}
+
 /// Espera a conexão terminar: assim o popover sabe se ela falhou.
 #[tauri::command]
 pub async fn bluetooth_connect(id: String) -> Result<(), String> {
@@ -191,7 +211,8 @@ pub async fn open_tray(app: tauri::AppHandle, window: tauri::WebviewWindow, anch
 }
 
 /// Abre os menus e apps nativos: `start`, `quick-settings`, `notifications`, `system-monitor`,
-/// `calendar`, `bluetooth`, `sound` e `network` (as configurações de Bluetooth, de som e de Wi-Fi).
+/// `calendar`, `bluetooth`, `sound`, `network` (as configurações de Bluetooth, de som e de Wi-Fi) e
+/// `do-not-disturb` (as configurações de notificações, no Windows).
 #[tauri::command]
 pub async fn open_shell(kind: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || backend::open_shell(&kind)).await.err_str()?

@@ -6,7 +6,7 @@ import { widgetSupported } from "../lib/platform";
 import { anyProfileWidget } from "../dock/profiles";
 import { useMedia } from "../hooks/useMedia";
 import { useGithub } from "../hooks/useGithub";
-import { useBluetooth, useKeyboardLayouts, useSystemStatus } from "../hooks/useSystem";
+import { useBluetooth, useDoNotDisturb, useKeyboardLayouts, useSystemStatus } from "../hooks/useSystem";
 import { useWeather } from "../hooks/useWeather";
 import { useCalendar } from "../hooks/useCalendar";
 import { useAiUsage } from "../hooks/useAiUsage";
@@ -28,6 +28,7 @@ export function DockWidgetsProvider({ config, children }: { config: Config; chil
   const weather = useWeather(enabled("weather"), place ? `${place.latitude},${place.longitude}` : undefined);
   const calendar = useCalendar(enabled("calendar"));
   const [bluetooth] = useBluetooth(enabled("bluetooth"));
+  const doNotDisturb = useDoNotDisturb(enabled("do-not-disturb"));
   const { keyboard } = useKeyboardLayouts(enabled("keyboard-layout"));
   const ai = useAiUsage(enabled("ai-usage") ? config.aiPollMinutes : undefined, config.aiProvider);
   const marketSymbols = `${config.marketTickers.join(",")}|${config.marketCoins.join(",")}`;
@@ -35,8 +36,8 @@ export function DockWidgetsProvider({ config, children }: { config: Config; chil
   const notes = useNotes(enabled("notes"));
   const weatherConfigured = !!place;
   useLayoutEffect(() => {
-    store.setState({ media, github, system, weather, calendar, bluetooth, keyboard, ai, market, notes, weatherConfigured });
-  }, [store, media, github, system, weather, calendar, bluetooth, keyboard, ai, market, notes, weatherConfigured]);
+    store.setState({ media, github, system, weather, calendar, bluetooth, doNotDisturb, keyboard, ai, market, notes, weatherConfigured });
+  }, [store, media, github, system, weather, calendar, bluetooth, doNotDisturb, keyboard, ai, market, notes, weatherConfigured]);
   return <WidgetStore.Provider value={store}>{children}</WidgetStore.Provider>;
 }
 
