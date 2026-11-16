@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ipc, type AppStream, type AudioState, type BluetoothState, type KeyboardLayouts, type SystemStatus, type Volume, type WifiState } from "../lib/ipc";
+import { ipc, type AppStream, type AudioState, type BluetoothState, type DoNotDisturbState, type KeyboardLayouts, type SystemStatus, type Volume, type WifiState } from "../lib/ipc";
 import { setActiveInterval } from "../lib/dockActivity";
 
 export function useSystemStatus(enabled = true): SystemStatus | null {
@@ -96,6 +96,31 @@ export function useBluetooth(enabled = true, intervalMs = 10_000): [BluetoothSta
     finally { await refresh(); }
   }, [refresh]);
   return [state, setPowered, refresh];
+}
+
+const doNotDisturbChanged = new EventTarget();
+
+/** Liga ou desliga o "Não incomodar" e faz `useDoNotDisturb` reler o estado na hora. */
+export async function setDoNotDisturb(enabled: boolean) {
+  try { await ipc.setDoNotDisturb(enabled); }
+  finally { doNotDisturbChanged.dispatchEvent(new Event("change")); }
+}
+
+/** O Windows não avisa quando o modo muda (Win+N, agendamento), então o estado é consultado a cada `intervalMs`. */
+export function useDoNotDisturb(enabled = true, intervalMs = 3_000): DoNotDisturbState | null {
+  const [state, setState] = useState<DoNotDisturbState | null>(null);
+  const refresh = useCallback(() => ipc.doNotDisturbStatus().then(setState).catch(() => {}), []);
+  useEffect(() => {
+    if (!enabled) return;
+    refresh();
+    doNotDisturbChanged.addEventListener("change", refresh);
+    const stop = setActiveInterval(refresh, intervalMs);
+    return () => {
+      doNotDisturbChanged.removeEventListener("change", refresh);
+      stop();
+    };
+  }, [enabled, intervalMs, refresh]);
+  return state;
 }
 
 /** Não há evento para a troca de layout, então o ativo é consultado a cada `intervalMs`. */

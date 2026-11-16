@@ -24,6 +24,7 @@ test("só a bandeja depende do sistema", () => {
   assert.equal(widgetSupported("clock"), true);
   assert.equal(widgetSupported("tray"), os === "windows");
   assert.equal(widgetSupported("keyboard-layout"), os === "windows");
+  assert.equal(widgetSupported("do-not-disturb"), os === "windows");
 });
 
 test("widget de uma versão mais nova não é suportado", () => {

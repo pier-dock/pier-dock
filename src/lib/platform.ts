@@ -7,8 +7,8 @@ export const detectOs = (ua: string): Os => (/Windows/i.test(ua) ? "windows" : /
 
 export const os: Os = detectOs(navigator.userAgent);
 
-/** A bandeja (ícones ocultos) e a troca de layout do teclado só existem no Windows. */
-const WINDOWS_ONLY = new Set(["tray", "keyboard-layout"]);
+/** A bandeja (ícones ocultos), a troca de layout do teclado e o "Não incomodar" só existem no Windows. */
+const WINDOWS_ONLY = new Set(["tray", "keyboard-layout", "do-not-disturb"]);
 
 /** A config pode trazer widgets de uma versão mais nova do app: ficam guardados, mas não aparecem. */
 const widgetKnown = (kind: string) => Object.prototype.hasOwnProperty.call(dict().widgets.info, kind);

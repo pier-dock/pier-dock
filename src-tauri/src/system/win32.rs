@@ -28,7 +28,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VIRTUAL_KEY, VK_A, VK_LWIN, VK_N,
 };
 
-use super::{kind_from_class, Battery, Bluetooth, BluetoothDevice, Network, Volume};
+use super::{kind_from_class, Battery, Bluetooth, BluetoothDevice, DoNotDisturb, Network, Volume};
 use crate::util::{com_init, windows_dir, ErrStr};
 
 pub fn battery() -> Battery {
@@ -178,6 +178,18 @@ pub fn set_bluetooth(powered: bool) -> Result<(), String> {
     Ok(())
 }
 
+/// Sem o objeto COM (versão do Windows sem o recurso) o widget cai para as configurações.
+pub fn do_not_disturb() -> DoNotDisturb {
+    match super::quiet_hours::status() {
+        Ok(enabled) => DoNotDisturb { available: true, enabled },
+        Err(_) => DoNotDisturb { available: false, enabled: false },
+    }
+}
+
+pub fn set_do_not_disturb(enabled: bool) -> Result<(), String> {
+    super::quiet_hours::set(enabled)
+}
+
 fn shell_open(target: &str) -> Result<(), String> {
     com_init();
     let result = unsafe {
@@ -196,6 +208,7 @@ pub fn open_shell(kind: &str) -> Result<(), String> {
         "bluetooth" => shell_open("ms-settings:bluetooth"),
         "sound" => shell_open("ms-settings:sound"),
         "network" => shell_open("ms-settings:network-wifi"),
+        "do-not-disturb" => shell_open("ms-settings:notifications"),
         _ => Err(format!("System action unavailable: {kind}")),
     }
 }

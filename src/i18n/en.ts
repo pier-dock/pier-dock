@@ -243,6 +243,9 @@ export const en: Dict = {
     volumeTile: (level, muted) => `Volume ${level}%${muted ? " (muted)" : ""} · scroll to adjust, right-click to mute`,
     battery: (percent, charging) => `Battery ${percent}%${charging ? " (charging)" : ""}`,
     showDesktop: "Show desktop",
+    doNotDisturb: "Do Not Disturb",
+    doNotDisturbOn: "on",
+    doNotDisturbOff: "off",
     keyboardLayout: "Keyboard layout",
   },
   power: { title: "Power mode", modes: { "power-saver": "Power save", balanced: "Balanced", performance: "Performance" }, unavailable: "Power mode switching is unavailable on this system.", failed: "Could not change the power mode. Try again." },
@@ -562,6 +565,7 @@ export const en: Dict = {
       battery: { summary: "Charge and whether it's charging.", name: "Battery", description: "Charge level and whether it's charging. Hidden on computers without a battery." },
       clock: { summary: "Time and date.", name: "Clock", description: "Time and date. Clicking opens a month calendar." },
       "show-desktop": { summary: "Minimizes everything and shows the desktop.", name: "Desktop", description: "Minimizes all windows and shows the desktop. Clicking again brings them back." },
+      "do-not-disturb": { summary: "Turns Do Not Disturb on and off.", name: "Do Not Disturb", description: "Turns Windows Do Not Disturb on and off with one click, without opening the notification center. The icon follows the mode, even when Windows changes it." },
       "keyboard-layout": { summary: "Active keyboard layout and quick switching.", name: "Keyboard layout", description: "The language code of the active keyboard layout (ENG, POR…). Clicking opens the installed layouts so you can switch. Windows only." },
       weather: { summary: "Current temperature and conditions.", name: "Weather", description: "Current temperature and conditions. Clicking opens the hourly and 5-day forecast." },
       market: {

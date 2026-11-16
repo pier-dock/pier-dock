@@ -243,6 +243,9 @@ export const pt = {
       `Volume ${level}%${muted ? " (mudo)" : ""} · role para ajustar, botão direito silencia`,
     battery: (percent: number, charging: boolean) => `Bateria ${percent}%${charging ? " (carregando)" : ""}`,
     showDesktop: "Mostrar área de trabalho",
+    doNotDisturb: "Não incomodar",
+    doNotDisturbOn: "ligado",
+    doNotDisturbOff: "desligado",
     keyboardLayout: "Layout do teclado",
   },
   power: { title: "Modo de energia", modes: { "power-saver": "Economia de energia", balanced: "Equilibrado", performance: "Desempenho" }, unavailable: "A troca de modo de energia não está disponível neste sistema.", failed: "Não foi possível trocar o modo de energia. Tente novamente." },
@@ -562,6 +565,7 @@ export const pt = {
       battery: { summary: "Carga e se está carregando.", name: "Bateria", description: "Carga e se está carregando. Some em computadores sem bateria." },
       clock: { summary: "Hora e data.", name: "Relógio", description: "Hora e data. O clique abre o calendário do mês." },
       "show-desktop": { summary: "Minimiza tudo e mostra a área de trabalho.", name: "Área de trabalho", description: "Minimiza todas as janelas e mostra a área de trabalho. Clicar de novo traz as janelas de volta." },
+      "do-not-disturb": { summary: "Liga e desliga o Não incomodar.", name: "Não incomodar", description: "Liga e desliga o Não incomodar do Windows com um clique, sem abrir o centro de notificações. O ícone acompanha o modo, mesmo quando ele muda pelo Windows." },
       "keyboard-layout": { summary: "Layout do teclado ativo e troca rápida.", name: "Layout do teclado", description: "O código do idioma do layout do teclado ativo (ENG, POR…). O clique abre os layouts instalados para trocar. Só no Windows." },
       weather: { summary: "Temperatura e condição agora.", name: "Clima", description: "Temperatura e condição agora. O clique abre a previsão por hora e para os próximos 5 dias." },
       market: {

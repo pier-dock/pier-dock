@@ -6,7 +6,7 @@ use objc2::rc::{autoreleasepool, Retained};
 use objc2_core_wlan::CWWiFiClient;
 use objc2_io_bluetooth::{BluetoothHCIPowerState, IOBluetoothDevice, IOBluetoothHostController};
 
-use super::{kind_from_class, Battery, Bluetooth, BluetoothDevice, Network, Volume};
+use super::{kind_from_class, Battery, Bluetooth, BluetoothDevice, DoNotDisturb, Network, Volume};
 use crate::platform::macos::ax::Element;
 use crate::platform::macos::{osascript, workspace};
 use crate::util::run;
@@ -129,6 +129,14 @@ pub fn disconnect_bluetooth(id: &str) -> Result<(), String> {
         0 => Ok(()),
         code => Err(format!("falha ao desconectar ({code:#x})")),
     }
+}
+
+pub fn do_not_disturb() -> DoNotDisturb {
+    DoNotDisturb { available: false, enabled: false }
+}
+
+pub fn set_do_not_disturb(_enabled: bool) -> Result<(), String> {
+    Err(crate::i18n::tr("o Não incomodar só existe no Windows", "Do Not Disturb only exists on Windows").into())
 }
 
 pub fn set_bluetooth(_powered: bool) -> Result<(), String> {

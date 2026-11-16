@@ -230,6 +230,8 @@ fn main() {
             keyboard::set_keyboard_layout,
             system::bluetooth_status,
             system::set_bluetooth,
+            system::do_not_disturb_status,
+            system::set_do_not_disturb,
             system::bluetooth_connect,
             system::bluetooth_disconnect,
             audio::audio_status,
