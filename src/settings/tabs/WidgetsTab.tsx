@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { ArrowDown, ArrowUp, Plus, Search, Settings, X } from "lucide-react";
-import type { BluetoothState, Config, KeyboardLayouts, WidgetConfig, WidgetGroup, WidgetKind, WidgetSize } from "../../lib/ipc";
+import type { BluetoothState, Config, DoNotDisturbState, KeyboardLayouts, WidgetConfig, WidgetGroup, WidgetKind, WidgetSize } from "../../lib/ipc";
 import { os, widgetSupported } from "../../lib/platform";
 import { activeGroups, moveAmong, widgetKey } from "../../dock/order";
 import { createGroupFromKinds, dissolveGroup, removeFromGroup } from "../../dock/groups";
@@ -41,6 +41,7 @@ const WIDGETS: Record<WidgetKind, { group: Group; tint: [string, string] }> = {
   battery: { group: "system", tint: ["#1E3A2A", "#20242C"] },
   clock: { group: "system", tint: ["#2A2A3A", "#3A1E2A"] },
   "show-desktop": { group: "system", tint: ["#2A2A3A", "#1E3A3A"] },
+  "do-not-disturb": { group: "system", tint: ["#2A2A3A", "#2E1E4A"] },
   "keyboard-layout": { group: "system", tint: ["#2A2A3A", "#1E3A4A"] },
   weather: { group: "productivity", tint: ["#1E3A6A", "#6A4A12"] },
   pomodoro: { group: "productivity", tint: ["#6A1E22", "#3A1A2A"] },
@@ -71,6 +72,9 @@ const inUse = (config: Config, widget: WidgetConfig) => widget.enabled || petOn(
 
 /** Com o widget desligado o Bluetooth não é consultado (no macOS isso pede permissão). */
 const SAMPLE_BLUETOOTH: BluetoothState = { available: true, powered: true, canToggle: false, canConnect: false, devices: [] };
+
+/** A prévia é inerte: não lê nem muda o "Não incomodar" de verdade. */
+const SAMPLE_DO_NOT_DISTURB: DoNotDisturbState = { available: true, enabled: true };
 
 const SAMPLE_KEYBOARD: KeyboardLayouts = { layouts: [{ id: "sample", code: "ENG", name: "English" }], active: "sample" };
 
@@ -325,6 +329,7 @@ export function WidgetsTab({ config, update, setFooter }: TabProps) {
     github: useGithub(),
     system: useSystemStatus(),
     bluetooth: enabled("bluetooth") ? bluetooth : SAMPLE_BLUETOOTH,
+    doNotDisturb: SAMPLE_DO_NOT_DISTURB,
     keyboard: SAMPLE_KEYBOARD,
     weather: useWeather(),
     weatherConfigured: !!config.weatherLocation,

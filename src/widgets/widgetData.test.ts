@@ -20,6 +20,14 @@ test("keyboard layout changes update only the keyboard layout widget", () => {
   }
 });
 
+test("do not disturb changes update only the do not disturb widget", () => {
+  const after = { ...EMPTY_WIDGET_DATA, doNotDisturb: { available: true, enabled: true } };
+  assert.equal(shallow(selectWidgetData("do-not-disturb", EMPTY_WIDGET_DATA), selectWidgetData("do-not-disturb", after)), false);
+  for (const kind of ["bluetooth", "battery", "keyboard-layout", "clock"] as const) {
+    assert.ok(shallow(selectWidgetData(kind, EMPTY_WIDGET_DATA), selectWidgetData(kind, after)));
+  }
+});
+
 test("weather configuration changes update weather but not other widgets", () => {
   const after = { ...EMPTY_WIDGET_DATA, weatherConfigured: true };
   assert.equal(selectWidgetData("weather", after).weatherConfigured, true);

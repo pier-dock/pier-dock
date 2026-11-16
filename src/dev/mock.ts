@@ -7,7 +7,7 @@
  * chama `listen` ao ser carregado. Dentro do Tauri ele não faz nada.
  */
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
-import type { AgentIntegration, AgentSession, AiUsage, AppEntry, BluetoothState, CalendarData, Config, GithubData, KeyboardLayouts, MarketData, MediaState, Note, PomodoroState, SystemUsage, WeatherData, WindowsSnapshot } from "../lib/ipc";
+import type { AgentIntegration, AgentSession, AiUsage, AppEntry, BluetoothState, CalendarData, Config, DoNotDisturbState, GithubData, KeyboardLayouts, MarketData, MediaState, Note, PomodoroState, SystemUsage, WeatherData, WindowsSnapshot } from "../lib/ipc";
 import { PANEL_INSET, panelSize } from "../popovers/sizes";
 
 const insideTauri = "__TAURI_INTERNALS__" in window;
@@ -30,6 +30,8 @@ function iconDataUrl(color: string, init: string): string {
 }
 
 const power = { profiles: ["power-saver", "balanced", "performance"], active: "balanced", canSet: true };
+
+let doNotDisturb: DoNotDisturbState = { available: true, enabled: false };
 
 let bluetooth: BluetoothState = {
   available: true,
@@ -74,6 +76,7 @@ const config: Config = {
     { kind: "market", enabled: params.has("new"), size: "wide" },
     { kind: "notes", enabled: params.has("new"), size: "wide" },
     { kind: "show-desktop", enabled: params.has("new"), size: "small" },
+    { kind: "do-not-disturb", enabled: params.has("new"), size: "small" },
     { kind: "keyboard-layout", enabled: params.has("new"), size: "small" },
     { kind: "pokemon", enabled: false, size: "small" },
   ],
@@ -495,6 +498,11 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   }),
   keyboard_layouts: () => keyboard,
   set_keyboard_layout: (args) => { keyboard = { ...keyboard, active: String(args.id) }; },
+  do_not_disturb_status: () => doNotDisturb,
+  set_do_not_disturb: (args) => {
+    doNotDisturb = { ...doNotDisturb, enabled: Boolean(args.enabled) };
+    return null;
+  },
   bluetooth_status: () => bluetooth,
   set_bluetooth: (args) => {
     bluetooth = { ...bluetooth, powered: Boolean(args.powered) };

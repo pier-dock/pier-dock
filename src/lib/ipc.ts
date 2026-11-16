@@ -23,6 +23,7 @@ export type WidgetKind =
   | "battery"
   | "clock"
   | "show-desktop"
+  | "do-not-disturb"
   | "keyboard-layout"
   | "weather"
   | "pomodoro"
@@ -267,6 +268,12 @@ export interface BluetoothState {
   canConnect: boolean;
   /** Os pareados, com os conectados primeiro. */
   devices: BluetoothDevice[];
+}
+
+export interface DoNotDisturbState {
+  /** O sistema deixa o Pier ler e mudar o "Não incomodar"; senão o clique abre as configurações. */
+  available: boolean;
+  enabled: boolean;
 }
 
 export interface WeatherData {
@@ -575,6 +582,8 @@ export const ipc = {
   systemStatus: () => invoke<SystemStatus>("system_status"),
   bluetoothStatus: () => invoke<BluetoothState>("bluetooth_status"),
   setBluetooth: (powered: boolean) => invoke<void>("set_bluetooth", { powered }),
+  doNotDisturbStatus: () => invoke<DoNotDisturbState>("do_not_disturb_status"),
+  setDoNotDisturb: (enabled: boolean) => invoke<void>("set_do_not_disturb", { enabled }),
   keyboardLayouts: () => invoke<KeyboardLayouts>("keyboard_layouts"),
   setKeyboardLayout: (id: string) => invoke<void>("set_keyboard_layout", { id }),
   bluetoothConnect: (id: string) => invoke<void>("bluetooth_connect", { id }),
@@ -582,7 +591,7 @@ export const ipc = {
   getVolume: () => invoke<Volume>("get_volume"),
   setVolume: (args: { level?: number; muted?: boolean }) => invoke<void>("set_volume", args),
   openTray: (anchorX: number, anchorY: number) => invoke<void>("open_tray", { anchorX, anchorY }),
-  openShell: (kind: "start" | "quick-settings" | "notifications" | "system-monitor" | "calendar" | "bluetooth" | "sound" | "network" | "audio-capture") =>
+  openShell: (kind: "start" | "quick-settings" | "notifications" | "system-monitor" | "calendar" | "bluetooth" | "sound" | "network" | "do-not-disturb" | "audio-capture") =>
     invoke<void>("open_shell", { kind }),
   powerProfiles: () => invoke<PowerProfiles>("power_profiles"),
   setPowerProfile: (profile: string) => invoke<void>("set_power_profile", { profile }),

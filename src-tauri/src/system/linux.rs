@@ -6,7 +6,7 @@ use std::path::Path;
 
 use zbus::zvariant::OwnedValue;
 
-use super::{Battery, Bluetooth, BluetoothDevice, Network, Volume};
+use super::{Battery, Bluetooth, BluetoothDevice, DoNotDisturb, Network, Volume};
 use crate::platform::linux::{dbus, gnome_shell, x11};
 use crate::util::{run, spawn_detached};
 
@@ -159,6 +159,14 @@ fn bluetooth_from_objects(objects: &[(String, Interfaces)]) -> Bluetooth {
 
 pub fn bluetooth() -> Bluetooth {
     bluez_objects().map(|objects| bluetooth_from_objects(&objects)).unwrap_or_else(Bluetooth::absent)
+}
+
+pub fn do_not_disturb() -> DoNotDisturb {
+    DoNotDisturb { available: false, enabled: false }
+}
+
+pub fn set_do_not_disturb(_enabled: bool) -> Result<(), String> {
+    Err(crate::i18n::tr("o Não incomodar só existe no Windows", "Do Not Disturb only exists on Windows").into())
 }
 
 pub fn set_bluetooth(powered: bool) -> Result<(), String> {
